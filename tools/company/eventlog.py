@@ -42,7 +42,7 @@ EVENTS = {
     "WORKER_EXITED", "ESCALATION_RAISED", "ESCALATION_RESOLVED", "TASK_COMPLETED",
     "STATUS_CHANGED", "OWNERSHIP_BLOCKED", "BRANCH_GUARD_BLOCKED",
     "BASELINE_RECORDED", "ADVISORY_FINDING", "ADVISORY_RESOLVED",
-    "SECRET_READ_BLOCKED",
+    "SECRET_READ_BLOCKED", "LESSON_RECORDED",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event
@@ -57,6 +57,9 @@ REQUIRES_EVIDENCE = {
     # ADVISORY_RESOLVED is deliberately absent: closing a finding is a decision,
     # not a factual assertion.
     "BASELINE_RECORDED", "ADVISORY_FINDING",
+    # A lesson without evidence of what actually happened is a vague feeling,
+    # not a pattern — the exact thing this event exists to be more than.
+    "LESSON_RECORDED",
 }
 
 # Gate name -> the event that satisfies it. Used by the Evidence Rule.

@@ -859,6 +859,30 @@ def cmd_advise_finding(args):
     emit({"ok": True, **data})
 
 
+def cmd_lesson(args):
+    """Record a repeatable pattern, or list what's already been recorded.
+
+    `--pattern` present -> record. Absent -> list, oldest first, so a fresh
+    session can check what this repo has already learned before repeating it.
+    """
+    import lessons
+    root = company_root(args)
+    if args.pattern:
+        if not args.evidence or not args.fix:
+            die("--pattern requires --evidence and --fix", 1)
+        project = load_project(root, args.project)
+        actor = args.actor or os.environ.get("COMPANY_ACTOR")
+        try:
+            data = lessons.record(root, project=project, pattern=args.pattern,
+                                  evidence=args.evidence, fix=args.fix, actor=actor)
+        except ValueError as exc:
+            die(str(exc), 2)
+        emit({"ok": True, **data})
+    else:
+        project = args.project or os.environ.get("COMPANY_PROJECT")
+        emit({"ok": True, "lessons": lessons.fold(EventLog(root).read(), project)})
+
+
 def cmd_escalate(args):
     """Ask the CEO for something the PM cannot do or decide."""
     import escalations
@@ -1090,6 +1114,14 @@ def build_parser():
                     help="mark a suspicion you could not confirm")
     af.add_argument("--project")
     af.set_defaults(fn=cmd_advise_finding)
+
+    ls = sub.add_parser("lesson", help="record a repeatable pattern, or list what's recorded")
+    ls.add_argument("--pattern", help="what kept happening — provide to record a new lesson")
+    ls.add_argument("--evidence", help="what actually happened (required with --pattern)")
+    ls.add_argument("--fix", help="the fix that was actually applied (required with --pattern)")
+    ls.add_argument("--actor")
+    ls.add_argument("--project")
+    ls.set_defaults(fn=cmd_lesson)
 
     es = sub.add_parser("escalate", help="ask the CEO for something the PM cannot do")
     es.add_argument("--kind", required=True,

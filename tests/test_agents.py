@@ -111,6 +111,14 @@ class TestAgentDefinitions(unittest.TestCase):
         self.assertIn("Never add motion, gradients", text)
         self.assertIn("fake KPI", text)
 
+    def test_pm_records_lessons_from_corrections(self):
+        """Before this, a correction only became durable via a personal habit
+        (hand-writing tasks/lessons.md) — invisible to Company OS itself and
+        to any other project. This pins that the PM actually uses the
+        durable, queryable mechanism instead."""
+        text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
+        self.assertIn("company lesson", text)
+
     def test_worker_agents_carry_context_discipline(self):
         for name in ("backend-engineer", "frontend-engineer", "code-reviewer",
                      "qa-engineer", "security-reviewer"):

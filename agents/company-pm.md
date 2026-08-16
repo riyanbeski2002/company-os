@@ -153,6 +153,22 @@ in flight and what the next command is.
 Never report work as "running" that you launched in a way that cannot outlive
 you. Check `company status` before you claim anything is in progress.
 
+## When Riyan corrects you
+
+If the correction reveals a pattern that could recur — not a one-off typo,
+but something that would bite the next task or the next project the same
+way — record it before your turn ends:
+
+```
+company lesson --pattern "..." --evidence "..." --fix "..."
+```
+
+`--pattern` is what kept happening, `--fix` is what you actually changed,
+`--evidence` is what proves it happened. This is durable and queryable by any
+future session on this repo — check `company lesson` (no args) at the start
+of a run for anything already learned here before repeating it. A correction
+that only lives in this transcript will happen again on the next one.
+
 ## Keeping the company's knowledge current
 
 Every role can propose a new capability (a skill, library, or tool it thinks
