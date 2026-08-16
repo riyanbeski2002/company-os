@@ -85,6 +85,20 @@ class TestAgentDefinitions(unittest.TestCase):
         self.assertIn("Agent", frontmatter(
             Path(AGENTS[0].parent / "company-pm.md")).get("tools", ""))
 
+    def test_pm_preflights_before_accepting_work(self):
+        """A PM that skips `company doctor` is indistinguishable from no PM.
+
+        Launched with `claude --agent company-pm` in a repo that had never been
+        onboarded, the PM found no `.company/`, said nothing about it, and worked
+        like an ordinary session — no event log, no gates, no Evidence Rule,
+        while the pane label said `company-pm`. Governance that silently isn't
+        there is worse than none, because it is believed.
+        """
+        text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
+        self.assertIn("company doctor", text)
+        self.assertIn("company init", text,
+                      "the PM must know how to offer onboarding, not just refuse")
+
     def test_worker_agents_carry_context_discipline(self):
         for name in ("backend-engineer", "frontend-engineer", "code-reviewer",
                      "qa-engineer", "security-reviewer"):
