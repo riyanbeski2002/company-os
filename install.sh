@@ -52,6 +52,28 @@ for src in "$ROOT"/agents/*.md; do
 done
 echo "  agents    $(ls "$ROOT"/agents/*.md | wc -l | tr -d ' ') linked into $CLAUDE_DIR/agents ($linked new)"
 
+# --- 2b. skills, same reasoning as agents above: a skill inside this repo is
+# invisible to Claude Code unless it is symlinked into a surface it actually
+# scans. Getting this wrong once already cost a debugging session
+# (pluginDirectories, see the note in §3) — do not repeat that mistake here.
+mkdir -p "$CLAUDE_DIR/skills"
+skill_linked=0
+skill_count=0
+for src in "$ROOT"/skills/*/; do
+  [[ -d "$src" ]] || continue
+  name="$(basename "$src")"
+  skill_count=$((skill_count + 1))
+  dst="$CLAUDE_DIR/skills/$name"
+  if [[ -L "$dst" && "$(readlink "$dst")" == "${src%/}" ]]; then continue; fi
+  if [[ -e "$dst" && ! -L "$dst" ]]; then
+    echo "  skills    SKIPPED $name — a real directory is already there"
+    continue
+  fi
+  ln -sfn "${src%/}" "$dst"
+  skill_linked=$((skill_linked + 1))
+done
+echo "  skills    $skill_count linked into $CLAUDE_DIR/skills ($skill_linked new)"
+
 # --- 3. hooks + CLAUDE.md pointer -------------------------------------------
 python3 - "$SETTINGS" "$ROOT" "$CLAUDE_DIR/CLAUDE.md" <<'PY'
 import json, shutil, sys

@@ -1,0 +1,25 @@
+# Capability registry — what has been vetted for THIS repo, by whom, and when.
+#
+# Written to ONLY by company-pm, and only after Riyan approves a proposal
+# raised through the `capability-curator` skill (see skills/capability-curator/
+# SKILL.md). Every other role is read-only against this file by construction —
+# a proposal that could silently self-approve is not a proposal.
+#
+# Trust tiers, from skills/capability-curator/SKILL.md:
+#   T0 Company OS itself   T1 Anthropic official   T2 pinned trusted third party
+#   T3 community/experimental (manual use only)    T4 unknown (reference only)
+#
+# Empty on a fresh repo. An entry looks like:
+#
+# entries:
+#   - id: example-resource
+#     type: skill | mcp-server | library | component-registry
+#     purpose: "one line — what it's for and why it was proposed"
+#     trust_tier: T2
+#     source: "github.com/owner/repo"
+#     license: MIT
+#     approved_by: riyan
+#     approved_at: "2026-08-16"
+#     checked_at: "2026-08-16"
+
+entries: []

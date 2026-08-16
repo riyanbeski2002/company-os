@@ -137,6 +137,14 @@ class TestInstallDiscoverability(unittest.TestCase):
         text = (Path(__file__).resolve().parent.parent / "install.sh").read_text()
         self.assertIn("$CLAUDE_DIR/agents", text)
 
+    def test_installer_links_skills_into_user_scope(self):
+        """Skills have the exact same visibility problem agents had — a file
+        inside this repo is invisible to Claude Code unless it is symlinked
+        into a directory Claude actually scans. capability-curator would have
+        silently never loaded without this."""
+        text = (Path(__file__).resolve().parent.parent / "install.sh").read_text()
+        self.assertIn("$CLAUDE_DIR/skills", text)
+
     def test_installer_registers_hooks_with_absolute_paths(self):
         text = (Path(__file__).resolve().parent.parent / "install.sh").read_text()
         for script in ("guard_paths.py", "protect_branches.py", "guard_secrets.py", "emit_exit.py"):
