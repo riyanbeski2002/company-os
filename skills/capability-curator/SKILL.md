@@ -42,6 +42,26 @@ A resource's popularity or how recently it shipped is not evidence of T2 —
 license, maintainer, and what it actually does to a session (new dependency?
 new hook? new MCP server? network access?) are.
 
+## Data classification gates what a query may contain
+
+`.company/config/project.yaml` carries `data_classification`: `PUBLIC`,
+`INTERNAL`, `CONFIDENTIAL`, or `SECRET` (defaults to `INTERNAL`). It governs
+what a `WebSearch`/`WebFetch` query during research may contain — a search
+query is data leaving this repo, same as any other external call.
+
+```
+PUBLIC / INTERNAL    — generic technique questions freely.
+                        Still never paste proprietary business logic,
+                        customer data, or unreleased-feature details.
+CONFIDENTIAL / SECRET — technique-only queries. "What's the current
+                        recommended way to rate-limit a public API" is fine.
+                        "How do I fix this bug in <this repo's specific
+                        pricing logic>" is not — genericise the question
+                        before it leaves this repo, or don't ask it.
+```
+
+When in doubt, treat the repo as more sensitive than stated, not less.
+
 ## The flow
 
 ```

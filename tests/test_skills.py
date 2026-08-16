@@ -59,6 +59,15 @@ class TestCapabilityCuratorSkill(unittest.TestCase):
         text = self.path.read_text(encoding="utf-8")
         self.assertIn("never the one who edits", text)
 
+    def test_gates_research_queries_by_data_classification(self):
+        """A WebSearch query is data leaving the repo, same as any other
+        external call — CONFIDENTIAL/SECRET repos must not leak business
+        specifics into it."""
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("data_classification", text)
+        for tier in ("PUBLIC", "INTERNAL", "CONFIDENTIAL", "SECRET"):
+            self.assertIn(tier, text)
+
 
 class TestUxFlowSkill(unittest.TestCase):
     def setUp(self):

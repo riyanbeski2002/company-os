@@ -607,7 +607,13 @@ def cmd_detect(args):
                   "default_branch": result["default_branch"],
                   "verify": existing.get("verify") or result["verify"],
                   "verify_strategy": result["verify_strategy"],
-                  "verify_strength": result["verify_strength"]}
+                  "verify_strength": result["verify_strength"],
+                  # PUBLIC | INTERNAL | CONFIDENTIAL | SECRET. Governs what
+                  # capability-curator may put in an external research query —
+                  # see skills/capability-curator/SKILL.md. Defaults to the
+                  # conservative middle tier; Riyan edits this file directly
+                  # to change it, same as `verify`.
+                  "data_classification": existing.get("data_classification", "INTERNAL")}
         cfg.write_text(yaml.safe_dump(merged, sort_keys=True), encoding="utf-8")
         result["written"] = str(cfg)
     emit(result)

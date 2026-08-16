@@ -75,6 +75,31 @@ class TestOnboardFreshRepo(unittest.TestCase):
         baseline_check = next(c for c in out["checks"] if c["check"] == "baseline recorded")
         self.assertTrue(baseline_check["ok"])
 
+    def test_detect_defaults_data_classification_to_internal(self):
+        """Governs what capability-curator may put in an external research
+        query (see that skill) — needs a sane default on every repo, not just
+        ones where someone remembered to set it."""
+        import yaml
+        self._run("init")
+        result = self._run("detect", "--write")
+        out = json.loads(result.stdout)
+        cfg = yaml.safe_load(Path(out["written"]).read_text())
+        self.assertEqual(cfg["data_classification"], "INTERNAL")
+
+    def test_detect_preserves_an_explicitly_set_classification(self):
+        self._run("init")
+        self._run("detect", "--write")
+        cfg_path = self.repo / ".company" / "config" / "project.yaml"
+        import yaml
+        data = yaml.safe_load(cfg_path.read_text())
+        data["data_classification"] = "SECRET"
+        cfg_path.write_text(yaml.safe_dump(data))
+
+        result = self._run("detect", "--write")
+        out = json.loads(result.stdout)
+        data = yaml.safe_load(Path(out["written"]).read_text())
+        self.assertEqual(data["data_classification"], "SECRET")
+
     def test_onboard_stops_at_the_first_real_failure(self):
         """A repo with no test script at all can init/detect fine but has
         nothing for baseline to run — onboard must stop there, not paper over
