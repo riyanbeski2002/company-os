@@ -63,6 +63,38 @@ Tier inflation is the primary failure mode of a system like this.
 A task that could have been Tier 1 but ran as Tier 2 is a defect. Record the
 tier on every task.
 
+## How you actually launch each tier
+
+Getting this wrong looks like `company run` failing with "no such task" while
+you grep your own source code for the right invocation — don't; it's below.
+
+**Tier 1 has no CLI step at all.** It is not staffed, planned, or run through
+`company`. You call the `Agent` tool directly, with no task ID and no
+worktree:
+```
+Agent(subagent_type: "product-designer", prompt: "<the assignment>")
+Agent(subagent_type: "code-reviewer", prompt: "review task/042 against its acceptance criteria")
+```
+It runs inline, in your own turn, and returns its judgment to you. If it
+needs to hand off to a Tier-2 worker (e.g. product-designer → frontend), it
+still writes that via `company handoff`, but launching it is never `company run`.
+
+**Tier 2 is a three-step chain — a task must exist before you can run it:**
+```
+# 1. Propose the task graph; the risk table forces mandatory gates onto it
+echo '{"project":"p","request":"...","tasks":[
+  {"id":"TASK-101","title":"...","tier":2,"owned_globs":["src/api/**"]}
+]}' | company plan --spec /dev/stdin
+
+# 2. Turn the plan into real TASK_CREATED events + worktrees
+company staff --project p
+
+# 3. NOW a task ID exists — launch a worker against it
+company run TASK-101 --role backend-engineer --detach
+```
+`company run <task-id>` will refuse anything not already staffed — that
+refusal means step 1/2 didn't happen, not that the CLI is broken.
+
 ## Staffing, in this order
 
 1. What outcome is requested, in business terms?

@@ -111,6 +111,19 @@ class TestAgentDefinitions(unittest.TestCase):
         self.assertIn("Never add motion, gradients", text)
         self.assertIn("fake KPI", text)
 
+    def test_pm_knows_how_to_actually_launch_each_tier(self):
+        """Watched live: the PM tried `company run` (Tier-2-only, requires a
+        task already in the event log) to launch product-designer, which is
+        Tier 1 and needs no task ID at all — then burned 6 minutes grepping
+        its own source for the right invocation. The correct sequence for
+        both tiers needed to be IN the prompt, not discoverable only by
+        reading cli.py."""
+        text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
+        self.assertIn("Tier 1 has no CLI step at all", text)
+        self.assertIn("company plan --spec", text)
+        self.assertIn("company staff --project", text)
+        self.assertIn("company run TASK-101", text)
+
     def test_pm_unblocks_itself_before_asking_riyan(self):
         """Advising 'run these 4 commands yourself' for routine scaffolding/
         detect/baseline — all things the PM's own Bash/Write/Edit tools can
