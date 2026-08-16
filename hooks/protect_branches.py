@@ -20,6 +20,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "company"
 
 PROTECTED_BRANCHES = ("main", "master", "develop", "integration")
 
+# `guard_secrets.py` blocks the Read/Grep tools; a worker can trivially read
+# the same file's contents via Bash instead (`cat .env`, `head secrets.yaml`).
+# Deliberately not exhaustive — obfuscated reads (`python3 -c "print(open(...))"`,
+# base64 pipelines) are not caught, same pattern-matching caveat as
+# ESCAPE_PATTERNS below. This catches the common, unobfuscated shapes.
+SECRET_READ_TOOLS = r"(?:cat|less|more|head|tail|od|xxd|strings|bat)"
+SECRET_FILE_PATTERN = (
+    r"(\.env\b|\.env\.\S*|secrets?\S*\.(?:json|ya?ml)|"
+    r"\bsecrets/\S+|\bkeys/\S+\.(?:json|pem|key)|id_rsa\S*|\.pem\b|credentials\.json)"
+)
+
 RULES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bgit\s+push\b.*(--force\b|--force-with-lease\b|\s-f\b)"),
      "force-push"),
@@ -38,6 +49,9 @@ RULES: list[tuple[re.Pattern[str], str]] = [
      "recursive delete of a root, home, or top-level path"),
     (re.compile(r"\bgit\s+(commit|add)\b.*(\.env\b|\.env\.|id_rsa|\.pem\b|credentials\.json|secrets?\.(json|ya?ml))"),
      "committing a secret or environment file"),
+    (re.compile(r"\b%s\b[^;|&\n]*%s" % (SECRET_READ_TOOLS, SECRET_FILE_PATTERN)),
+     "reading a secret or environment file's contents via shell "
+     "(the Read/Grep tools are already blocked for this — see guard_secrets.py)"),
     (re.compile(r"\bgit\s+worktree\s+remove\b"),
      "worktree removal (worktrees are preserved on failure, never auto-deleted)"),
 ]

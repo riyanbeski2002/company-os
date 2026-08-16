@@ -41,6 +41,17 @@ class TestDangerousCommands(unittest.TestCase):
     def test_blocks_secret_commit(self):
         self.assertIsNotNone(blocked_by_rule("git add .env && git commit -m x"))
 
+    def test_blocks_reading_secret_via_shell(self):
+        """guard_secrets.py only covers the Read/Grep tools; `cat .env` is the
+        same information exposure via Bash instead."""
+        for cmd in ("cat .env", "head -20 secrets.yaml", "less config/secrets.json",
+                    "tail -f .env.production"):
+            self.assertIsNotNone(blocked_by_rule(cmd), cmd)
+
+    def test_allows_ordinary_reads(self):
+        for cmd in ("cat README.md", "head -5 CHANGELOG.md", "cat src/api/keys.py"):
+            self.assertIsNone(blocked_by_rule(cmd), cmd)
+
     def test_blocks_worktree_removal(self):
         self.assertIsNotNone(blocked_by_rule("git worktree remove foo"))
 

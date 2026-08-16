@@ -139,7 +139,7 @@ class TestInstallDiscoverability(unittest.TestCase):
 
     def test_installer_registers_hooks_with_absolute_paths(self):
         text = (Path(__file__).resolve().parent.parent / "install.sh").read_text()
-        for script in ("guard_paths.py", "protect_branches.py", "emit_exit.py"):
+        for script in ("guard_paths.py", "protect_branches.py", "guard_secrets.py", "emit_exit.py"):
             self.assertIn(script, text)
 
 if __name__ == "__main__":

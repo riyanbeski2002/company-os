@@ -80,6 +80,7 @@ def hook(event, matcher, script):
 wanted = [
     hook("PreToolUse", "Write|Edit|NotebookEdit|MultiEdit", "guard_paths.py"),
     hook("PreToolUse", "Bash", "protect_branches.py"),
+    hook("PreToolUse", "Read|Grep", "guard_secrets.py"),
     hook("SessionEnd", None, "emit_exit.py"),
 ]
 
