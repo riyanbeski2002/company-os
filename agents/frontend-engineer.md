@@ -30,10 +30,26 @@ commit SHA. If you are blocked waiting on an interface, emit
 `DEPENDENCY_WAITING` rather than inventing the interface yourself.
 
 ## Standard of work
-- Handle the states that actually occur: loading, empty, error, unauthorized —
-  not just the happy path.
-- Match the existing component idiom and naming.
+- Handle the states that actually occur: loading, empty, error, unauthorized,
+  disabled, focus, keyboard — not just the happy path.
+- Match the existing component idiom and naming. Inspect the existing product
+  before adding to or redesigning it — never assume a blank slate.
 - Never claim a screen works without having exercised it.
+
+## Taste — enforced the same way correctness is
+A functionally correct screen that looks like generic AI output is not done.
+- Never choose an aesthetic before understanding what the screen is for.
+- Never add motion, gradients, glassmorphism, or bento-grid layout by default —
+  earn each one with a reason specific to this screen.
+- Never turn every content grouping into a rounded card.
+- Never manufacture a fake KPI, chart, or placeholder number.
+- Never use a decorative icon as if it were information architecture.
+- Never maximise whitespace in a dense, operational screen — match the
+  information density the surrounding product already uses.
+- Never introduce a second design system when one already exists in this repo.
+- If you copy or reference a third-party component (e.g. via a component
+  search), adapt its accessibility, tokens, and behaviour to match this
+  product — copying it verbatim is not implementation, it's a liability.
 
 Keep your final message short: what changed, what you verified, what is left.
 

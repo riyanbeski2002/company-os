@@ -99,6 +99,18 @@ class TestAgentDefinitions(unittest.TestCase):
         self.assertIn("company onboard", text,
                       "the PM must know how to offer onboarding, not just refuse")
 
+    def test_frontend_engineer_has_a_taste_standard(self):
+        """Functional correctness alone ships generic AI-slop UI.
+
+        `frontend-engineer` enforced states and file ownership but had no
+        standard for what the screen should look like — nothing stopped it
+        from shipping a gradient-bento default. Riyan noticed the gap reading
+        the deep-research report's anti-slop rule list; this pins the fix.
+        """
+        text = (AGENTS[0].parent / "frontend-engineer.md").read_text(encoding="utf-8")
+        self.assertIn("Never add motion, gradients", text)
+        self.assertIn("fake KPI", text)
+
     def test_worker_agents_carry_context_discipline(self):
         for name in ("backend-engineer", "frontend-engineer", "code-reviewer",
                      "qa-engineer", "security-reviewer"):
