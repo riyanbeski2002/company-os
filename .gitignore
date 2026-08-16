@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+
+# Operational state, if Company OS is ever pointed at its own repo.
+.company/worktrees/
+.company/state/
+.claude/worktrees/

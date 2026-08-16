@@ -1,0 +1,25 @@
+# Budgets and the kill switch (D7). V1 features, not V2.
+#
+# Exceeding the concurrency cap QUEUES rather than spawns. A system that
+# silently exceeds its own budget is not budgeted.
+
+# Maximum Tier-2 worker processes running at once, across every project in
+# this repo. Independently launched `company run` calls respect it too — the
+# cap is held in .company/state/slots/, not in one supervisor's memory.
+max_concurrent_workers: 4
+
+# How long `company run` waits for a free slot before giving up.
+queue_timeout_s: 1800
+
+# Default per-task wall clock. SIGTERM at the deadline: it aborts the turn,
+# tears down the child process tree, and still runs SessionEnd hooks.
+task_timeout_s: 1800
+
+# Default turn ceiling. There is no --max-turns CLI flag in Claude Code
+# v2.1.233, so this is applied through each agent's `maxTurns` frontmatter.
+max_turns: 60
+
+# Treat a worker as stalled if it has written no event for this long AND its
+# process is gone. Liveness first, elapsed time second — long-running but
+# productive work is never killed.
+heartbeat_stall_s: 900

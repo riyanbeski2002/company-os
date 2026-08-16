@@ -1,0 +1,8 @@
+{
+  "name": "company-os",
+  "version": "0.1.0",
+  "description": "An organisational operating layer over Claude Code: a PM that staffs work, isolated workers, an append-only event log as the source of truth, and gates that cannot be self-certified.",
+  "author": {
+    "name": "Riyan"
+  }
+}

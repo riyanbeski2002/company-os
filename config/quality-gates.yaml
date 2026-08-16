@@ -1,0 +1,32 @@
+# Gate definitions (D4, D6).
+#
+# `event` is what the Evidence Rule looks for in the log before it will allow a
+# task into DONE. `actor_role` is who may author it — and the state machine
+# additionally refuses any gate event authored by the task's own owner, so a
+# gated change can never be self-certified.
+
+gates:
+  review:
+    event: REVIEW_PASSED
+    fail_event: REVIEW_FAILED
+    actor_role: code-reviewer
+    tier: 1
+    description: Independent correctness and fit review of the task branch.
+
+  qa:
+    event: QA_PASSED
+    fail_event: QA_FAILED
+    actor_role: qa-engineer
+    tier: 1
+    description: Independent verification against the acceptance criteria.
+
+  security:
+    event: SECURITY_REVIEW_PASSED
+    fail_event: SECURITY_REVIEW_FAILED
+    actor_role: security-reviewer
+    tier: 1
+    description: Independent security review. Activated by the risk table, not on request.
+
+# Gate ordering when several apply. Cheap and broad first, expensive and narrow
+# last, so an obviously-wrong change is rejected before a specialist looks at it.
+order: [review, qa, security]
