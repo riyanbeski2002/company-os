@@ -92,5 +92,29 @@ class TestAgentDefinitions(unittest.TestCase):
             self.assertIn("Keep your own context small", text)
 
 
+
+class TestInstallDiscoverability(unittest.TestCase):
+    """Agents must resolve from any directory, not just this repo.
+
+    `install.sh` originally wrote a `pluginDirectories` key into settings.json.
+    No such setting exists — it silently did nothing, and `--agent company-pm`
+    failed everywhere with "agent not found". User-scope `~/.claude/agents/`
+    is the surface that actually loads in every project.
+    """
+
+    def test_installer_does_not_use_the_invented_setting(self):
+        text = (Path(__file__).resolve().parent.parent / "install.sh").read_text()
+        self.assertNotIn('setdefault("pluginDirectories"', text)
+        self.assertIn("agents", text)
+
+    def test_installer_links_agents_into_user_scope(self):
+        text = (Path(__file__).resolve().parent.parent / "install.sh").read_text()
+        self.assertIn("$CLAUDE_DIR/agents", text)
+
+    def test_installer_registers_hooks_with_absolute_paths(self):
+        text = (Path(__file__).resolve().parent.parent / "install.sh").read_text()
+        for script in ("guard_paths.py", "protect_branches.py", "emit_exit.py"):
+            self.assertIn(script, text)
+
 if __name__ == "__main__":
     unittest.main()
