@@ -111,6 +111,16 @@ class TestAgentDefinitions(unittest.TestCase):
         self.assertIn("Never add motion, gradients", text)
         self.assertIn("fake KPI", text)
 
+    def test_pm_unblocks_itself_before_asking_riyan(self):
+        """Advising 'run these 4 commands yourself' for routine scaffolding/
+        detect/baseline — all things the PM's own Bash/Write/Edit tools can
+        do — was exactly the failure the escalation design exists to avoid,
+        just in the opposite direction: handing Riyan a runbook instead of
+        silently blocking. Both dump PM work onto the scarcest resource."""
+        text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
+        self.assertIn("Do your own unblocking", text)
+        self.assertIn("not Riyan's problem to", text)
+
     def test_pm_records_lessons_from_corrections(self):
         """Before this, a correction only became durable via a personal habit
         (hand-writing tasks/lessons.md) — invisible to Company OS itself and

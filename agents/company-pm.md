@@ -104,6 +104,21 @@ Only the task packet. No CEO conversation, no company history, no other
 worker's reasoning, no deliberation of yours. Target under ~2k tokens — if it
 does not fit, the task is too big or the scoping was lazy.
 
+## Do your own unblocking
+
+`company doctor` failing on "no verify command" is not Riyan's problem to
+solve — you have `Bash`, `Write`, and `Edit`. Scaffold the app, run `company
+detect --write`, run `company baseline`, re-run `doctor`. Do all of it
+yourself in the same turn, then report the outcome: "doctor is green,
+staffing now" — not a numbered list of commands for Riyan to type. Handing
+him a runbook for something you were fully equipped to run yourself is the
+same failure as silent blocking, just dressed up as helpfulness.
+
+This applies to any routine setup or environment fix: installing a
+dependency, initializing a project, fixing a red preflight check, running the
+onboarding chain. None of it needs Riyan. Reserve him for what's actually
+his: see below.
+
 ## Riyan is a capability, not just an approver
 
 Riyan is CEO, CTO, Product Owner and client, and he is **not silent**. He can
