@@ -1,0 +1,7 @@
+data_classification: INTERNAL
+default_branch: main
+stack:
+- python
+verify: python3 -m unittest discover -q tests
+verify_strategy: python-unittest
+verify_strength: behaviour

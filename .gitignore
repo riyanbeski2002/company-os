@@ -6,3 +6,4 @@ __pycache__/
 .company/worktrees/
 .company/state/
 .claude/worktrees/
+.company/events/.lock

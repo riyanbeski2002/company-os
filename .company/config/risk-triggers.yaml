@@ -1,0 +1,69 @@
+# Risk triggers (D4) — deterministic, table-driven, evaluated BEFORE model judgment.
+#
+# The PM may only ever ADD gates beyond what this table produces, and only with
+# a recorded reason. It may never subtract one. That is what makes identical
+# requests produce identical mandatory staffing, and what means Riyan never has
+# to remember to ask for a security review.
+#
+# A trigger fires when a task's owned globs match `paths`, OR when the request
+# text matches any of `keywords` (case-insensitive, word boundary).
+
+triggers:
+  - name: authentication
+    keywords: [auth, authentication, login, signin, sign-in, session, token, jwt, oauth, sso, saml]
+    paths: ["**/auth/**", "**/authentication/**", "**/session/**"]
+    gates: [review, qa, security]
+
+  - name: authorization
+    keywords: [authorization, permission, permissions, rbac, role, roles, access control, acl, privilege, approver, approval]
+    paths: ["**/auth/**", "**/permissions/**", "**/rbac/**", "**/roles/**", "**/approvals/**"]
+    gates: [review, qa, security]
+
+  - name: secrets
+    keywords: [secret, secrets, credential, credentials, api key, private key, encryption, encrypt, decrypt, vault]
+    paths: ["**/secrets/**", "**/.env*", "**/keys/**"]
+    gates: [review, security]
+
+  - name: payments
+    keywords: [payment, payments, billing, invoice, charge, refund, subscription, stripe, checkout]
+    paths: ["**/payment*/**", "**/billing/**", "**/invoice*/**"]
+    gates: [review, qa, security]
+
+  - name: pii
+    keywords: [pii, personal data, gdpr, ssn, aadhaar, passport, date of birth, medical, health record]
+    paths: ["**/pii/**", "**/personal/**"]
+    gates: [review, qa, security]
+
+  - name: file-upload
+    keywords: [upload, file upload, attachment, parse file, csv import, xml parse, deserialize]
+    paths: ["**/upload*/**", "**/attachments/**", "**/import*/**"]
+    gates: [review, qa, security]
+
+  - name: webhooks
+    keywords: [webhook, webhooks, callback url, signature verification]
+    paths: ["**/webhook*/**"]
+    gates: [review, security]
+
+  - name: database-migration
+    keywords: [migration, migrations, alter table, drop column, schema change, backfill]
+    paths: ["**/migrations/**", "**/alembic/**", "**/schema/**"]
+    gates: [review, qa, security]
+
+  - name: infrastructure
+    keywords: [terraform, iam, production deploy, kubernetes, helm, cloudformation, security group]
+    paths: ["infra/**", "**/terraform/**", "**/.github/workflows/**", "**/k8s/**"]
+    gates: [review, security]
+
+  - name: multi-tenancy
+    keywords: [tenant, multi-tenant, customer isolation, org scoping, workspace isolation]
+    paths: ["**/tenant*/**"]
+    gates: [review, qa, security]
+
+  - name: external-api-credentials
+    keywords: [external api, third party api, integration credentials, service account]
+    paths: ["**/integrations/**", "**/connectors/**"]
+    gates: [review, security]
+
+# Gates applied to every task regardless of trigger. Deliberately minimal:
+# gates are risk-based, not universal. A docs change is author -> review -> DONE.
+baseline_gates: [review]
