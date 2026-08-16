@@ -119,9 +119,26 @@ class TestAgentDefinitions(unittest.TestCase):
         text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
         self.assertIn("company lesson", text)
 
+    def test_product_designer_is_tier_1_and_writes_only_the_handoff(self):
+        """No worktree, so no ownership hook — the write scope is a prompt
+        discipline, not a mechanism. Say so plainly rather than imply a
+        guarantee that doesn't exist at Tier 1."""
+        text = (AGENTS[0].parent / "product-designer.md").read_text(encoding="utf-8")
+        self.assertIn("no worktree", text.lower())
+        self.assertIn("never touch implementation code", text)
+
+    def test_frontend_builds_against_the_designer_handoff(self):
+        text = (AGENTS[0].parent / "frontend-engineer.md").read_text(encoding="utf-8")
+        self.assertIn("product-designer", text)
+
+    def test_pm_knows_when_to_staff_a_designer(self):
+        text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
+        self.assertIn("product-designer", text)
+        self.assertIn("ux-flow", text)
+
     def test_worker_agents_carry_context_discipline(self):
         for name in ("backend-engineer", "frontend-engineer", "code-reviewer",
-                     "qa-engineer", "security-reviewer"):
+                     "qa-engineer", "security-reviewer", "product-designer"):
             text = (AGENTS[0].parent / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn("Keep your own context small", text)
 

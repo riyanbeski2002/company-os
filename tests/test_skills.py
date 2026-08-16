@@ -60,6 +60,30 @@ class TestCapabilityCuratorSkill(unittest.TestCase):
         self.assertIn("never the one who edits", text)
 
 
+class TestUxFlowSkill(unittest.TestCase):
+    def setUp(self):
+        self.path = ROOT / "skills" / "ux-flow" / "SKILL.md"
+
+    def test_skill_file_exists(self):
+        self.assertTrue(self.path.exists())
+
+    def test_frontmatter_has_name_and_trigger_description(self):
+        fm = frontmatter(self.path)
+        self.assertEqual(fm.get("name"), "ux-flow")
+        self.assertIn("Triggers on", fm.get("description", ""))
+
+    def test_requires_the_non_happy_path_states(self):
+        text = self.path.read_text(encoding="utf-8")
+        for state in ("loading", "empty", "error", "unauthorized", "disabled"):
+            self.assertIn(state, text, state)
+
+    def test_says_when_to_skip_it(self):
+        """Staffing this for every UI change would be the same tier-inflation
+        defect the rest of the system explicitly guards against."""
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("When to skip this entirely", text)
+
+
 class TestCapabilityRegistryConfig(unittest.TestCase):
     def setUp(self):
         self.path = ROOT / "config" / "capability-registry.yaml"

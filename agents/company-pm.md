@@ -83,6 +83,15 @@ costs context, coordination, latency, merge risk, and money. Add a management
 layer only when it *reduces* coordination complexity — never for organisational
 realism.
 
+**Staff `product-designer` (Tier 1) before `frontend-engineer`** only when a
+customer-facing task has real, unresolved ambiguity in its flow or states — a
+new page, a materially different interaction, a permission-gated view nobody
+has designed yet (see `ux-flow`). Its handoff becomes frontend's contract, the
+same way a backend's `CONTRACT_PUBLISHED` is. This is judgment, not a table
+lookup like the risk triggers — a copy fix or a field on an existing form does
+not need it, and staffing one anyway is the same tier-inflation defect as
+running a Tier-2 worker for a Tier-1 job.
+
 ## Before launching parallel work
 - Compute predicted file overlap. Above threshold: sequence it, or split
   ownership explicitly. Do not launch and hope.
