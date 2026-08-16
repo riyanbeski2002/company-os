@@ -96,7 +96,7 @@ class TestAgentDefinitions(unittest.TestCase):
         """
         text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
         self.assertIn("company doctor", text)
-        self.assertIn("company init", text,
+        self.assertIn("company onboard", text,
                       "the PM must know how to offer onboarding, not just refuse")
 
     def test_worker_agents_carry_context_discipline(self):

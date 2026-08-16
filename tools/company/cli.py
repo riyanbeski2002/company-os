@@ -86,15 +86,20 @@ def emit(obj, exit_code: int = 0):
     raise SystemExit(exit_code)
 
 
+def _sole_project(root: Path) -> str | None:
+    projects = sorted((root / "projects").glob("*.json"))
+    return projects[0].stem if len(projects) == 1 else None
+
+
 def load_project(root: Path, project: str | None) -> str:
     if project:
         return project
     env = os.environ.get("COMPANY_PROJECT")
     if env:
         return env
-    projects = sorted((root / "projects").glob("*.json"))
-    if len(projects) == 1:
-        return projects[0].stem
+    sole = _sole_project(root)
+    if sole:
+        return sole
     die("--project is required (or set COMPANY_PROJECT)")
 
 
@@ -609,11 +614,21 @@ def cmd_detect(args):
 
 
 def cmd_baseline(args):
-    """Record how the repo behaves BEFORE any work, so 'no worse' is provable."""
+    """Record how the repo behaves BEFORE any work, so 'no worse' is provable.
+
+    Deliberately does NOT call `load_project` (and its `die` on zero projects):
+    a baseline is a fact about the repo, not about a project's task graph, and
+    it has to be recordable during onboarding — before `company plan` has ever
+    run and before any `.company/projects/*.json` exists at all. Tagging it
+    "unassigned" is honest; refusing to record it here would make the
+    documented onboarding order (init, detect, baseline, doctor) impossible to
+    complete on a repo with no history.
+    """
     import baseline as baseline_mod
     root = company_root(args)
     repo = root.parent
-    project = load_project(root, args.project)
+    project = (args.project or os.environ.get("COMPANY_PROJECT")
+              or _sole_project(root) or "unassigned")
     verify = verify_command(root, args.verify)
     if not verify:
         die("no verify command — run `company detect --write`, or pass --verify", 1)
@@ -906,6 +921,35 @@ def cmd_stop(args):
           "note": "worktrees preserved — nothing was deleted"})
 
 
+def cmd_onboard(args):
+    """init + detect + baseline + doctor, in the order that makes each one valid.
+
+    The four-command chain was the correct sequence from the start — detect
+    needs init's scaffold, baseline needs detect's verify command, doctor needs
+    both. Chaining them by hand is just a place to typo or skip a step. This
+    runs each as the real `company <verb>` subprocess (so behaviour can never
+    drift from running them separately) and stops at the first failure with the
+    reason, rather than plowing on to a doctor check that was never going to
+    pass.
+    """
+    import subprocess
+
+    exe = [sys.executable, str(Path(__file__).resolve())]
+    root_flag = ["--root", args.root] if args.root else []
+    steps = [("init", []), ("detect", ["--write"]), ("baseline", []), ("doctor", [])]
+
+    for name, extra in steps:
+        print(f"── {name} " + "─" * (40 - len(name)))
+        result = subprocess.run(exe + root_flag + [name] + extra)
+        if result.returncode not in (0,) and name != "doctor":
+            emit({"ok": False, "stopped_at": name, "exit_code": result.returncode,
+                  "note": f"`company {name}` failed — fix that before continuing, "
+                          f"rather than run the remaining steps against a broken state."},
+                 result.returncode)
+        if name == "doctor":
+            raise SystemExit(result.returncode)
+
+
 def build_parser():
     p = argparse.ArgumentParser(prog="company", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1020,6 +1064,10 @@ def build_parser():
     dr = sub.add_parser("doctor", help="preflight a repo before pointing workers at it")
     dr.add_argument("--project")
     dr.set_defaults(fn=cmd_doctor)
+
+    ob = sub.add_parser("onboard",
+                        help="init + detect + baseline + doctor, in order, stop on first failure")
+    ob.set_defaults(fn=cmd_onboard)
 
     ad = sub.add_parser("advise", help="run the executive panel (cto/ciso/cfo/coo)")
     ad.add_argument("--officer", choices=["cto", "ciso", "cfo", "coo"],

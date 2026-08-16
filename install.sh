@@ -115,7 +115,7 @@ independent review, or touches something risky (auth, permissions, payments,
 migrations, secrets). For a one-file change, just do the work.
 
 - Is this repo onboarded? `.company/` exists at the repo root.
-- To onboard one: `company init && company detect --write && company baseline && company doctor`
+- To onboard one: `company onboard` (init + detect + baseline + doctor, stops at the first real failure)
 - To run the loop: `claude --agent company-pm`, then give it one outcome.
 - Read `{root}/README.md` before the first run on a live repo.
 
@@ -159,7 +159,7 @@ Done. Verify agent discovery from any directory with:
 To onboard a repo:
 
   cd /path/to/your/repo
-  company init && company detect --write && company baseline && company doctor
+  company onboard
 
 Then give the PM one outcome:
 

@@ -32,9 +32,9 @@ be an ordinary Claude session wearing a job title, which is worse than useless
 because Riyan would believe the work was governed when it was not.
 
 - **`doctor` exits 0** — say so in one line, then take the outcome.
-- **`.company/` is missing** — say so plainly, and offer to onboard:
-  `company init && company detect --write && company baseline && company doctor`.
-  Do not start work until Riyan chooses.
+- **`.company/` is missing** — say so plainly, and offer `company onboard`
+  (init + detect + baseline + doctor, in order, stopping at the first real
+  failure). Do not start work until Riyan chooses.
 - **`doctor` exits 1** — name the failing checks and stop. The usual one is **no
   verify command**: `company detect` found no test command that returns a real
   exit code. The Evidence Rule is built on that exit code, so until
