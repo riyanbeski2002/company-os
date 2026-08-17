@@ -172,6 +172,11 @@ def cmd_event(args):
     if args.evidence:
         evidence = args.evidence if isinstance(args.evidence, dict) else _parse_evidence(args.evidence)
 
+    if args.type == "IMPLEMENTATION_READY" and evidence and evidence.get("commit"):
+        reason = _reject_noop_diff(root, args.task, evidence["commit"])
+        if reason:
+            die(reason, 3)
+
     # $COMPANY_ACTOR is assigned by the launcher and OVERRIDES any --actor the
     # worker supplies. Identity is the hinge of the Evidence Rule: if a worker
     # could name itself, it could name itself "code-reviewer" and sign off on
@@ -211,6 +216,58 @@ def _parse_evidence(raw: str) -> dict:
     if raw.startswith("exit "):
         return {"exit_code": int(raw.split()[1])}
     return {"log": raw}
+
+
+def _reject_noop_diff(root: Path, task_id: str, sha: str) -> str | None:
+    """None if `sha` is a real commit ahead of the task's base ref; otherwise
+    the reason IMPLEMENTATION_READY must be refused.
+
+    Evidence Rule gap, live-reproduced on the finos repo 17 Aug: a Tier-2
+    worker reported IMPLEMENTATION_READY with evidence {"tests": "exit 0",
+    "diff": <sha>} where <sha> was the worktree's unmodified merge-base with
+    main — zero commits, clean tree, tests trivially green because nothing
+    had changed. `evidence.commit` being present and well-formed was treated
+    as proof of work; it only proves a SHA was typed. `git rev-list --count
+    base..sha` is what actually distinguishes a completed task from a no-op
+    that self-reported completion, so it is checked here instead of trusted
+    from the worker's own report.
+
+    Only enforced when there is a real worktree to check against — a task
+    with no recorded worktree, or one whose worktree was never actually
+    checked out (most unit-test fixtures), has nothing this function can
+    verify, and it is not this check's job to invent distrust of missing
+    infrastructure.
+    """
+    p = taskstate.task_path(root, task_id)
+    if not p.exists():
+        return None  # no task view yet (e.g. IMPLEMENTATION_READY before rebuild) — nothing to compare against
+    task = json.loads(p.read_text(encoding="utf-8"))
+
+    worktree = Path(task.get("worktree") or (root / "worktrees" / task_id))
+    if not (worktree / ".git").exists():
+        return None  # not a real checkout — nothing to verify
+
+    import subprocess
+    import worker as worker_mod
+    base = task.get("base") or worker_mod._default_base(root.parent)
+
+    r = subprocess.run(
+        ["git", "-C", str(worktree), "rev-list", "--count", f"{base}..{sha}"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        return (
+            f"IMPLEMENTATION_READY refused: {sha!r} could not be verified against "
+            f"{base!r} in {worktree} ({r.stderr.strip() or 'git rev-list failed'}) — "
+            f"an unverifiable commit is not evidence."
+        )
+    if r.stdout.strip() == "0":
+        return (
+            f"IMPLEMENTATION_READY refused: {sha} is 0 commits ahead of {base!r} in "
+            f"{worktree} — a worktree with no new commits is not completed work, no "
+            f"matter what the test run reports."
+        )
+    return None
 
 
 def cmd_rebuild(args):
@@ -1046,6 +1103,37 @@ def cmd_stop(args):
           "note": "worktrees preserved — nothing was deleted"})
 
 
+def _session_actor(args) -> str | None:
+    return args.actor or os.environ.get("COMPANY_ACTOR") or os.environ.get("CLAUDE_CODE_SESSION_ID")
+
+
+def cmd_session_announce(args):
+    """Record what this top-level session is doing, so a peer session checking
+    `company session list` sees it before staffing overlapping work."""
+    import sessions
+    root = company_root(args)
+    globs = [g.strip() for g in args.globs.split(",") if g.strip()] if args.globs else []
+    try:
+        record = sessions.announce(root, _session_actor(args), args.doing, globs)
+    except ValueError as exc:
+        die(str(exc), 1)
+    emit({"ok": True, **record})
+
+
+def cmd_session_list(args):
+    root = company_root(args)
+    import sessions
+    emit({"ok": True, "sessions": sessions.list_active(root)})
+
+
+def cmd_session_done(args):
+    import sessions
+    root = company_root(args)
+    actor = _session_actor(args)
+    cleared = sessions.done(root, actor)
+    emit({"ok": True, "actor": actor, "cleared": cleared})
+
+
 def cmd_onboard(args):
     """init + detect + baseline + doctor, in the order that makes each one valid.
 
@@ -1257,6 +1345,19 @@ def build_parser():
     st = sub.add_parser("stop", help="halt every worker; preserve every worktree")
     st.add_argument("--project")
     st.set_defaults(fn=cmd_stop)
+
+    se = sub.add_parser("session", help="who else is active on this checkout, and doing what")
+    sesub = se.add_subparsers(dest="sessioncmd", required=True)
+    sa = sesub.add_parser("announce", help="record what this session is doing")
+    sa.add_argument("--doing", required=True, help="one line: what this session is working on")
+    sa.add_argument("--globs", help="comma-separated globs this session owns, if known")
+    sa.add_argument("--actor", help="defaults to $COMPANY_ACTOR or $CLAUDE_CODE_SESSION_ID")
+    sa.set_defaults(fn=cmd_session_announce)
+    sl = sesub.add_parser("list", help="every announced session, most-recent first")
+    sl.set_defaults(fn=cmd_session_list)
+    sd = sesub.add_parser("done", help="clear this session's entry")
+    sd.add_argument("--actor", help="defaults to $COMPANY_ACTOR or $CLAUDE_CODE_SESSION_ID")
+    sd.set_defaults(fn=cmd_session_done)
 
     return p
 

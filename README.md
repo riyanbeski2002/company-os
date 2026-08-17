@@ -178,6 +178,9 @@ files. Explicitly **not** to check less — only to carry less.
 | `company resolve <ESC-id> --resolution "..."` | CEO: answer an escalation. |
 | `company gallery [--script\|--open]` | Compute how many tmux panes the run needs, or open them. |
 | `company stop` | Kill every worker; preserve every worktree. |
+| `company session announce --doing "..." [--globs g,g]` | Tell peer PM sessions on this checkout what you're doing right now. |
+| `company session list` | Every announced session, most-recent first — check before staffing new work. |
+| `company session done` | Clear your entry (on finish, handoff, or session end). |
 
 Workers only ever see two of these: `event` and `handoff`.
 

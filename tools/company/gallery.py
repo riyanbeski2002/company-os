@@ -7,6 +7,18 @@ doing without.
 Nothing here is on the machine communication path. Every pane is a `tail -f`.
 Kill the tmux server mid-run and the loop is unaffected — the event log does not
 care whether anyone is watching.
+
+If this ever grows an actual control path into a pane (driving an interactive
+peer session rather than just watching it) — don't. `SendMessage`/`ListAgents`
+already reach interactive tmux-hosted sessions the same way they reach spawned
+subagents; see agents/company-pm.md, "Coordinating with other sessions". A PM
+hand-rolled `tmux send-keys -t <pane> "text" Enter` for exactly this on finos,
+17 Aug, and hit a real race doing it: one `send-keys` call with both the text
+and `Enter` frequently leaves the text sitting unsent in the pane's input box
+— the Enter arrives before the paste registers. The workaround was two
+separate `send-keys` calls (text, then a short sleep, then `Enter`). Recorded
+here only as a landmine for whoever adds pane control next; today's gallery
+never sends keys into a pane at all, by design.
 """
 
 from __future__ import annotations

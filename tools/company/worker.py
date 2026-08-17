@@ -37,6 +37,14 @@ RESULT_SCHEMA = {
     "required": ["summary", "blocked"],
 }
 
+# Deliberately narrower than the matching agent/*.md `tools:` line, which also
+# lists ListAgents/SendMessage for the interactive-tmux-pane case (see
+# agents/company-pm.md, "Coordinating with other sessions"). A headless run
+# has nobody watching to receive a ping and no legitimate reason to reach
+# outside its own worktree, so this dict — not the frontmatter — is what
+# `--allowedTools` is actually built from below, and it stays fixed at the
+# original six-or-fewer tools. Keep it that way; widening this dict is a real
+# increase in a headless worker's reach, not just a documentation update.
 ROLE_TOOLS = {
     "backend-engineer": "Read,Grep,Glob,Edit,Write,Bash",
     "frontend-engineer": "Read,Grep,Glob,Edit,Write,Bash",
