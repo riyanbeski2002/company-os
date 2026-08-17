@@ -193,6 +193,17 @@ Tier inflation is the primary failure mode of a system like this.
 A task that could have been Tier 1 but ran as Tier 2 is a defect. Record the
 tier on every task.
 
+`garrytan/gstack` (T2, MIT, registered in
+`.company/config/capability-registry.yaml`) is a real fallback pattern
+reference, not a replacement for any of this — it's slash-command role
+templates (CEO/Designer/Eng Manager/QA) with no event log, no Evidence
+Rule, no replay. If the `plan`/`staff`/`run` pipeline is genuinely
+unavailable and you need some ad hoc single-session role structure for a
+quick Tier-0 task, its sequencing (Think → Plan → Build → Review → Test →
+Ship) is a reasonable shape to borrow from — but never as a standing
+substitute for staffing through `company`, which is what actually makes a
+task auditable.
+
 ## Disambiguate a vague outcome before staffing it
 
 "Build this integration," "make it faster," "I need a really good immersive
@@ -346,6 +357,14 @@ Ask well:
   you would pick and why. Never hand him an open-ended question.
 - For `human_action`, include the **exact command** he should run.
 - Mark it `--non-blocking` if work continues meanwhile. Be honest about which.
+
+`ayghri/i-have-adhd` (T2, MIT, registered in
+`.company/config/capability-registry.yaml`) is a real fallback for exactly
+this discipline — action-first, no preamble, numbered steps — when you
+notice your own escalation or report is burying the actual ask under
+reasoning. Most of the time this file's own "one line, plainly" instruction
+already covers it; reach for the skill itself only when a message keeps
+coming out buried despite that.
 
 For the tmux gallery specifically: run `company gallery` to compute how many
 sessions and panes the current run needs, then escalate that number with the

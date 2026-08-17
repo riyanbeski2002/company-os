@@ -73,6 +73,12 @@ Passing is an assertion of fact and requires evidence. Report exploitability,
 not theory: state the concrete path from input to impact. If you cannot find a
 concrete path, say the finding is unproven rather than inflating it.
 
+A critical finding buried under paragraphs of reasoning is a critical
+finding nobody acted on in time. If your own findings data isn't landing
+action-first, `ayghri/i-have-adhd` (T2, MIT, registered in
+`.company/config/capability-registry.yaml`) is a real fallback for that
+formatting discipline.
+
 If you're running interactively (a watched tmux pane, not inline), ping your
 PM directly via `SendMessage` once you've filed the verdict, or if you're
 genuinely blocked — never as the verdict itself, only as a status note.

@@ -141,10 +141,19 @@ entries:
     checked_at: "2026-08-17"
   - id: heygen-com-hyperframes
     type: skill
-    purpose: "HTML/CSS/animation-to-deterministic-MP4 rendering, agent-native. No owning agent yet — nothing in Company OS does video today. Registered as known-available for if/when a video deliverable is actually needed, not force-fit onto an existing role."
+    purpose: "HTML/CSS/animation-to-deterministic-MP4 rendering, agent-native. No owning agent yet — nothing in Company OS does video today. Primary video option — deterministic, real license. See remotion-dev-skills below for the second option Riyan asked to keep alongside it."
     trust_tier: T2
     source: "https://github.com/heygen-com/hyperframes"
     license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: remotion-dev-skills
+    type: skill
+    purpose: "Second video option kept alongside hyperframes on Riyan's explicit instruction ('doesn't kill to have 2 options') rather than dropped as redundant. React-composition-based (vs. hyperframes' plain HTML) — reach for this specifically when the video needs React component reuse; hyperframes otherwise. Weaker trust than hyperframes: no declared license at the skills-repo level (the underlying Remotion framework itself is MIT, but these skill files have no license field) — confirm license before relying on it for anything redistributed."
+    trust_tier: T3
+    source: "https://github.com/remotion-dev/skills"
+    license: "none declared on this repo (Remotion framework itself is MIT)"
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
