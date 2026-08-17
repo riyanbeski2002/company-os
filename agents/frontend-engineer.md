@@ -81,6 +81,34 @@ For a scroll-driven narrative (an element transforming/assembling/narrating
 as the user scrolls) use `scroll-animation` — it covers the real pipeline
 options, not just one, and what needs Riyan vs. what you build yourself.
 
+## External skills worth reaching for
+
+Researched and registered in `.company/config/capability-registry.yaml`
+(check it for current trust tier/license before installing anything —
+registry entries can go stale). Reach for the one that actually fits the
+task, not all of them by default:
+
+- **`emilkowalski/skills`** (T2, MIT) — animation/UI taste guidance from a
+  named design engineer (ex-Vercel/Linear). Closest match to this file's own
+  "Taste" section above; use when a motion or component decision needs more
+  than `motion-vocabulary`'s terminology alone.
+- **`greensock/gsap-skills`** (T1, official GSAP maintainer, MIT) — for
+  actually implementing an animation you've already decided on with GSAP,
+  not for deciding whether to use it.
+- **`pbakaus/impeccable`** (T2, Apache-2.0) — deterministic anti-pattern
+  detection (59 rules: dated easing, poor contrast, bad touch targets) that
+  runs without an LLM call. Use as a cheap pre-review pass before handing
+  work to `code-reviewer`, not as a replacement for it.
+- **`nextlevelbuilder/ui-ux-pro-max-skill`** (T2, MIT) — a large design-system
+  generator (visual styles, palettes, framework patterns). Use when the task
+  is establishing a new design system, not tweaking an existing one — this
+  repo's own conventions still win once one exists (see "Never introduce a
+  second design system" above).
+
+If you're not confident one of these is still current before relying on it,
+that's exactly what `capability-curator` is for — don't skip the check
+because it's already in this list.
+
 ## Open-ended asks — research and present options, don't guess
 
 "Make this immersive," "I want a great hero section" — no spec, no reference.

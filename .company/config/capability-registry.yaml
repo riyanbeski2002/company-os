@@ -59,3 +59,92 @@ entries:
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
+  # --- 20-repo sweep, riyan's direct instruction, 2026-08-17 ---
+  # Verified against the real GitHub API (gh api repos/<owner>/<repo>) after
+  # two research passes (Haiku fan-out, then a WebFetch spot-check) disagreed
+  # with each other on star counts enough to distrust both — the API numbers
+  # matched the research almost exactly in the end, but distrust to-source is
+  # the right default, not this specific outcome. leonxinx/taste-skill and
+  # vercel-lab/skills were both confirmed 404 — do not re-propose either
+  # without a corrected URL.
+  - id: emilkowalski-skills
+    type: skill
+    purpose: "Animation/UI taste guidance for frontend-engineer — named design engineer (ex-Vercel/Linear), directly matches the existing 'Taste' standard in that agent file."
+    trust_tier: T2
+    source: "https://github.com/emilkowalski/skills"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: greensock-gsap-skills
+    type: skill
+    purpose: "Official GSAP implementation guidance for frontend-engineer — use once an animation is decided on, not for deciding whether to use GSAP."
+    trust_tier: T1
+    source: "https://github.com/greensock/gsap-skills"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: pbakaus-impeccable
+    type: skill
+    purpose: "Deterministic design anti-pattern detection (59 rules, no LLM call) for frontend-engineer — a cheap pre-review pass before code-reviewer, not a replacement for it."
+    trust_tier: T2
+    source: "https://github.com/pbakaus/impeccable"
+    license: Apache-2.0
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: nextlevelbuilder-ui-ux-pro-max-skill
+    type: skill
+    purpose: "Design-system generation for product-designer/frontend-engineer, when a task is establishing a new design system from scratch (not for tweaking one that already exists in this repo)."
+    trust_tier: T2
+    source: "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: graphify-labs-graphify
+    type: skill
+    purpose: "Local, deterministic codebase-to-knowledge-graph tool (tree-sitter AST, no LLM in parsing) for company-pm/researchers on an unfamiliar codebase — cheaper than several exploratory reads. Not dataviz-related despite the name similarity to that skill."
+    trust_tier: T2
+    source: "https://github.com/Graphify-Labs/graphify"
+    license: "Apache-2.0 / MIT"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: obra-superpowers
+    type: skill
+    purpose: "Confirmed as the actual upstream source of the superpowers:* plugin already installed here (Jesse Vincent / Prime Radiant). Reference only — nothing to adopt, it's already in use."
+    trust_tier: T1
+    source: "https://github.com/obra/superpowers"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: jarrodwatts-claude-hud
+    type: tool
+    purpose: "Native Claude Code statusline alternative to company gallery's tmux panes (live tool/subagent tracking, no separate pane). Surfaced to Riyan as an option in company-pm.md — not silently swapped in; switching the observability model is his call."
+    trust_tier: T2
+    source: "https://github.com/jarrodwatts/claude-hud"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: juliusbrussee-caveman
+    type: skill
+    purpose: "~65% output-token reduction technique, known to cfo-advisor for cost findings. Split license: skill surface MIT, compression ENGINE is BSL-1.1 (self-hosted first-party use permitted per its Additional Use Grant; third-party/hosted use needs a commercial license) — real compliance cost, so this requires a fresh company escalate before any actual adoption, never silent."
+    trust_tier: T2
+    source: "https://github.com/JuliusBrussee/caveman"
+    license: "MIT (skill) / BSL-1.1 (engine) — see repo's LICENSING.md"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: heygen-com-hyperframes
+    type: skill
+    purpose: "HTML/CSS/animation-to-deterministic-MP4 rendering, agent-native. No owning agent yet — nothing in Company OS does video today. Registered as known-available for if/when a video deliverable is actually needed, not force-fit onto an existing role."
+    trust_tier: T2
+    source: "https://github.com/heygen-com/hyperframes"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"

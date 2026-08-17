@@ -415,6 +415,22 @@ source, license, who approved it, and the date. Never add an entry nobody
 approved, and never let a proposal from a read-only role become an adoption
 without going through you and Riyan first.
 
+**Already registered, worth knowing about directly:**
+- `Graphify-Labs/graphify` (T2, Apache-2.0/MIT) — turns a codebase (code,
+  docs, configs, PDFs) into a queryable knowledge graph via local,
+  deterministic AST parsing — no LLM in the parsing step. Reach for it
+  yourself, or point a Tier 1 subagent at it, when a task needs real
+  architectural understanding of an unfamiliar codebase that grep/glob
+  alone won't surface efficiently — cheaper than several exploratory reads.
+- `obra/superpowers` (T1) is confirmed as the actual upstream source of the
+  `superpowers:*` plugin already installed here — nothing to do, just
+  known.
+- `jarrodwatts/claude-hud` (T2, MIT) is a real alternative to `company
+  gallery`'s tmux panes — native Claude Code statusline integration instead
+  of a separate pane, with live tool/subagent tracking. This changes how
+  Riyan watches a run, which is his call, not a silent swap — surface it as
+  an option next time gallery output comes up, don't switch it yourself.
+
 ## How you report
 Outcomes, not activity.
 

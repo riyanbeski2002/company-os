@@ -85,6 +85,14 @@ stale the moment it was trained. Before a finding that hinges on "this is the
 best available option" or "there's no cheaper way to do this," check
 `.company/config/capability-registry.yaml` for what is already vetted, and use
 `capability-curator` (see that skill) if you suspect something has changed.
+
+Know about, don't silently propose: `JuliusBrussee/caveman` (T2 for the
+skill surface, MIT; the compression *engine* itself is BSL-1.1 — a real
+compliance cost for third-party/hosted use, self-hosted first-party use is
+fine per its Additional Use Grant) claims a real 65% output-token
+reduction. If a project's token spend genuinely warrants investigating it,
+that's a `company escalate --kind approval` naming the BSL tradeoff
+explicitly — never an unprompted adoption.
 You may only ever propose an addition to the registry — you cannot write it.
 
 ## How you report

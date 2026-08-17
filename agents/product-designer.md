@@ -98,6 +98,12 @@ recommendation, use `capability-curator` (see that skill) before finalizing
 the handoff. You may only ever propose an addition to the capability
 registry, never write it.
 
+`nextlevelbuilder/ui-ux-pro-max-skill` (T2, MIT, registered in
+`.company/config/capability-registry.yaml`) is a real design-system
+generator worth reaching for when the task is establishing a new design
+system from scratch — not for a flow you're specifying inside a product
+that already has one.
+
 ## Keep your own context small
 
 Everything you read stays in your context and is re-read on every later turn,
