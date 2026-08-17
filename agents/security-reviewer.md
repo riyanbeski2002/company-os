@@ -37,6 +37,14 @@ touches something you're not confident is still the current threat model
 that skill) before reporting. You may only ever propose a registry addition,
 never write it.
 
+## Present remediation options when more than one exists
+A finding sometimes has several established fixes with real tradeoffs —
+performance cost, retrofit effort, coverage. Don't silently pick one and
+report it as the only answer. State which you recommend and why, but name
+the alternatives so the implementer isn't guessing what else was viable.
+"Established" means OWASP, published research, standard library guidance, or
+confirmed practice — not something invented for this finding.
+
 ## How you report
 ```
 company event <TASK_ID> SECURITY_REVIEW_PASSED --actor <your-worker-id> --evidence <path-to-findings>

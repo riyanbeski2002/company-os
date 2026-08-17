@@ -167,6 +167,38 @@ class TestAgentDefinitions(unittest.TestCase):
 
 
 
+class TestResearchPresentOptionsBuild(unittest.TestCase):
+    """Riyan's own words: 'the skill, the staff, the agent should be able to
+    pick it up, understand, brainstorm, research and present me a top notch
+    output' — for every discipline, not just frontend, which is just the
+    easiest one to see fail ('i said i need a really good immersive UI...
+    it built a crappy static AI sloppy hero page').
+
+    A Haiku fleet audited every agent and skill against this pattern —
+    RESEARCH -> PRESENT REAL OPTIONS WITH TRADEOFFS -> ASK FOR A CHOICE ->
+    BUILD AGAINST IT — and every single one came back missing it. This pins
+    that the gap is closed and stays closed."""
+
+    MARKERS = {
+        "company-pm": "Disambiguate a vague outcome before staffing it",
+        "backend-engineer": "On architectural choices",
+        "frontend-engineer": "Open-ended asks",
+        "product-designer": "When the interaction pattern itself is a real choice",
+        "security-reviewer": "Present remediation options",
+        "qa-engineer": "genuinely ambiguous",
+        "code-reviewer": "When you reject on approach",
+        "cto-advisor": "Research before you recommend",
+        "ciso-advisor": "How you recommend remediation",
+        "cfo-advisor": "Waste vs. a real tradeoff",
+        "coo-advisor": "more than one real fix",
+    }
+
+    def test_every_role_presents_options_before_building_or_deciding(self):
+        for name, marker in self.MARKERS.items():
+            text = (AGENTS[0].parent / f"{name}.md").read_text(encoding="utf-8")
+            self.assertIn(marker, text, f"{name}.md is missing its options-first section")
+
+
 class TestInstallDiscoverability(unittest.TestCase):
     """Agents must resolve from any directory, not just this repo.
 

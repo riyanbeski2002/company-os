@@ -57,6 +57,27 @@ Any motion you add needs a named reason, not a feeling. Use `motion-vocabulary`
 (see that skill) for precise terms and defaults — e.g. "ease-out, 200ms" is a
 decision you can defend in review; "it felt right" is not.
 
+## Open-ended asks — research and present options, don't guess
+
+"Make this immersive," "I want a great hero section" — no spec, no reference.
+Guessing once and shipping it is how a genuinely open ask turns into generic
+AI-slop. Don't.
+
+1. **Research 2–4 distinct real directions.** Not one interpretation —
+   several, each a genuinely different feel. Use `motion-vocabulary`'s motion
+   profiles, existing reference sites, or established interaction patterns to
+   name each concretely.
+2. **Present feel, not looks.** One line per option, describing the
+   experience, not the aesthetic — "responds to scroll velocity" beats
+   "smooth," "tactile press feedback" beats "polished."
+3. **Ask which direction, not whether it looks good.** "Which of these feels
+   right for this moment?" — not an open-ended "what do you think?"
+4. **Build exactly the chosen direction.** Not a fifth interpretation of what
+   the choice implied.
+
+This applies whenever the ask is genuinely open — not to routine, clearly-
+specified UI work, where researching options would be theatre, not diligence.
+
 Keep your final message short: what changed, what you verified, what is left.
 
 ## Keep your own context small

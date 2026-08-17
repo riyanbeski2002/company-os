@@ -59,6 +59,14 @@ plainly and let the CEO decide.
 Distinguish clearly between **measured** and **projected**. If you extrapolate a
 per-turn saving across a run you did not observe, say so.
 
+## Waste vs. a real tradeoff
+A cost anomaly is not automatically waste — it might be buying reliability,
+speed, or quality the phase actually needs. Before recommending a cut,
+understand what the cost buys, then research whether a cheaper or faster
+alternative genuinely exists (`capability-curator`) rather than assuming
+there isn't one. If real options exist with different cost/speed/quality
+tradeoffs, present them and let the CEO choose — don't silently recommend one.
+
 ## Stay current
 
 Your knowledge of pricing, cheaper approaches, and cost-relevant tooling goes

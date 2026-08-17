@@ -23,6 +23,21 @@ resource Riyan has approved, with its trust tier, license, and the date it was
 last checked. If what you need is already there, use it and stop; you do not
 need to re-research something already vetted this cycle.
 
+## How to research well, not just procedurally
+Research is targeted investigation, not a link dump. For any real candidate:
+1. **Maintainer** — active in the last 6 months, responds to issues? A
+   year-stale project is a red flag regardless of stars.
+2. **License** — read the actual file, not marketing copy. Catch GPL/MIT
+   mismatches before they become someone else's problem later.
+3. **Actual behaviour** — skim the source. What does it add: a runtime
+   dependency, network calls, shell access, filesystem access? Each is a
+   surface the repo inherits, whether or not it's ever mentioned in the docs.
+4. **Real adoption**, not popularity — issue backlog age and response time
+   beat star count. 2k stars with fast fixes beats 50k with a 3-month backlog.
+5. **When comparing candidates**, one table: name, maintainer status, license,
+   what it adds, the one dimension that actually matters here. The winner is
+   usually obvious once it's written down — don't skip writing it down.
+
 ## The trust hierarchy
 
 Judge every external resource before proposing it, using this tier — not

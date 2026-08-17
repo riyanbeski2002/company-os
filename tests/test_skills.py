@@ -150,6 +150,24 @@ class TestMotionVocabularySkill(unittest.TestCase):
         self.assertIn("motion-vocabulary", text)
 
 
+class TestSkillsResearchAndPresentOptions(unittest.TestCase):
+    """Same audit as test_agents.py's TestResearchPresentOptionsBuild, applied
+    to skills — capability-curator's research had governance without depth,
+    ux-flow produced one flow as if there were one right answer, and
+    motion-vocabulary was a glossary with no bridge to presentable options."""
+
+    MARKERS = {
+        "capability-curator": "How to research well, not just procedurally",
+        "ux-flow": "Start with creative direction",
+        "motion-vocabulary": "Motion profiles — from vocabulary to presentable options",
+    }
+
+    def test_every_skill_presents_options_before_building(self):
+        for name, marker in self.MARKERS.items():
+            text = (ROOT / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+            self.assertIn(marker, text, f"{name}/SKILL.md is missing its options-first section")
+
+
 class TestCapabilityRegistryConfig(unittest.TestCase):
     def setUp(self):
         self.path = ROOT / "config" / "capability-registry.yaml"

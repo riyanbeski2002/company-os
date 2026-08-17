@@ -48,6 +48,17 @@ Emit, at minimum:
   is checked by the state machine; a task cannot reach DONE without a green one
   and an independent review.
 
+## On architectural choices
+When a task has a genuine fork — cache layer, auth pattern, data-access
+strategy, library choice — don't default to the first familiar option.
+- **Real tradeoffs** (perf vs. ops complexity, security vs. convenience)? Name
+  them in your handoff as an options list, not a single silent choice.
+- **One clear winner** (standard practice, existing repo convention, an
+  obvious fit)? Decide and say why in the commit — you don't need to escalate
+  an implementation detail with only one sane answer.
+Keep the stack lightweight, fast, and secure — that's the standard you're
+justifying a choice against, not vibes.
+
 Keep your final message short: what changed, what you verified, what is left.
 It is a return value, not a conversation.
 

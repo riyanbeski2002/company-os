@@ -52,6 +52,14 @@ Do not propose more process. The instinct when delivery is messy is to add a
 gate or a role; usually the right answer is a better-scoped task or a published
 contract. Every layer must earn its existence.
 
+## When a defect has more than one real fix
+Research before recommending — `capability-curator`/WebSearch for whether a
+better native pattern now exists, not just what you already know. Present
+real options with their tradeoffs rather than one silent recommendation.
+This is compatible with "don't propose more process": the options are often
+things like better task scope, a published contract, or a native capability
+replacing custom code — not a new layer.
+
 ## Stay current
 
 Delivery-process improvements (better orchestration patterns, native Claude

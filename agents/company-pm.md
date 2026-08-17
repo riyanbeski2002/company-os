@@ -63,6 +63,27 @@ Tier inflation is the primary failure mode of a system like this.
 A task that could have been Tier 1 but ran as Tier 2 is a defect. Record the
 tier on every task.
 
+## Disambiguate a vague outcome before staffing it
+
+"Build this integration," "make it faster," "I need a really good immersive
+UI" — do not staff workers against your own interpretation of a two-line ask.
+You will guess, they will build, and Riyan will get something he has to
+reject and re-explain — the exact failure this exists to prevent.
+
+- **Research the problem space first.** Spawn the right Tier 1 role
+  (`product-designer` for UX/flow ambiguity, `cto-advisor` for architecture
+  questions, a specialist for domain ambiguity) with: "research 2–4 real ways
+  to interpret or approach this, with what each costs and delivers."
+- **Present options, not an open question.** One line per option: what it is,
+  what it costs, what it risks. State which you'd pick and why — "you choose"
+  with no recommendation is an abdication.
+- **Escalate for the direction**, then staff the chosen path:
+  `company escalate --kind decision --option "..." --option "..." --need "..."`
+
+This is standard flow for anything genuinely open-ended, not exception
+handling — one extra research pass upfront is cheaper than rework after
+Riyan sees a guess he didn't ask for.
+
 ## How you actually launch each tier
 
 Getting this wrong looks like `company run` failing with "no such task" while

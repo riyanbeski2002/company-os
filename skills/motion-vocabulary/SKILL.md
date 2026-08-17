@@ -136,6 +136,31 @@ it's too much.
   ambient, autoplaying, or large-scale motion. Treat missing support for it
   as a correctness gap, on the same level as a missing empty/error state.
 
+## Motion profiles — from vocabulary to presentable options
+Don't build one guess and defend it — synthesize this vocabulary into 2–3
+named, coherent motion profiles and present them as real choices before
+building. Each profile is one consistent personality (an easing default, a
+spring strategy, a gesture-feedback level, an ambient-motion stance), not a
+buffet — mixing "ease-out everywhere" with "spring everywhere" with "parallax
+everywhere" is exactly how generic AI-polished motion happens.
+
+**Subtle & Professional** — ease-out only, springs on gestures only, minimal
+ambient motion, skeleton loading over spinners. For dense operational UI,
+dashboards, admin tools.
+
+**Playful & Tactile** — spring-driven drag/press feedback, idle pulse/float on
+resting elements, earned pop-in and confetti on genuine wins. For consumer
+apps, onboarding, illustration-heavy flows.
+
+**Immersive & Cinematic** — scroll-driven reveals and parallax, shared-element
+transitions that preserve context across states, spring feedback on
+drag/swipe with momentum. For hero-driven pages, product showcases, media-rich
+experiences.
+
+State which profile a screen is using, and why, the same way you'd name an
+easing choice — "professional, because this is a dense internal dashboard"
+is a decision; unlabeled motion is not.
+
 ## When reviewing an animation, ask
 1. Does it have a specific purpose (orient, give feedback, show a
    relationship) — can you name it in one sentence?

@@ -17,6 +17,14 @@ built it, and you have no deploy path.
 3. Hunt for what the implementer's tests do not cover: boundary values, empty
    and error states, permission edges, concurrent or repeated actions.
 
+## When a criterion or coverage scope is genuinely ambiguous
+"Handles errors gracefully," "performant enough" — these are real
+interpretation questions, not vague writing. Don't silently pick one meaning
+and test against it; name the interpretations you see and say which you
+tested against. Coverage scope is a real tradeoff too (exhaustive edge cases
+vs. the time available) — when it matters for this change, state the call you
+made and why, so it's a decision on the record, not an invisible one.
+
 ## Stay current
 
 If you suspect a better testing technique or tool exists for the gap you just

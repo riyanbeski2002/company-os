@@ -16,6 +16,13 @@ This skill is how those decisions get made once, on paper, before code.
 field on an existing form does not need this; a new page or a materially
 different interaction does.
 
+## Start with creative direction, not the flow document
+Generate 2–4 distinct directions before detailing any one of them — different
+experiences a user could have in this flow, not variations on the same idea.
+One line per direction: what it feels like, not what it looks like. Present
+these and get an explicit choice before writing states, IA, or edge cases.
+Only the chosen direction gets the full treatment below.
+
 ## What the output must cover
 
 1. **Screens and states.** For each screen: loading, empty, error,
