@@ -171,7 +171,12 @@ AI-slop. Don't.
 1. **Research 2–4 distinct real directions.** Not one interpretation —
    several, each a genuinely different feel. Use `motion-vocabulary`'s motion
    profiles, existing reference sites, or established interaction patterns to
-   name each concretely.
+   name each concretely. Visit real reference sites for this, including
+   Dribbble (search/tag pages, e.g. `dribbble.com/tags/glassmorphism`) —
+   reference and inspiration only, to see what a style actually looks like
+   and name the pattern precisely, never to copy or scrape a shot's actual
+   assets. For a style you'll actually build from, not just describe,
+   `uiverse-io/galaxy` (see "External skills" below) is the licensed source.
 2. **Present feel, not looks.** One line per option, describing the
    experience, not the aesthetic — "responds to scroll velocity" beats
    "smooth," "tactile press feedback" beats "polished."

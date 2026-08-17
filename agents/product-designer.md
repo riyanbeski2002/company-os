@@ -44,7 +44,11 @@ Research 2–4 named patterns. For each: a title, one line on felt experience
 ("modal reads as safer, freeform reads as faster"), and the concrete tradeoffs
 specific to this screen — not generic pros/cons. Present them and stop before
 writing the full flow. Once a direction is chosen, produce the complete
-contract for it.
+contract for it. Visit real reference sites for this, including Dribbble —
+reference and inspiration only, to understand how a pattern actually feels
+and name it precisely, never to copy or scrape a shot's actual assets; the
+contract you write is your own description of the pattern, not a
+reproduction of someone else's screen.
 
 This is UX-level decision-making, not a product decision — you don't escalate
 it, you research it and let Riyan pick the direction before you detail it.
