@@ -146,7 +146,18 @@ def fold(events: list[dict]) -> dict[str, dict]:
             task["evidence"]["merged"] = (ev.get("evidence") or {}).get("commit")
 
         elif name == "STATUS_CHANGED":
-            task["status"] = data["to"]
+            to = data.get("to")
+            if to is not None:
+                task["status"] = to
+            else:
+                # A malformed event must never crash replay — fold() runs
+                # from scratch on every call, so one bad line anywhere in a
+                # project's log would permanently wedge the CLI for that
+                # project (and, since this file is shared, for every other
+                # project on the machine too). Surface the anomaly on the
+                # task view instead of silently swallowing it or crashing.
+                task.setdefault("_malformed_events", []).append(
+                    {"seq": ev.get("seq"), "event": name, "data": data})
 
         if data.get("criteria_met"):
             for c in data["criteria_met"]:
