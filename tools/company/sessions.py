@@ -94,3 +94,43 @@ def list_active(company_root: Path) -> list[dict]:
         out.append(record)
     out.sort(key=lambda r: r["age_s"])
     return out
+
+
+def ping_via_tmux(target: str, message: str, actor: str | None) -> str:
+    """Push a tagged message directly into a peer's tmux pane. **Fallback
+    only** — use `SendMessage` first; this exists for the gap while a
+    session hasn't picked up that tool yet (grants only apply to a session
+    started after the file changed, see agents/company-pm.md) or while the
+    `SendMessage` hook is erroring machine-wide, which happened live on
+    finos, 17 Aug.
+
+    Bakes in the fix for a real race hit doing this by hand that day: one
+    `tmux send-keys -t <target> "text" Enter` call frequently leaves the
+    text sitting unsent in the pane's input box — the Enter arrives before
+    the paste registers. Two separate calls, with a pause between them,
+    don't race. Also tags the message with the sender, the same job
+    `SendMessage` does natively, so the receiving pane can tell it's an
+    inbound peer message and not its own reasoning or the human typing.
+    """
+    import shutil
+    import subprocess
+    import time as _time
+
+    if not shutil.which("tmux"):
+        raise RuntimeError(
+            "tmux not found — this fallback only works when the peer is a "
+            "tmux pane; if it isn't, there is no fallback and the message "
+            "cannot be delivered this way"
+        )
+    tagged = f"[from {actor or 'unknown'}] {message}"
+    r = subprocess.run(["tmux", "send-keys", "-t", target, tagged],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"tmux send-keys failed: {r.stderr.strip()}")
+    _time.sleep(0.4)  # the race: without this, Enter below can arrive before
+    # the line above finishes registering in the pane's input box.
+    r = subprocess.run(["tmux", "send-keys", "-t", target, "Enter"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"tmux send-keys (Enter) failed: {r.stderr.strip()}")
+    return tagged

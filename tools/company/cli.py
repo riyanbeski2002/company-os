@@ -1134,6 +1134,19 @@ def cmd_session_done(args):
     emit({"ok": True, "actor": actor, "cleared": cleared})
 
 
+def cmd_session_ping(args):
+    """Fallback for when SendMessage isn't bound yet or is erroring — push a
+    tagged message straight into a peer's tmux pane. Prefer SendMessage;
+    reach for this only when it's unavailable, and only when the peer is
+    known to be a tmux pane."""
+    import sessions
+    try:
+        sent = sessions.ping_via_tmux(args.target, args.message, _session_actor(args))
+    except RuntimeError as exc:
+        die(str(exc), 1)
+    emit({"ok": True, "target": args.target, "sent": sent})
+
+
 def cmd_onboard(args):
     """init + detect + baseline + doctor, in the order that makes each one valid.
 
@@ -1358,6 +1371,11 @@ def build_parser():
     sd = sesub.add_parser("done", help="clear this session's entry")
     sd.add_argument("--actor", help="defaults to $COMPANY_ACTOR or $CLAUDE_CODE_SESSION_ID")
     sd.set_defaults(fn=cmd_session_done)
+    sp = sesub.add_parser("ping", help="fallback: push a tagged message into a peer's tmux pane")
+    sp.add_argument("--target", required=True, help="tmux pane target, e.g. ht-workspace:1.2")
+    sp.add_argument("--message", required=True)
+    sp.add_argument("--actor", help="defaults to $COMPANY_ACTOR or $CLAUDE_CODE_SESSION_ID")
+    sp.set_defaults(fn=cmd_session_ping)
 
     return p
 

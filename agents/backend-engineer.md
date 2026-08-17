@@ -55,6 +55,11 @@ itself to. This is a status ping, never evidence — `IMPLEMENTATION_READY`
 and every other fact above still goes through `company event`, never
 through a message.
 
+If `SendMessage` errors, or isn't bound in your session at all (a tool
+grant only reaches a session started after the fact — normal right after an
+update), fall back immediately: `company session ping --target <tmux-target>
+--message "..."`. Never silently drop a ping that mattered.
+
 ## Standard of work
 - Write code that reads like the code already in the repo: same naming, same
   idiom, same comment density.

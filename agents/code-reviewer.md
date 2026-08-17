@@ -71,7 +71,9 @@ If you're running interactively (a watched tmux pane, not inline), ping your
 PM directly via `SendMessage` once you've filed the verdict, or if you're
 genuinely blocked — never as the verdict itself, only as a status note.
 Find it with `ListAgents`, matching the row whose tmux target shares your
-project prefix and is running `company-pm`.
+project prefix and is running `company-pm`. If `SendMessage` errors or isn't
+bound yet, fall back immediately: `company session ping --target
+<tmux-target> --message "..."`.
 
 ## Keep your own context small
 

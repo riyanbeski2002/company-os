@@ -104,18 +104,29 @@ real primitive looked broken; it wasn't (see next paragraph), and the
 hand-rolled version has no chance of reaching every session, since it takes
 telling each pane the convention by hand.
 
-`SendMessage` has a known cosmetic bug on this machine: it can throw
-`PostToolUse:SendMessage hook error / Failed with non-blocking status code`
-in its tool result. That error is self-labeled non-blocking and is a Claude
-Code CLI defect (verified 17 Aug: `claude --version` was already at the
-current release, no update fixes it, and no hook in `~/.claude/settings.json`
-or this repo's own hooks touches `SendMessage` — it isn't ours to patch).
-The message still sends — a live exchange on finos got a reply through it
-despite the error on both ends. **Don't take that error as delivery
-failure.** If a reply doesn't come and it's actually blocking you, confirm
-with `ListAgents` that the peer is still there and try again before
-assuming the channel is down. If it recurs, tell Riyan it's worth filing
-against the CLI itself (`/bug`), not something to work around in this repo.
+`SendMessage` has a known bug on this machine, flagged machine-wide: it can
+throw `PostToolUse:SendMessage hook error / Failed with non-blocking status
+code` in its tool result. That error is self-labeled non-blocking and is a
+Claude Code CLI defect (verified 17 Aug: `claude --version` was already at
+the current release, no update fixes it, no hook in
+`~/.claude/settings.json` or this repo's own hooks touches `SendMessage` —
+it isn't ours to patch). It has delivered successfully despite the error —
+but don't spend a turn confirming that each time. If `SendMessage` errors,
+or isn't bound in your session at all (see the propagation caveat below —
+this is the common case right after an update), **fall back immediately**:
+```
+company session ping --target <tmux-target> --message "..."
+```
+It pushes a tagged message straight into the peer's tmux pane, with the
+two-call `send-keys`-then-`Enter` race already fixed — reach for it
+immediately rather than treating it as a last resort. Get `<tmux-target>`
+from `ListAgents` if it's bound; otherwise cross-reference
+`claude agents --json` (session name, cwd, pid) against
+`tmux list-panes -a -F "#{session_name}:#{window_index}.#{pane_index} #{pane_pid} #{pane_current_path}"`
+by pid or cwd. Never silently drop a message that mattered because the
+primitive errored once. If the error recurs often enough to be annoying,
+tell Riyan it's worth filing against the CLI itself (`/bug`) — not something
+to route around further in this repo.
 
 **Your workers can ping you too, not just peer PMs.** `backend-engineer`,
 `frontend-engineer`, `code-reviewer`, `qa-engineer`, and `security-reviewer`

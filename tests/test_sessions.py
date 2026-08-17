@@ -7,10 +7,13 @@ agents/company-pm.md, "Coordinating with other sessions."
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
+import uuid
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -19,6 +22,7 @@ sys.path.insert(0, str(HERE.parent / "tools" / "company"))
 import sessions  # noqa: E402
 
 CLI = HERE.parent / "tools" / "company" / "cli.py"
+HAS_TMUX = shutil.which("tmux") is not None
 
 
 class TestSessionsModule(unittest.TestCase):
@@ -126,6 +130,49 @@ class TestSessionCLI(unittest.TestCase):
         self.assertEqual(json.loads(r.stdout)["cleared"], True)
         r = self._run("session", "list")
         self.assertEqual(json.loads(r.stdout)["sessions"], [])
+
+
+@unittest.skipUnless(HAS_TMUX, "tmux not installed")
+class TestSessionPing(unittest.TestCase):
+    """The SendMessage fallback: push a tagged message into a real tmux pane,
+    with the two-call send-then-Enter race fixed. Live-reproduced on finos,
+    17 Aug — a single `tmux send-keys "text" Enter` call left the text
+    sitting unsent because the Enter arrived before the paste registered.
+    """
+
+    def setUp(self):
+        self.pane = f"cos-ping-test-{uuid.uuid4().hex[:8]}"
+        self.out = Path(tempfile.mkstemp()[1])
+        subprocess.run(["tmux", "new-session", "-d", "-s", self.pane, "-x", "80", "-y", "24",
+                        f"cat > {self.out}"], check=True)
+        time.sleep(0.3)  # let the pane's shell/cat actually come up before we type into it
+
+    def tearDown(self):
+        subprocess.run(["tmux", "kill-session", "-t", self.pane],
+                       capture_output=True)
+        self.out.unlink(missing_ok=True)
+
+    def _run(self, *args):
+        return subprocess.run(
+            [sys.executable, str(CLI), "session", "ping", *args],
+            capture_output=True, text=True)
+
+    def test_message_arrives_tagged_and_submitted(self):
+        r = self._run("--target", self.pane, "--message", "hello peer", "--actor", "sess-a")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["sent"], "[from sess-a] hello peer")
+
+        time.sleep(0.3)
+        received = self.out.read_text(encoding="utf-8")
+        # cat only echoes a line once it's actually been submitted (Enter
+        # landed) — this is the assertion that the two-call fix worked, not
+        # just that text was typed into the pane.
+        self.assertIn("[from sess-a] hello peer\n", received)
+
+    def test_unknown_target_fails_loudly_not_silently(self):
+        r = self._run("--target", "no-such-pane-at-all", "--message", "hi", "--actor", "sess-a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("tmux send-keys failed", r.stderr)
 
 
 if __name__ == "__main__":

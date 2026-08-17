@@ -181,6 +181,7 @@ files. Explicitly **not** to check less — only to carry less.
 | `company session announce --doing "..." [--globs g,g]` | Tell peer PM sessions on this checkout what you're doing right now. |
 | `company session list` | Every announced session, most-recent first — check before staffing new work. |
 | `company session done` | Clear your entry (on finish, handoff, or session end). |
+| `company session ping --target T --message "..."` | Fallback when `SendMessage` isn't bound/erroring: push a tagged message into a peer's tmux pane. |
 
 Workers only ever see two of these: `event` and `handoff`.
 

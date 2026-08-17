@@ -46,6 +46,11 @@ project prefix (`$COMPANY_PROJECT`) and is running `company-pm`. One line,
 plain. This is a status ping, never evidence — `IMPLEMENTATION_READY` and
 everything else above still goes through `company event`, never a message.
 
+If `SendMessage` errors, or isn't bound in your session at all (a tool
+grant only reaches a session started after the fact — normal right after an
+update), fall back immediately: `company session ping --target <tmux-target>
+--message "..."`. Never silently drop a ping that mattered.
+
 ## Standard of work
 - Handle the states that actually occur: loading, empty, error, unauthorized,
   disabled, focus, keyboard — not just the happy path.
