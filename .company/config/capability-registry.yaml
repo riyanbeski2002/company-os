@@ -436,10 +436,10 @@ entries:
     checked_at: "2026-08-17"
   - id: daytonaio-daytona
     type: tool
-    purpose: "Sandboxed remote dev-environment runtime. SKIPPED, not just deprioritized: no license detected at all via the real API (license: null), and this session already has vercel:vercel-sandbox available — a better-trusted option for the same need. Registered only so nobody re-proposes it without knowing why it was passed over."
-    trust_tier: T3
+    purpose: "Sandboxed remote dev-environment runtime. Real, substantial prior art (71,981 stars, 5,660 forks) — correction to an earlier entry here that wrongly said 'no license': the repo-level API field was null because the LICENSE file was removed from the current default-branch HEAD when the project was archived, but the actual license (AGPL-3.0, confirmed by fetching LICENSE at the pinned v0.190.0 tag) is real and still stated as governing in the README. Reference/fallback only, not primary: the repo's own README states 'no longer maintained... core development moved to a private codebase' as of June 2026, and this session already has vercel:vercel-sandbox as an actively-maintained option for the same need."
+    trust_tier: T2
     source: "https://github.com/daytonaio/daytona"
-    license: "none detected via API — do not adopt until this is resolved"
+    license: "AGPL-3.0 (confirmed via the actual LICENSE file at tag v0.190.0 — copyleft triggers on network/service use, a real compliance consideration if ever adopted)"
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"

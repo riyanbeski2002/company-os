@@ -107,9 +107,11 @@ OS's own architecture doesn't cover. Don't recommend it reflexively; most
 projects here have no reason to route across providers at all.
 
 `ByteByteGoHq/system-design-101` (T3, registered) is a real visual
-architecture reference — useful for grounding an explanation, never for
-lifting content into a deliverable: it's CC BY-NC-ND, no derivatives, no
-commercial reuse.
+architecture reference, but give it **least preference of anything in this
+file** — its real last push is April 2025 (16+ months stale), and it's CC
+BY-NC-ND (no derivatives, no commercial reuse). Check a current source
+first; reach for this only when nothing fresher covers the concept, and
+never for lifting content into a deliverable.
 
 Give your recommendation with the options. "Both are viable, you choose" is an
 abdication; the CEO is asking you *because* he is not the expert here.
