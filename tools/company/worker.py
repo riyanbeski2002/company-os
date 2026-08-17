@@ -196,6 +196,65 @@ def build_command(task: dict, role: str) -> list[str]:
     ]
 
 
+CLAIM_STALE_AFTER_S = 7200  # comfortably above any real launch timeout — a
+# claim older than this without being released means its owning process died
+# without ever reaching launch()'s `finally` (a hard kill), not that it lost
+# a fair race to a concurrent competitor.
+
+
+def claim_task(company_root: Path, task_id: str, actor: str) -> bool:
+    """Atomically claim a task before launching, closing the race
+    `live_worker_on` alone cannot.
+
+    KNOWN_ISSUES #2: two `launch()` calls issued close together both read the
+    filesystem (via live_worker_on) before either had written its own pid/
+    started_task marker, so both observed "no live worker" and both
+    proceeded — TASK-202 was implemented four times concurrently, 26.5% of a
+    project's total tokens for a task whose merged diff was 101 lines. A
+    check-then-act read is not a lock; `os.open(..., O_CREAT | O_EXCL)` is —
+    the OS guarantees only one caller ever succeeds at creating the same path.
+
+    First draft of this fix reclaimed a contested claim whenever
+    live_worker_on found nothing live yet — which is exactly the state BOTH
+    racing callers see while either is still mid-launch (neither has written
+    its pid file), so the loser would immediately steal the winner's claim
+    and reproduce the original bug. Age is the signal that's actually safe:
+    a fresh claim might belong to a genuine concurrent competitor and must
+    never be stolen; only a claim old enough that no real launch could still
+    be legitimately holding it gets reclaimed.
+    """
+    live = live_worker_on(company_root, task_id)
+    if live and live != actor:
+        return False  # a fully-running worker (its own claim already released)
+
+    claims = Path(company_root) / "state" / "claims"
+    claims.mkdir(parents=True, exist_ok=True)
+    claim_path = claims / f"{task_id}.claim"
+
+    try:
+        fd = os.open(str(claim_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, actor.encode())
+        os.close(fd)
+        return True
+    except FileExistsError:
+        pass
+
+    holder = claim_path.read_text(encoding="utf-8").strip()
+    if holder == actor:
+        return True  # the same worker resuming its own claim, not a collision
+
+    age = time.time() - claim_path.stat().st_mtime
+    if age < CLAIM_STALE_AFTER_S:
+        return False  # could be a genuine concurrent competitor — never steal it
+    claim_path.write_text(actor, encoding="utf-8")  # leaked by a hard-killed process
+    return True
+
+
+def release_claim(company_root: Path, task_id: str) -> None:
+    claim_path = Path(company_root) / "state" / "claims" / f"{task_id}.claim"
+    claim_path.unlink(missing_ok=True)
+
+
 def live_worker_on(company_root: Path, task_id: str) -> str | None:
     """Another worker already in this task's worktree, if any.
 
@@ -225,99 +284,112 @@ def live_worker_on(company_root: Path, task_id: str) -> str | None:
 def launch(repo: Path, company_root: Path, task: dict, packet: str,
            role: str, actor: str, timeout: int = 1800) -> dict:
     """Run one Tier-2 worker to completion. Returns a result record."""
-    busy = live_worker_on(company_root, task["id"])
-    if busy and busy != actor:
+    if not claim_task(company_root, task["id"], actor):
+        busy = live_worker_on(company_root, task["id"]) or "another worker"
         raise WorkerError(
             f"{busy} is already working in {task['id']}'s worktree. Two workers in "
             f"one worktree overwrite each other. Wait for it, or `company stop`."
         )
-    log = EventLog(company_root)
-    wt, branch = ensure_worktree(repo, company_root, task)
+    try:
+        log = EventLog(company_root)
+        wt, branch = ensure_worktree(repo, company_root, task)
 
-    state = company_root / "state" / "workers" / actor
-    state.mkdir(parents=True, exist_ok=True)
-    out_path, err_path = state / "stdout.json", state / "stderr.log"
+        state = company_root / "state" / "workers" / actor
+        state.mkdir(parents=True, exist_ok=True)
+        out_path, err_path = state / "stdout.json", state / "stderr.log"
 
-    log.append(make_event(
-        event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
-        task=task["id"],
-        data={"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
-              "timeout_s": timeout},
-    ))
-
-    started = time.monotonic()
-    with open(out_path, "w") as out, open(err_path, "w") as err:
-        proc = subprocess.Popen(
-            build_command(task, role), cwd=str(wt),
-            env=build_env(repo, company_root, task, actor, wt),
-            stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
-        )
-        (state / "pid").write_text(str(proc.pid))
-        (state / "started_task").write_text(task["id"])
-        try:
-            # The packet is the worker's entire context. Closing stdin matters:
-            # a `claude -p` process with an inherited open stdin blocks forever
-            # waiting for EOF instead of running the prompt.
-            proc.communicate(input=packet, timeout=timeout)
-            timed_out = False
-        except subprocess.TimeoutExpired:
-            # SIGTERM, not SIGKILL: it aborts the turn cleanly, tears down the
-            # child process tree, and still runs SessionEnd hooks (exit 143).
-            proc.send_signal(signal.SIGTERM)
-            try:
-                proc.wait(timeout=30)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-            timed_out = True
-
-    elapsed = round(time.monotonic() - started, 1)
-    result = _read_result(out_path)
-    session_id = result.get("session_id")
-    if session_id:
-        (state / "session_id").write_text(session_id)
-
-    log.append(make_event(
-        event="WORKER_EXITED", actor=actor, project=task.get("project", ""),
-        task=task["id"],
-        data={"exit_code": proc.returncode, "timed_out": timed_out,
-              "elapsed_s": elapsed, "session_id": session_id,
-              "is_error": result.get("is_error"),
-              "terminal_reason": result.get("terminal_reason"),
-              # On a Claude subscription no dollars are charged for these runs;
-              # what is actually consumed is tokens against the plan's limits.
-              # `total_cost_usd` is Claude Code's client-side estimate of what
-              # the same work would have cost through the API, so it is recorded
-              # as an estimate and never presented as a bill.
-              "cost_usd_estimate": result.get("total_cost_usd"),
-              "tokens": _usage(result)},
-    ))
-
-    if timed_out:
         log.append(make_event(
-            event="TASK_FAILED", actor=actor, project=task.get("project", ""),
+            event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
             task=task["id"],
-            data={"reason": f"wall-clock timeout after {timeout}s",
-                  "worktree_preserved": str(wt)},
+            data={"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
+                  "timeout_s": timeout},
         ))
-    elif role in GATE_VERDICT_EVENTS:
-        expected = gave_no_verdict(log.read(), task["id"], actor, role)
-        if expected:
-            log.append(make_event(
-                event="GATE_NO_VERDICT", actor=actor, project=task.get("project", ""),
-                task=task["id"],
-                data={"role": role, "expected_one_of": list(expected),
-                      "exit_code": proc.returncode, "is_error": result.get("is_error"),
-                      "terminal_reason": result.get("terminal_reason")},
-            ))
 
-    return {
-        "actor": actor, "task": task["id"], "role": role, "branch": branch,
-        "worktree": str(wt), "exit_code": proc.returncode, "timed_out": timed_out,
-        "elapsed_s": elapsed, "session_id": session_id,
-        "is_error": result.get("is_error"),
-        "structured_output": result.get("structured_output"),
-        "stdout": str(out_path), "stderr": str(err_path),
-    }
+        started = time.monotonic()
+        with open(out_path, "w") as out, open(err_path, "w") as err:
+            proc = subprocess.Popen(
+                build_command(task, role), cwd=str(wt),
+                env=build_env(repo, company_root, task, actor, wt),
+                stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
+            )
+            (state / "pid").write_text(str(proc.pid))
+            (state / "started_task").write_text(task["id"])
+            # The pid + started_task markers above are now on disk, which is
+            # what live_worker_on's ongoing liveness check relies on — the
+            # claim's only job was covering the window before this point, so
+            # it can be released now rather than held for the worker's whole
+            # runtime (the `finally` below covers the failure paths too).
+            release_claim(company_root, task["id"])
+            try:
+                # The packet is the worker's entire context. Closing stdin
+                # matters: a `claude -p` process with an inherited open stdin
+                # blocks forever waiting for EOF instead of running the prompt.
+                proc.communicate(input=packet, timeout=timeout)
+                timed_out = False
+            except subprocess.TimeoutExpired:
+                # SIGTERM, not SIGKILL: it aborts the turn cleanly, tears down
+                # the child process tree, and still runs SessionEnd hooks
+                # (exit 143).
+                proc.send_signal(signal.SIGTERM)
+                try:
+                    proc.wait(timeout=30)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                timed_out = True
+
+        elapsed = round(time.monotonic() - started, 1)
+        result = _read_result(out_path)
+        session_id = result.get("session_id")
+        if session_id:
+            (state / "session_id").write_text(session_id)
+
+        log.append(make_event(
+            event="WORKER_EXITED", actor=actor, project=task.get("project", ""),
+            task=task["id"],
+            data={"exit_code": proc.returncode, "timed_out": timed_out,
+                  "elapsed_s": elapsed, "session_id": session_id,
+                  "is_error": result.get("is_error"),
+                  "terminal_reason": result.get("terminal_reason"),
+                  # On a Claude subscription no dollars are charged for these
+                  # runs; what is actually consumed is tokens against the
+                  # plan's limits. `total_cost_usd` is Claude Code's client-
+                  # side estimate of what the same work would have cost
+                  # through the API, so it is recorded as an estimate and
+                  # never presented as a bill.
+                  "cost_usd_estimate": result.get("total_cost_usd"),
+                  "tokens": _usage(result)},
+        ))
+
+        if timed_out:
+            log.append(make_event(
+                event="TASK_FAILED", actor=actor, project=task.get("project", ""),
+                task=task["id"],
+                data={"reason": f"wall-clock timeout after {timeout}s",
+                      "worktree_preserved": str(wt)},
+            ))
+        elif role in GATE_VERDICT_EVENTS:
+            expected = gave_no_verdict(log.read(), task["id"], actor, role)
+            if expected:
+                log.append(make_event(
+                    event="GATE_NO_VERDICT", actor=actor, project=task.get("project", ""),
+                    task=task["id"],
+                    data={"role": role, "expected_one_of": list(expected),
+                          "exit_code": proc.returncode, "is_error": result.get("is_error"),
+                          "terminal_reason": result.get("terminal_reason")},
+                ))
+
+        return {
+            "actor": actor, "task": task["id"], "role": role, "branch": branch,
+            "worktree": str(wt), "exit_code": proc.returncode, "timed_out": timed_out,
+            "elapsed_s": elapsed, "session_id": session_id,
+            "is_error": result.get("is_error"),
+            "structured_output": result.get("structured_output"),
+            "stdout": str(out_path), "stderr": str(err_path),
+        }
+    finally:
+        # Covers every early-exit path above (ensure_worktree raising, etc.)
+        # that never reached the release call in the normal path.
+        release_claim(company_root, task["id"])
 
 
 def _usage(result: dict) -> dict:

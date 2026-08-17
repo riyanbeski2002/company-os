@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -72,6 +73,57 @@ class TestWorktreeCollision(unittest.TestCase):
                           {"id": "TASK-1", "project": "p", "title": "t"},
                           "packet", "backend-engineer", "be-2")
         self.assertIn("already working", str(ctx.exception))
+
+    def test_claim_task_closes_the_double_launch_race(self):
+        """KNOWN_ISSUES #2, reproduced directly: many callers claiming the
+        same fresh task concurrently — exactly two launch() calls issued
+        close together, just with more concurrency to make a race failure
+        near-certain rather than probabilistic. Exactly one must win."""
+        import concurrent.futures
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=20) as pool:
+            futures = [pool.submit(worker.claim_task, self.root, "TASK-RACE", f"actor-{i}")
+                      for i in range(20)]
+            results = [f.result() for f in futures]
+        self.assertEqual(sum(results), 1, f"expected exactly one winner, got {sum(results)}")
+
+    def test_a_fresh_contested_claim_is_never_stolen(self):
+        claim_path = self.root / "state" / "claims" / "TASK-1.claim"
+        claim_path.parent.mkdir(parents=True, exist_ok=True)
+        claim_path.write_text("actor-a")
+        self.assertFalse(worker.claim_task(self.root, "TASK-1", "actor-b"))
+
+    def test_a_genuinely_stale_claim_is_reclaimed(self):
+        import os as _os
+        claim_path = self.root / "state" / "claims" / "TASK-1.claim"
+        claim_path.parent.mkdir(parents=True, exist_ok=True)
+        claim_path.write_text("actor-a")
+        old = time.time() - worker.CLAIM_STALE_AFTER_S - 60
+        _os.utime(claim_path, (old, old))
+        self.assertTrue(worker.claim_task(self.root, "TASK-1", "actor-b"))
+        self.assertEqual(claim_path.read_text(), "actor-b")
+
+    def test_the_same_actor_resumes_its_own_claim(self):
+        claim_path = self.root / "state" / "claims" / "TASK-1.claim"
+        claim_path.parent.mkdir(parents=True, exist_ok=True)
+        claim_path.write_text("actor-a")
+        self.assertTrue(worker.claim_task(self.root, "TASK-1", "actor-a"))
+
+    def test_release_claim_removes_it(self):
+        claim_path = self.root / "state" / "claims" / "TASK-1.claim"
+        claim_path.parent.mkdir(parents=True, exist_ok=True)
+        claim_path.write_text("actor-a")
+        worker.release_claim(self.root, "TASK-1")
+        self.assertFalse(claim_path.exists())
+
+    def test_release_claim_on_a_task_with_no_claim_does_not_error(self):
+        worker.release_claim(self.root, "TASK-NEVER-CLAIMED")  # must not raise
+
+    def test_a_live_worker_still_blocks_a_fresh_claim(self):
+        """Backward compatible: an already-running worker (its own claim
+        already released post-launch) still refuses a competing claim."""
+        self._worker("be-1", "TASK-1")
+        self.assertFalse(worker.claim_task(self.root, "TASK-1", "be-2"))
 
     def test_the_same_worker_may_resume_its_own_worktree(self):
         """Refusing a retry of the same actor would make recovery impossible."""
