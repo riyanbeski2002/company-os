@@ -168,6 +168,58 @@ class TestSkillsResearchAndPresentOptions(unittest.TestCase):
             self.assertIn(marker, text, f"{name}/SKILL.md is missing its options-first section")
 
 
+class TestScrollAnimationSkill(unittest.TestCase):
+    """Riyan described one pipeline (concept -> AI-video-gen -> frame
+    extraction -> scroll sequencer) then corrected mid-turn: 'this pathway
+    is also not limited - the skill should research and come up with more
+    pipelines.' The skill must present real alternatives, not just the one
+    example, and split work into autonomous vs. Riyan-needed steps."""
+
+    def setUp(self):
+        self.path = ROOT / "skills" / "scroll-animation" / "SKILL.md"
+
+    def test_skill_file_exists(self):
+        self.assertTrue(self.path.exists())
+
+    def test_frontmatter_has_name_and_trigger_description(self):
+        fm = frontmatter(self.path)
+        self.assertEqual(fm.get("name"), "scroll-animation")
+        self.assertIn("Triggers on", fm.get("description", ""))
+
+    def test_presents_more_than_one_pipeline(self):
+        """The exact correction Riyan gave: not limited to one pathway."""
+        text = self.path.read_text(encoding="utf-8")
+        for pipeline in ("Frame-sequenced video", "CSS scroll-timeline",
+                         "JS scroll-linked", "Lottie", "WebGL", "SVG path"):
+            self.assertIn(pipeline, text, pipeline)
+
+    def test_works_the_described_pipeline_in_full_detail(self):
+        """His specific example still gets a real, concrete, buildable
+        walkthrough — not just a table row like the others."""
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("ffmpeg", text)
+        self.assertIn("requestAnimationFrame", text)
+
+    def test_splits_autonomous_work_from_riyan_needed_work(self):
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("Always needs Riyan", text)
+        self.assertIn("Autonomous, every pipeline", text)
+
+    def test_is_registered_in_company_os_own_registry(self):
+        import yaml
+        reg_path = ROOT / ".company" / "config" / "capability-registry.yaml"
+        if not reg_path.exists():
+            self.skipTest("company-os not onboarded onto itself in this checkout")
+        data = yaml.safe_load(reg_path.read_text())
+        entry = next((e for e in data["entries"] if e["id"] == "scroll-animation"), None)
+        self.assertIsNotNone(entry)
+
+    def test_product_designer_and_frontend_engineer_are_pointed_at_it(self):
+        for name in ("product-designer", "frontend-engineer"):
+            text = (ROOT / "agents" / f"{name}.md").read_text(encoding="utf-8")
+            self.assertIn("scroll-animation", text, name)
+
+
 class TestCapabilityRegistryConfig(unittest.TestCase):
     def setUp(self):
         self.path = ROOT / "config" / "capability-registry.yaml"

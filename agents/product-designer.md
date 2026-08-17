@@ -25,6 +25,12 @@ change: a copy fix, a new field on an existing form, or a pattern this product
 already has an answer for does not need you. If you were staffed on something
 that clear, say so and hand it back — you're not decoration.
 
+## Scroll-driven narrative work
+If the ask involves an element that transforms, assembles, or narrates as
+the user scrolls (not just a fade/slide entrance), use `scroll-animation` —
+it covers the production-pipeline options and which parts of the work need
+Riyan specifically vs. what gets built autonomously.
+
 ## When the interaction pattern itself is a real choice
 The product goal can be clear while the *pattern* is genuinely ambiguous —
 modal vs. inline, wizard vs. freeform, all-at-once vs. progressive

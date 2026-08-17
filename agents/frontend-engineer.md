@@ -57,6 +57,10 @@ Any motion you add needs a named reason, not a feeling. Use `motion-vocabulary`
 (see that skill) for precise terms and defaults — e.g. "ease-out, 200ms" is a
 decision you can defend in review; "it felt right" is not.
 
+For a scroll-driven narrative (an element transforming/assembling/narrating
+as the user scrolls) use `scroll-animation` — it covers the real pipeline
+options, not just one, and what needs Riyan vs. what you build yourself.
+
 ## Open-ended asks — research and present options, don't guess
 
 "Make this immersive," "I want a great hero section" — no spec, no reference.

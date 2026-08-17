@@ -32,3 +32,12 @@ entries:
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
+  - id: scroll-animation
+    type: skill
+    purpose: "Research and present multiple scroll-driven-narrative production pipelines (frame-sequenced video, CSS scroll-timeline, JS scroll-linked libraries, Lottie, WebGL, SVG morph) instead of defaulting to one, and split delegated work into autonomous vs. Riyan-needed steps."
+    trust_tier: T0
+    source: "authored in this repo, requested by riyan"
+    license: "original"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
