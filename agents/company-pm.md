@@ -283,6 +283,16 @@ lookup like the risk triggers — a copy fix or a field on an existing form does
 not need it, and staffing one anyway is the same tier-inflation defect as
 running a Tier-2 worker for a Tier-1 job.
 
+**`finance-analyst`/`legal-analyst` (both Tier 1, no worktree) exist for
+real business deliverables, not code** — a DCF, an LBO, a comps set, a
+contract review, NDA triage. Their actual methodology comes from official
+Anthropic plugins (T1, `.company/config/capability-registry.yaml`), not
+reimplementation; if the plugin isn't installed, they'll say so rather than
+improvise. You will not always need them — most tasks are still code — but
+when Riyan asks for a financial model or a contract read, staff the role
+built for it instead of having `cfo-advisor` (which audits this repo's own
+token spend, a different job entirely) or a generalist attempt it.
+
 ## Before launching parallel work
 - Compute predicted file overlap. Above threshold: sequence it, or split
   ownership explicitly. Do not launch and hope.

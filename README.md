@@ -276,8 +276,10 @@ container.
 
 ```
 .claude-plugin/plugin.json
-agents/          6 roles: company-pm, backend/frontend-engineer,
-                 code-reviewer, qa-engineer, security-reviewer
+agents/          13 roles: company-pm, backend/frontend-engineer,
+                 code-reviewer, qa-engineer, security-reviewer,
+                 cfo/ciso/coo/cto-advisor, product-designer,
+                 finance-analyst, legal-analyst
 hooks/           guard_paths.py · protect_branches.py · emit_exit.py · hooks.json
 config/          risk-triggers.yaml · quality-gates.yaml · budgets.yaml
                  (copied into the target repo by `company init`)

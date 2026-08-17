@@ -169,7 +169,8 @@ class TestAgentDefinitions(unittest.TestCase):
 
     def test_worker_agents_carry_context_discipline(self):
         for name in ("backend-engineer", "frontend-engineer", "code-reviewer",
-                     "qa-engineer", "security-reviewer", "product-designer"):
+                     "qa-engineer", "security-reviewer", "product-designer",
+                     "finance-analyst", "legal-analyst"):
             text = (AGENTS[0].parent / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn("Keep your own context small", text)
 
@@ -199,6 +200,8 @@ class TestResearchPresentOptionsBuild(unittest.TestCase):
         "ciso-advisor": "How you recommend remediation",
         "cfo-advisor": "Waste vs. a real tradeoff",
         "coo-advisor": "more than one real fix",
+        "finance-analyst": "When the ask itself is ambiguous",
+        "legal-analyst": "When a flagged clause has more than one real remediation",
     }
 
     def test_every_role_presents_options_before_building_or_deciding(self):

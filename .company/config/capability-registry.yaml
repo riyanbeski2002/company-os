@@ -41,3 +41,21 @@ entries:
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
+  - id: anthropics-financial-services-plugins
+    type: plugin
+    purpose: "Backing methodology (DCF, LBO, comps, 3-statement models, pitch decks) for the new finance-analyst agent — real deal/finance deliverables, not company-os's own cost auditing. Matches active finance work (tds-reco, fin-comp, finos)."
+    trust_tier: T1
+    source: "https://github.com/anthropics/financial-services-plugins"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: anthropics-knowledge-work-plugins-legal
+    type: plugin
+    purpose: "Backing methodology (contract review against a negotiation playbook, NDA triage) for the new legal-analyst agent. Assists, never replaces, licensed counsel — every legal-analyst deliverable states this explicitly."
+    trust_tier: T1
+    source: "https://github.com/anthropics/knowledge-work-plugins/tree/main/legal"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
