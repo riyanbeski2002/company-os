@@ -22,7 +22,12 @@ from eventlog import EventLog, make_event
 
 
 def record(company_root: Path, *, project: str, pattern: str, evidence: str,
-          fix: str, actor: str | None = None) -> dict:
+          fix: str, actor: str | None = None, skill: str | None = None) -> dict:
+    """`skill` is what closes the loop this event log used to leave open: a
+    lesson that names the skill/agent it's about is queryable by
+    `fold(..., skill=...)`, so 2+ lessons touching the same skill become a
+    concrete signal that skill needs a real patch — not a hope that someone
+    remembers to go read the log."""
     if not pattern.strip():
         raise ValueError("a lesson requires a pattern — what kept happening, not just what happened once")
     if not fix.strip():
@@ -35,18 +40,25 @@ def record(company_root: Path, *, project: str, pattern: str, evidence: str,
         )
 
     data = {"pattern": pattern, "fix": fix}
+    if skill:
+        data["skill"] = skill
     EventLog(company_root).append(make_event(
         event="LESSON_RECORDED", actor=actor or "company-pm",
         project=project, data=data, evidence={"log": evidence}))
     return data
 
 
-def fold(events: list[dict], project: str | None = None) -> list[dict]:
+def fold(events: list[dict], project: str | None = None,
+        skill: str | None = None) -> list[dict]:
     """Every recorded lesson, oldest first — this list only ever grows.
 
     Unlike an escalation or an advisory finding, a lesson is never 'resolved'
     — the fix already happened by the time it's recorded. What matters is
     that the next task, on this repo or another, can be told to check it.
+
+    `skill` filters to lessons tagged with that skill/agent name — this is
+    the query that turns repeated lessons into a concrete signal a skill
+    needs patching, instead of accumulating unread.
     """
     out = []
     for ev in events:
@@ -55,12 +67,28 @@ def fold(events: list[dict], project: str | None = None) -> list[dict]:
         if project and ev.get("project") != project:
             continue
         data = ev.get("data") or {}
+        if skill and data.get("skill") != skill:
+            continue
         out.append({
             "id": f"LESSON-{ev.get('seq')}",
             "ts": ev.get("ts"),
             "actor": ev.get("actor"),
             "pattern": data.get("pattern"),
             "fix": data.get("fix"),
+            "skill": data.get("skill"),
             "evidence": (ev.get("evidence") or {}).get("log"),
         })
     return out
+
+
+def skills_with_repeated_lessons(events: list[dict], threshold: int = 2) -> dict[str, int]:
+    """Skills/agents with `threshold`+ lessons tagged against them — the
+    actual trigger for "this skill needs a real patch," not a hope someone
+    remembers to go read the log. A single lesson might be a one-off; a
+    repeated one is the golden-path-worth-harvesting signal."""
+    counts: dict[str, int] = {}
+    for lesson in fold(events):
+        skill = lesson.get("skill")
+        if skill:
+            counts[skill] = counts.get(skill, 0) + 1
+    return {s: n for s, n in counts.items() if n >= threshold}

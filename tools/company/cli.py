@@ -935,13 +935,18 @@ def cmd_lesson(args):
         actor = args.actor or os.environ.get("COMPANY_ACTOR")
         try:
             data = lessons.record(root, project=project, pattern=args.pattern,
-                                  evidence=args.evidence, fix=args.fix, actor=actor)
+                                  evidence=args.evidence, fix=args.fix, actor=actor,
+                                  skill=args.skill)
         except ValueError as exc:
             die(str(exc), 2)
         emit({"ok": True, **data})
     else:
         project = args.project or os.environ.get("COMPANY_PROJECT")
-        emit({"ok": True, "lessons": lessons.fold(EventLog(root).read(), project)})
+        events = EventLog(root).read()
+        out = {"ok": True, "lessons": lessons.fold(events, project, skill=args.skill)}
+        if not args.skill:
+            out["skills_needing_a_patch"] = lessons.skills_with_repeated_lessons(events)
+        emit(out)
 
 
 def cmd_escalate(args):
@@ -1182,6 +1187,8 @@ def build_parser():
     ls.add_argument("--fix", help="the fix that was actually applied (required with --pattern)")
     ls.add_argument("--actor")
     ls.add_argument("--project")
+    ls.add_argument("--skill", help="tag this lesson to the skill/agent it's about — "
+                    "2+ lessons on the same skill is the signal it needs a real patch")
     ls.set_defaults(fn=cmd_lesson)
 
     es = sub.add_parser("escalate", help="ask the CEO for something the PM cannot do")

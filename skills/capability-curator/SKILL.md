@@ -23,6 +23,14 @@ resource Riyan has approved, with its trust tier, license, and the date it was
 last checked. If what you need is already there, use it and stop; you do not
 need to re-research something already vetted this cycle.
 
+Run the bundled script rather than eyeballing dates — deterministic, tested,
+never "roughly recent":
+```bash
+scripts/check_registry.py .company/config/capability-registry.yaml
+```
+Anything it reports `stale` genuinely needs a fresh check before you trust it
+as still-vetted; anything `fresh` you can use as-is.
+
 ## How to research well, not just procedurally
 Research is targeted investigation, not a link dump. For any real candidate:
 1. **Maintainer** — active in the last 6 months, responds to issues? A

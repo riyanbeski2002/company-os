@@ -53,6 +53,59 @@ class TestRecord(unittest.TestCase):
         self.assertEqual(events[0]["actor"], "company-pm")
 
 
+class TestSkillTaggingAndRepeatDetection(unittest.TestCase):
+    """The actual self-improving loop: a lesson tagged to a skill is
+    queryable, and 2+ lessons on the same skill is the concrete signal that
+    skill needs a real patch — not a hope someone remembers to reread the
+    event log. Researched from how real self-improving skill setups work:
+    capture the pattern, persist it, and let repetition (not vibes) trigger
+    the update. https://github.com/Kulaxyz/self-learning-skills"""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+
+    def test_a_lesson_can_be_tagged_to_a_skill(self):
+        lessons.record(self.root, project="p", pattern="x", evidence="e", fix="f",
+                       skill="scroll-animation")
+        found = lessons.fold(EventLog(self.root).read(), skill="scroll-animation")
+        self.assertEqual(len(found), 1)
+
+    def test_fold_by_skill_excludes_untagged_and_other_skills(self):
+        lessons.record(self.root, project="p", pattern="a", evidence="e", fix="f",
+                       skill="scroll-animation")
+        lessons.record(self.root, project="p", pattern="b", evidence="e", fix="f",
+                       skill="motion-vocabulary")
+        lessons.record(self.root, project="p", pattern="c", evidence="e", fix="f")
+        found = lessons.fold(EventLog(self.root).read(), skill="scroll-animation")
+        self.assertEqual([l["pattern"] for l in found], ["a"])
+
+    def test_one_lesson_on_a_skill_is_not_yet_a_signal(self):
+        lessons.record(self.root, project="p", pattern="x", evidence="e", fix="f",
+                       skill="scroll-animation")
+        signals = lessons.skills_with_repeated_lessons(EventLog(self.root).read())
+        self.assertEqual(signals, {})
+
+    def test_two_lessons_on_the_same_skill_is_the_signal(self):
+        lessons.record(self.root, project="p", pattern="x", evidence="e", fix="f",
+                       skill="scroll-animation")
+        lessons.record(self.root, project="p", pattern="y", evidence="e", fix="f",
+                       skill="scroll-animation")
+        signals = lessons.skills_with_repeated_lessons(EventLog(self.root).read())
+        self.assertEqual(signals, {"scroll-animation": 2})
+
+    def test_lessons_on_different_skills_do_not_combine(self):
+        lessons.record(self.root, project="p", pattern="x", evidence="e", fix="f",
+                       skill="scroll-animation")
+        lessons.record(self.root, project="p", pattern="y", evidence="e", fix="f",
+                       skill="motion-vocabulary")
+        signals = lessons.skills_with_repeated_lessons(EventLog(self.root).read())
+        self.assertEqual(signals, {})
+
+
 class TestFold(unittest.TestCase):
     def setUp(self):
         import tempfile

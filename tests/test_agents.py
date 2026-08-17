@@ -142,6 +142,14 @@ class TestAgentDefinitions(unittest.TestCase):
         text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
         self.assertIn("company lesson", text)
 
+    def test_pm_closes_the_lesson_to_skill_feedback_loop(self):
+        """A lesson that only ever accumulates and never feeds back into the
+        skill it's about is a log nobody reads, not a self-improving loop —
+        the PM must actually act on skills_needing_a_patch, not just record."""
+        text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
+        self.assertIn("skills_needing_a_patch", text)
+        self.assertIn("--skill", text)
+
     def test_product_designer_is_tier_1_and_writes_only_the_handoff(self):
         """No worktree, so no ownership hook — the write scope is a prompt
         discipline, not a mechanism. Say so plainly rather than imply a

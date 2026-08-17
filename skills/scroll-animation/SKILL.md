@@ -60,8 +60,12 @@ a way to generate video itself — say so plainly rather than attempting a
 worse substitute.
 
 **3. Extract frames (autonomous).**
+Run the bundled script rather than retyping the ffmpeg flags from memory —
+it's deterministic, it's tested (`evals/evals.json` — exactly N frames for
+an N-second clip at the given fps, never "approximately"), and it fails
+loudly on a missing input instead of silently producing nothing:
 ```bash
-ffmpeg -i input.mp4 -vf fps=30 out/frame-%03d.png
+scripts/extract_frames.sh <input-video> <output-dir> [fps, default 30]
 ```
 30fps for a smooth scrub; consider fewer if payload size matters more than
 buttery scrubbing — a scroll-driven sequence rarely needs cinema-grade

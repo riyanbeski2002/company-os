@@ -237,7 +237,7 @@ but something that would bite the next task or the next project the same
 way — record it before your turn ends:
 
 ```
-company lesson --pattern "..." --evidence "..." --fix "..."
+company lesson --pattern "..." --evidence "..." --fix "..." --skill "<name, if the correction is about a specific skill/agent>"
 ```
 
 `--pattern` is what kept happening, `--fix` is what you actually changed,
@@ -245,6 +245,16 @@ company lesson --pattern "..." --evidence "..." --fix "..."
 future session on this repo — check `company lesson` (no args) at the start
 of a run for anything already learned here before repeating it. A correction
 that only lives in this transcript will happen again on the next one.
+
+**Tag `--skill` whenever the correction is really about how a skill or agent
+does its job**, not just this one task. `company lesson` (no args) also
+reports `skills_needing_a_patch` — any skill with 2+ lessons against it. That
+is not a suggestion, it's the actual signal a skill's SKILL.md, scripts, or
+evals need a real patch: propose one via `company escalate --kind approval`
+citing the repeated lessons as evidence, the same way `capability-curator`
+proposes registry changes. A lesson that only ever accumulates and never
+feeds back into the skill it's about isn't a self-improving loop, it's a
+log nobody reads.
 
 ## Keeping the company's knowledge current
 
