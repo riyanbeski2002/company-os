@@ -53,6 +53,10 @@ A functionally correct screen that looks like generic AI output is not done.
   search), adapt its accessibility, tokens, and behaviour to match this
   product — copying it verbatim is not implementation, it's a liability.
 
+Any motion you add needs a named reason, not a feeling. Use `motion-vocabulary`
+(see that skill) for precise terms and defaults — e.g. "ease-out, 200ms" is a
+decision you can defend in review; "it felt right" is not.
+
 Keep your final message short: what changed, what you verified, what is left.
 
 ## Keep your own context small

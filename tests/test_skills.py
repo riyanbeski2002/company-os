@@ -93,6 +93,63 @@ class TestUxFlowSkill(unittest.TestCase):
         self.assertIn("When to skip this entirely", text)
 
 
+class TestMotionVocabularySkill(unittest.TestCase):
+    """Riyan explicitly requested and approved this one live, mid-turn — the
+    capability-curator approval step is satisfied by that direct request,
+    not a separate escalation. Content is an original write-up organized
+    around 'when to reach for this,' not a verbatim copy of the source site."""
+
+    def setUp(self):
+        self.path = ROOT / "skills" / "motion-vocabulary" / "SKILL.md"
+
+    def test_skill_file_exists(self):
+        self.assertTrue(self.path.exists())
+
+    def test_frontmatter_has_name_and_trigger_description(self):
+        fm = frontmatter(self.path)
+        self.assertEqual(fm.get("name"), "motion-vocabulary")
+        self.assertIn("Triggers on", fm.get("description", ""))
+
+    def test_covers_the_core_categories(self):
+        text = self.path.read_text(encoding="utf-8")
+        for category in ("Enter/exit", "Easing", "Spring", "Gestures",
+                         "Performance vocabulary"):
+            self.assertIn(category, text)
+
+    def test_gives_a_concrete_default_not_just_a_glossary(self):
+        """The point is defensible decisions, not a dictionary — ease-out as
+        the default and the transform/opacity performance rule are the two
+        most load-bearing facts in the whole skill."""
+        text = self.path.read_text(encoding="utf-8")
+        self.assertIn("default for anything entering", text)
+        self.assertIn("layout thrashing", text)
+
+    def test_shipped_template_stays_empty(self):
+        """config/capability-registry.yaml is the template `company init`
+        copies into every newly onboarded repo — a company-os-specific
+        approval does not belong there, or it would leak into every other
+        project someone onboards. Caught this live: first attempt edited
+        the template instead of company-os's own .company/ instance."""
+        import yaml
+        data = yaml.safe_load((ROOT / "config" / "capability-registry.yaml").read_text())
+        self.assertEqual(data.get("entries"), [])
+
+    def test_is_registered_and_approved_in_company_os_own_registry(self):
+        import yaml
+        reg_path = ROOT / ".company" / "config" / "capability-registry.yaml"
+        if not reg_path.exists():
+            self.skipTest("company-os not onboarded onto itself in this checkout")
+        data = yaml.safe_load(reg_path.read_text())
+        entry = next((e for e in data["entries"] if e["id"] == "motion-vocabulary"), None)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry["approved_by"], "riyan")
+        self.assertIn(entry["trust_tier"], ("T1", "T2", "T3"))
+
+    def test_frontend_engineer_is_pointed_at_it(self):
+        text = (ROOT / "agents" / "frontend-engineer.md").read_text(encoding="utf-8")
+        self.assertIn("motion-vocabulary", text)
+
+
 class TestCapabilityRegistryConfig(unittest.TestCase):
     def setUp(self):
         self.path = ROOT / "config" / "capability-registry.yaml"

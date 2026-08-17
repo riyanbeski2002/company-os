@@ -22,4 +22,13 @@
 #     approved_at: "2026-08-16"
 #     checked_at: "2026-08-16"
 
-entries: []
+entries:
+  - id: motion-vocabulary
+    type: skill
+    purpose: "Precise motion/animation terminology and defaults for frontend-engineer, so a motion choice can be justified concretely (a named easing, a stated reason) instead of by taste alone."
+    trust_tier: T2
+    source: "https://motion-vocabulary.vercel.app/ (terminology adapted from animations.dev)"
+    license: "reference terminology only — skill content is an original write-up, not a verbatim copy; re-verify source terms before any different reuse"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
