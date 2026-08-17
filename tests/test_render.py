@@ -129,5 +129,19 @@ class TestProgressIsEvidenceBased(unittest.TestCase):
         self.assertEqual(render.progress(task), 0.0)
 
 
+class TestGatesWithNoVerdict(unittest.TestCase):
+    def test_surfaces_a_gate_no_verdict_event(self):
+        events = [{"event": "GATE_NO_VERDICT", "task": "T-1", "actor": "code-reviewer-1",
+                  "data": {"role": "code-reviewer",
+                          "expected_one_of": ["REVIEW_PASSED", "REVIEW_FAILED"]}}]
+        out = render.gates_with_no_verdict(events)
+        self.assertIn("T-1", out)
+        self.assertIn("code-reviewer-1", out["T-1"])
+        self.assertIn("REVIEW_PASSED", out["T-1"])
+
+    def test_no_events_no_findings(self):
+        self.assertEqual(render.gates_with_no_verdict([]), {})
+
+
 if __name__ == "__main__":
     unittest.main()

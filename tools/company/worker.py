@@ -45,9 +45,37 @@ ROLE_TOOLS = {
     "security-reviewer": "Read,Grep,Glob,Bash",
 }
 
+# KNOWN_ISSUES #3: security-reviewer-201 ran 11 clean turns and emitted
+# neither SECURITY_REVIEW_PASSED nor SECURITY_REVIEW_FAILED. The gate was
+# silently re-run under a new actor name, paying for the review twice — a
+# reviewer ending cleanly with no verdict looked identical to success. The
+# fix below makes that impossible to miss: if a gate role's worker exits
+# without a matching verdict event, that is GATE_NO_VERDICT, not "done."
+GATE_VERDICT_EVENTS = {
+    "code-reviewer": ("REVIEW_PASSED", "REVIEW_FAILED"),
+    "qa-engineer": ("QA_PASSED", "QA_FAILED"),
+    "security-reviewer": ("SECURITY_REVIEW_PASSED", "SECURITY_REVIEW_FAILED"),
+}
+
 
 class WorkerError(RuntimeError):
     pass
+
+
+def gave_no_verdict(events: list[dict], task_id: str, actor: str, role: str) -> tuple | None:
+    """None if the actor emitted its gate's verdict on this task; otherwise
+    the (pass_event, fail_event) pair it was expected to emit. Pure and
+    testable on purpose — the launch() call site can't be unit-tested without
+    a real subprocess, this can."""
+    pair = GATE_VERDICT_EVENTS.get(role)
+    if not pair:
+        return None
+    pass_ev, fail_ev = pair
+    for ev in events:
+        if ev.get("task") == task_id and ev.get("actor") == actor \
+                and ev.get("event") in (pass_ev, fail_ev):
+            return None
+    return pair
 
 
 def slug(text: str, limit: int = 32) -> str:
@@ -271,6 +299,16 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             data={"reason": f"wall-clock timeout after {timeout}s",
                   "worktree_preserved": str(wt)},
         ))
+    elif role in GATE_VERDICT_EVENTS:
+        expected = gave_no_verdict(log.read(), task["id"], actor, role)
+        if expected:
+            log.append(make_event(
+                event="GATE_NO_VERDICT", actor=actor, project=task.get("project", ""),
+                task=task["id"],
+                data={"role": role, "expected_one_of": list(expected),
+                      "exit_code": proc.returncode, "is_error": result.get("is_error"),
+                      "terminal_reason": result.get("terminal_reason")},
+            ))
 
     return {
         "actor": actor, "task": task["id"], "role": role, "branch": branch,

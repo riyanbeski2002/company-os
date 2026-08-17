@@ -543,7 +543,9 @@ def cmd_status(args):
     root = company_root(args)
     project = args.project or os.environ.get("COMPANY_PROJECT")
     tasks = _project_tasks(root, project)
-    stalls = render.detect_stalls(root, tasks, EventLog(root).read())
+    events = EventLog(root).read()
+    stalls = {**render.detect_stalls(root, tasks, events),
+             **render.gates_with_no_verdict(events)}
     if args.json:
         emit({"project": project, "progress": render.project_progress(tasks),
               "tasks": tasks, "escalations": _escalations(root, project), "stalled": stalls})

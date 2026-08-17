@@ -128,5 +128,41 @@ class TestWorkerEnvironment(unittest.TestCase):
         self.assertEqual(self._env()["COMPANY_ACTOR"], "be-1")
 
 
+class TestGateNoVerdict(unittest.TestCase):
+    """KNOWN_ISSUES #3: security-reviewer-201 ran 11 clean turns and emitted
+    neither SECURITY_REVIEW_PASSED nor SECURITY_REVIEW_FAILED — silently
+    re-run under a new actor name, paying for the review twice. Pure and
+    unit-testable on purpose; launch() itself needs a real subprocess."""
+
+    def test_no_verdict_at_all_is_flagged(self):
+        events = [{"event": "WORKER_STARTED", "task": "T-1", "actor": "code-reviewer-1"}]
+        expected = worker.gave_no_verdict(events, "T-1", "code-reviewer-1", "code-reviewer")
+        self.assertEqual(expected, ("REVIEW_PASSED", "REVIEW_FAILED"))
+
+    def test_a_real_pass_verdict_clears_it(self):
+        events = [{"event": "REVIEW_PASSED", "task": "T-1", "actor": "code-reviewer-1"}]
+        self.assertIsNone(worker.gave_no_verdict(events, "T-1", "code-reviewer-1", "code-reviewer"))
+
+    def test_a_real_fail_verdict_also_clears_it(self):
+        """Failing the gate is still a verdict — silence is the problem, not a red result."""
+        events = [{"event": "REVIEW_FAILED", "task": "T-1", "actor": "code-reviewer-1"}]
+        self.assertIsNone(worker.gave_no_verdict(events, "T-1", "code-reviewer-1", "code-reviewer"))
+
+    def test_a_verdict_on_a_different_task_does_not_count(self):
+        events = [{"event": "REVIEW_PASSED", "task": "T-2", "actor": "code-reviewer-1"}]
+        expected = worker.gave_no_verdict(events, "T-1", "code-reviewer-1", "code-reviewer")
+        self.assertIsNotNone(expected)
+
+    def test_a_verdict_from_a_different_actor_does_not_count(self):
+        """Prevents the exact failure that prompted this: a stalled reviewer's
+        silence being papered over by a differently-named re-run."""
+        events = [{"event": "REVIEW_PASSED", "task": "T-1", "actor": "code-reviewer-2"}]
+        expected = worker.gave_no_verdict(events, "T-1", "code-reviewer-1", "code-reviewer")
+        self.assertIsNotNone(expected)
+
+    def test_non_gate_roles_are_never_flagged(self):
+        self.assertIsNone(worker.gave_no_verdict([], "T-1", "be-1", "backend-engineer"))
+
+
 if __name__ == "__main__":
     unittest.main()

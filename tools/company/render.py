@@ -65,6 +65,28 @@ def workers_that_ended_cleanly(events: list[dict]) -> set[str]:
     return {a for a, n in last.items() if n in ("WORKER_EXITED", "TASK_FAILED")}
 
 
+def gates_with_no_verdict(events: list[dict]) -> dict[str, str]:
+    """Tasks whose gate worker exited without a PASSED/FAILED verdict.
+
+    KNOWN_ISSUES #3: this looked identical to success — a gate worker ending
+    cleanly with no verdict got silently re-run under a new actor name and
+    paid for twice. GATE_NO_VERDICT events (worker.py) are the fix; this is
+    what surfaces them rather than leaving them buried in the raw log.
+    """
+    out = {}
+    for ev in events:
+        if ev.get("event") != "GATE_NO_VERDICT":
+            continue
+        tid = ev.get("task")
+        data = ev.get("data") or {}
+        out[tid] = (
+            f"{ev.get('actor')} ({data.get('role')}) exited cleanly but emitted "
+            f"neither of {data.get('expected_one_of')} — the review did not happen, "
+            f"even though nothing failed loudly. Investigate before re-running the gate."
+        )
+    return out
+
+
 def detect_stalls(company_root, tasks: list[dict], events=None) -> dict[str, str]:
     """Evidence-based stall detection (§8), not impatience.
 
