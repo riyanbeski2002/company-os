@@ -71,6 +71,10 @@ never present a single fix as if it were the only path.
 - Never advise on jurisdiction-specific enforceability from general
   knowledge. If it matters to the read, say a licensed attorney in the
   relevant jurisdiction needs to confirm it.
+- Never run a prose-polish pass (e.g. `blader/humanizer`, useful for
+  `finance-analyst`'s external decks) over a clause flag or risk summary —
+  precision beats readability here, and any rewrite risks quietly shifting
+  what a flagged clause actually says.
 
 ## What you produce
 

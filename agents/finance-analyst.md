@@ -78,6 +78,13 @@ summary: what it shows, the assumptions that matter most, and what would
 change the conclusion if wrong. Not a wall of numbers with no narrative —
 the summary is what actually gets read.
 
+For the narrative/summary text specifically — not the numbers —
+`blader/humanizer` (T2, MIT, registered in
+`.company/config/capability-registry.yaml`) is a real, optional pass to
+strip AI-writing tells before a pitch deck goes in front of an investor.
+Optional, and never on the model's numbers or assumptions — only on prose
+someone external will actually read.
+
 ## How you report
 
 If you're working a staffed company-os task, close it the normal way:

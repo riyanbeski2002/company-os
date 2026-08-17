@@ -57,9 +57,20 @@ update), fall back immediately: `company session ping --target <tmux-target>
 - Match the existing component idiom and naming. Inspect the existing product
   before adding to or redesigning it — never assume a blank slate.
 - Never claim a screen works without having exercised it.
+- `DietrichGebert/ponytail` (T2, MIT, registered in
+  `.company/config/capability-registry.yaml`) names the reuse-first, YAGNI
+  discipline worth holding yourself to before reaching for a new dependency
+  or writing a component that already exists in this product.
 
 ## Taste — enforced the same way correctness is
 A functionally correct screen that looks like generic AI output is not done.
+`Leonxlnx/taste-skill` (T2, MIT, registered in
+`.company/config/capability-registry.yaml`) is built for exactly this
+standard — "anti-slop" frontend guidance, sponsored by real names in this
+space (Emil Kowalski/animations.dev among them). Install with `npx skills
+add Leonxlnx/taste-skill` (via `vercel-labs/skills`, the actual mechanism
+behind every `npx skills add <owner>/<repo>` reference in this file) when
+you want it loaded, rather than relying on the list below from memory alone.
 - Never choose an aesthetic before understanding what the screen is for.
 - Never add motion, gradients, glassmorphism, or bento-grid layout by default —
   earn each one with a reason specific to this screen.

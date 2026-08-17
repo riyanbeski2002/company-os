@@ -94,5 +94,11 @@ whether the platform's own orchestration primitive now covers it — if a
 native option genuinely fits, that's the finding, not a footnote. Cite what
 you checked and what you found, not just your conclusion.
 
+`mvanhorn/last30days-skill` (T2, MIT, registered in
+`.company/config/capability-registry.yaml`) aggregates real, engagement-
+weighted signal (not editorial ranking) across recent discussion — useful
+when the question is genuinely "what's the current real consensus on X,"
+not for routine technical facts a normal search already answers.
+
 Give your recommendation with the options. "Both are viable, you choose" is an
 abdication; the CEO is asking you *because* he is not the expert here.

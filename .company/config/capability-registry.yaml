@@ -148,3 +148,70 @@ entries:
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
+  # --- second pass on the same 20-repo sweep: 2 of the original 20 were
+  # typo'd (leonxinx -> Leonxlnx, vercel-lab -> vercel-labs), confirmed 404
+  # on the wrong slugs and real on the corrected ones. Rest of the 20 that
+  # got a genuine "wire in" decision, not just "researched" ---
+  - id: leonxlnx-taste-skill
+    type: skill
+    purpose: "Anti-slop frontend guidance for frontend-engineer's existing Taste standard — more directly on-point than emilkowalski/skills for this specific standard. Real sponsors (Emil Kowalski/animations.dev, IMG.LY)."
+    trust_tier: T2
+    source: "https://github.com/Leonxlnx/taste-skill"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: vercel-labs-skills
+    type: tool
+    purpose: "The actual `npx skills add <owner>/<repo>` CLI mechanism behind every skill-install reference in this repo — infrastructure, not a capability itself. Official Vercel Labs org. Documented centrally in skills/capability-curator/SKILL.md."
+    trust_tier: T2
+    source: "https://github.com/vercel-labs/skills"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: dietrichgebert-ponytail
+    type: skill
+    purpose: "Reuse-first/YAGNI discipline for backend-engineer and frontend-engineer — names precisely what 'no temporary fixes, find the root cause' already asks for. A standard to hold to, not a tool to install."
+    trust_tier: T2
+    source: "https://github.com/DietrichGebert/ponytail"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: mvanhorn-last30days-skill
+    type: skill
+    purpose: "Real, engagement-weighted (not editorial) research signal for cto-advisor's 'research before you recommend' — use for genuine current-consensus questions, not routine technical facts."
+    trust_tier: T2
+    source: "https://github.com/mvanhorn/last30days-skill"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: blader-humanizer
+    type: skill
+    purpose: "Optional AI-writing-tell removal for finance-analyst's investor-facing prose (pitch deck narrative only, never the numbers). Explicitly excluded from legal-analyst — precision beats readability on a clause flag, and a rewrite risks shifting what a flag actually says."
+    trust_tier: T2
+    source: "https://github.com/blader/humanizer"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: anthropics-skills
+    type: skill
+    purpose: "Anthropic's own public reference repo for Agent Skills patterns. Reference source for writing a new company-os skill (pairs with superpowers:writing-skills), not something to fork or adopt wholesale — some contents (docx/pdf/pptx/xlsx generators) are source-available, not open source."
+    trust_tier: T1
+    source: "https://github.com/anthropics/skills"
+    license: "Apache-2.0 (most); source-available for some doc-generation skills — check per-skill"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: coreyhaines31-marketingskills
+    type: skill
+    purpose: "Copywriting/SEO/CRO/growth skills. No owning agent — Company OS has no marketing role today. Registered as known-available if that need arises, not force-fit onto an existing role."
+    trust_tier: T2
+    source: "https://github.com/coreyhaines31/marketingskills"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"

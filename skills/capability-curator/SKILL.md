@@ -128,11 +128,31 @@ company escalate --kind approval \
 Bad: "I found some interesting options for X, let me know what you think."
 That is not a proposal, it is homework handed back.
 
+## How a skill actually gets loaded, once approved
+
+Most external skill repos in `capability-registry.yaml` are installed the
+same way, via `vercel-labs/skills` (T2, MIT, itself registered) — the CLI
+behind the `npx skills add <owner>/<repo>` command referenced elsewhere in
+this repo:
+
+```
+npx skills add <owner>/<repo>              # installs it
+npx skills use <owner>/<repo> | claude     # or use it once, without installing
+```
+
+This is the mechanism, not a new proposal target — cite it when telling
+Riyan or another role how to actually get a registered skill loaded, don't
+re-explain installation from scratch each time.
+
 ## What never needs a proposal
 
 - Anything already in the registry.
 - Official Anthropic documentation, tools, or first-party skills (T1) — cite
-  and use directly.
+  and use directly. `anthropics/skills` (T1, registered in
+  `capability-registry.yaml`) is Anthropic's own public reference repo —
+  good source of real patterns when *writing* a new skill for this repo
+  (pairs with `superpowers:writing-skills` for the mechanics), not
+  something to fork or propose adopting wholesale.
 - Checking whether a well-known fact changed (e.g. "is this API still current")
   without adopting anything new.
 
