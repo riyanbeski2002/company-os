@@ -9,8 +9,11 @@ The rule is now "no worse than the baseline", where the baseline is measured
 before any work and recorded as an event so it cannot be quietly adjusted later.
 """
 
+import os
+import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -61,6 +64,64 @@ class TestCompare(unittest.TestCase):
         ok, why = baseline.compare(RED_UNCOUNTED, {"exit_code": 1, "failures": None})
         self.assertFalse(ok)
         self.assertIn("cannot be proven", why)
+
+
+class TestRunawayProcessFix(unittest.TestCase):
+    """CTO reproduced this live against `company baseline`'s own documented
+    verify command: `subprocess.run(..., shell=True, timeout=...)` only kills
+    the shell on timeout, not any children it spawned. 51 identical
+    `unittest discover` processes were still alive and growing after 120s in
+    the real incident — nothing took a lock, and nothing killed the tree.
+    """
+
+    def test_a_hung_child_process_is_actually_killed_on_timeout(self):
+        marker = f"company_os_test_marker_{os.getpid()}"
+        # The shell backgrounds a long sleep tagged with a unique marker, then
+        # itself hangs — reproducing "shell times out, child survives" if the
+        # fix is wrong.
+        result = baseline.measure(
+            Path("."), f"sh -c 'sleep 30 {marker} & sleep 30'", timeout=1)
+        self.assertTrue(result["timed_out"])
+        self.assertEqual(result["exit_code"], 124)
+        time.sleep(0.3)  # give the OS a moment to actually reap the killed group
+        survivors = subprocess.run(["pgrep", "-f", marker], capture_output=True, text=True)
+        self.assertEqual(survivors.stdout.strip(), "",
+                         f"child process tagged {marker!r} survived the timeout kill")
+
+    def test_a_fast_command_is_unaffected(self):
+        result = baseline.measure(Path("."), "echo hello", timeout=5)
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(result["exit_code"], 0)
+        self.assertIn("hello", result["output_tail"])
+
+
+class TestBaselineSingleFlight(unittest.TestCase):
+    """The other half of the same incident: 50 identical BASELINE_RECORDED
+    events fired at the same second — nothing refused a second concurrent
+    run for the same project."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+
+    def test_a_concurrent_run_is_refused_not_stacked(self):
+        with baseline._single_flight(self.root, "p"):
+            with self.assertRaises(baseline.BaselineInProgress):
+                with baseline._single_flight(self.root, "p"):
+                    pass
+
+    def test_a_different_project_is_not_blocked(self):
+        with baseline._single_flight(self.root, "p1"):
+            with baseline._single_flight(self.root, "p2"):
+                pass  # must not raise
+
+    def test_the_lock_releases_after_the_run_completes(self):
+        with baseline._single_flight(self.root, "p"):
+            pass
+        with baseline._single_flight(self.root, "p"):
+            pass  # must not raise — the first one already released
 
 
 class TestFailureCounting(unittest.TestCase):

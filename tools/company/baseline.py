@@ -18,7 +18,12 @@ adjusted later to make a red run look acceptable.
 
 from __future__ import annotations
 
+import contextlib
+import errno
+import fcntl
+import os
 import re
+import signal
 import subprocess
 from pathlib import Path
 
@@ -36,18 +41,31 @@ COUNT_PATTERNS = [
 
 
 def measure(repo: Path, verify: str, timeout: int = 900) -> dict:
-    """Run the verify command and describe the result. No judgement, just facts."""
+    """Run the verify command and describe the result. No judgement, just facts.
+
+    CTO live-reproduced a runaway-process incident: `subprocess.run(...,
+    timeout=...)` only kills the immediate shell process on timeout, not any
+    children it spawned (`python3 -m unittest discover`, in the reproduction).
+    Those children have no parent to reap them and keep running — 51 of them,
+    growing, in the incident that prompted this fix. `start_new_session=True`
+    puts the whole tree in its own process group; on timeout we kill the
+    group (`os.killpg`), not just the one process Python knows about.
+    """
+    proc = subprocess.Popen(verify, shell=True, cwd=str(repo),
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                            text=True, start_new_session=True)
     try:
-        run = subprocess.run(verify, shell=True, cwd=str(repo),
-                             capture_output=True, text=True, timeout=timeout)
-        output = (run.stdout or "") + (run.stderr or "")
-        exit_code = run.returncode
+        output, _ = proc.communicate(timeout=timeout)
+        exit_code = proc.returncode
         timed_out = False
-    except subprocess.TimeoutExpired as exc:
-        output = str(exc)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        output, _ = proc.communicate()  # drain whatever was captured before the kill
         exit_code = 124
         timed_out = True
 
+    output = output or ""
     return {
         "verify": verify,
         "exit_code": exit_code,
@@ -65,11 +83,41 @@ def _count_failures(output: str) -> int | None:
     return None
 
 
+class BaselineInProgress(RuntimeError):
+    pass
+
+
+@contextlib.contextmanager
+def _single_flight(company_root: Path, project: str):
+    """Refuse a second concurrent baseline/verify run for the same project
+    rather than stack them. 50 identical baseline runs fired at the same
+    second, all killed by timeout, is a real incident this repo produced —
+    nothing took a lock before starting a verify run."""
+    lock_dir = Path(company_root) / "state"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / f"baseline-{project}.lock"
+    with open(lock_path, "w") as handle:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            if exc.errno in (errno.EACCES, errno.EAGAIN):
+                raise BaselineInProgress(
+                    f"a baseline/verify run is already in progress for "
+                    f"project {project!r} — refusing to start a second one "
+                    f"concurrently rather than let them stack.") from exc
+            raise
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
 def record(company_root: Path, repo: Path, *, project: str, verify: str,
            actor: str = "company-cli", ref: str | None = None,
            timeout: int = 900) -> dict:
     """Measure the repo as it stands and write the result to the event log."""
-    result = measure(repo, verify, timeout=timeout)
+    with _single_flight(company_root, project):
+        result = measure(repo, verify, timeout=timeout)
     sha = _head(repo)
     data = {
         "verify": verify,

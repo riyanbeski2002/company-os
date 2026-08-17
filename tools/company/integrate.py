@@ -58,26 +58,30 @@ def integrate(repo: Path, company_root: Path, task: dict, test_command: str,
         return {**result, "merged": False, "reason": "merge conflict",
                 "detail": merge.stderr.strip()[:500]}
 
-    # The suite that decides is the one that runs here, after the merge.
-    run = subprocess.run(test_command, shell=True, cwd=str(wt),
-                         capture_output=True, text=True)
+    # The suite that decides is the one that runs here, after the merge. Uses
+    # baseline.measure() rather than a bare subprocess.run(..., shell=True,
+    # timeout=...) call — that pattern only kills the shell process on
+    # timeout, not any children it spawned, which is the exact runaway-
+    # process incident CTO reproduced against `company baseline`. Same bug
+    # class, same fix: process-group tracking and kill.
+    import baseline as baseline_mod
+    measured = baseline_mod.measure(wt, test_command)
     log_path = Path(company_root) / "state" / "workers" / actor
     log_path.mkdir(parents=True, exist_ok=True)
     out_file = log_path / f"integration-{task['id']}.log"
-    out_file.write_text((run.stdout or "") + (run.stderr or ""), encoding="utf-8")
+    out_file.write_text(measured["output_tail"], encoding="utf-8")
 
-    import baseline as baseline_mod
-    failures = baseline_mod._count_failures((run.stdout or "") + (run.stderr or ""))
+    failures = measured["failures"]
     log.append(make_event(
         event="TEST_RUN", actor=actor, project=task["project"], task=task["id"],
-        data={"cmd": test_command, "exit_code": run.returncode, "failures": failures,
+        data={"cmd": test_command, "exit_code": measured["exit_code"], "failures": failures,
               "stage": "integration"},
         evidence={"log": str(out_file)}))
 
     # On a repo that was already red, "green" means "added no failures". The
     # comparison is against the recorded baseline, never against a worker's claim.
     acceptable, why = baseline_mod.compare(
-        baseline, {"exit_code": run.returncode, "failures": failures})
+        baseline, {"exit_code": measured["exit_code"], "failures": failures})
 
     if not acceptable:
         # Undo the merge: integration must never carry a regression.
@@ -90,10 +94,10 @@ def integrate(repo: Path, company_root: Path, task: dict, test_command: str,
     sha = _git(repo, "rev-parse", "HEAD", cwd=wt).stdout.strip()
     log.append(make_event(
         event="MERGED", actor=actor, project=task["project"], task=task["id"],
-        data={"into": INTEGRATION_BRANCH, "test_exit_code": run.returncode,
+        data={"into": INTEGRATION_BRANCH, "test_exit_code": measured["exit_code"],
               "failures": failures, "accepted_because": why},
         evidence={"commit": sha}))
 
     return {**result, "merged": True, "commit": sha,
-            "test_exit_code": run.returncode, "accepted_because": why,
+            "test_exit_code": measured["exit_code"], "accepted_because": why,
             "test_log": str(out_file)}

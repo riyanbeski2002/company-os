@@ -670,8 +670,11 @@ def cmd_baseline(args):
     if not verify:
         die("no verify command — run `company detect --write`, or pass --verify", 1)
 
-    result = baseline_mod.record(root, repo, project=project, verify=verify,
-                                 timeout=args.timeout)
+    try:
+        result = baseline_mod.record(root, repo, project=project, verify=verify,
+                                     timeout=args.timeout)
+    except baseline_mod.BaselineInProgress as exc:
+        die(str(exc), 1)
     taskstate.rebuild(root)
     out = {k: v for k, v in result.items() if k != "output_tail"}
     if not result["green"]:
