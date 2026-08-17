@@ -722,6 +722,41 @@ def cmd_doctor(args):
                             capture_output=True, text=True).stdout.strip()
     check("current branch", True, branch or "detached")
 
+    # A local branch that is behind its upstream is a silent staffing hazard:
+    # the PM reasons from files/history that look incomplete or stale (a merged
+    # PR reads as an unbuilt stub, a schema migration that already landed reads
+    # as missing) and either re-does finished work or misjudges what is safe to
+    # build next. Caught live 2026-08-17 on ht-workspace: local main was one
+    # merged PR behind origin/main; a "getProfile is still a stub" read was
+    # wrong until `git pull --ff-only` caught it up. Fetch is read-only and
+    # cheap; skip entirely if there is no upstream or no network.
+    upstream = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if upstream:
+        fetch = subprocess.run(
+            ["git", "-C", str(repo), "fetch", "--quiet"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if fetch.returncode == 0:
+            counts = subprocess.run(
+                ["git", "-C", str(repo), "rev-list", "--left-right", "--count",
+                 f"HEAD...{upstream}"],
+                capture_output=True, text=True,
+            ).stdout.strip()
+            ahead, behind = (counts.split() + ["0", "0"])[:2]
+            check("up to date with remote", behind == "0",
+                  "in sync" if behind == "0" else
+                  f"local {branch or 'HEAD'} is {behind} commit(s) behind {upstream} — "
+                  f"`git pull --ff-only` before reasoning about what's built or staffing "
+                  f"work, or you will judge merged work as missing/stale.")
+        else:
+            check("up to date with remote", True,
+                  "fetch failed/unreachable — skipped, not blocking")
+    else:
+        check("up to date with remote", True, "no upstream configured — skipped")
+
     spaces = [p for p in subprocess.run(
         ["git", "-C", str(repo), "ls-files"], capture_output=True, text=True
     ).stdout.splitlines() if " " in p]

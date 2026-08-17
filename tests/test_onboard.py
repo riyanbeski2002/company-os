@@ -75,6 +75,47 @@ class TestOnboardFreshRepo(unittest.TestCase):
         baseline_check = next(c for c in out["checks"] if c["check"] == "baseline recorded")
         self.assertTrue(baseline_check["ok"])
 
+    def test_doctor_flags_a_local_branch_behind_its_upstream(self):
+        """Caught live 2026-08-17 on ht-workspace: local main was one merged PR
+        behind origin/main, and the PM reasoned from stale history — a merged
+        feature read as an unbuilt stub until `git pull --ff-only` caught it
+        up. Doctor must surface this (non-fatal — a warning, not a blocker) so
+        the PM fetches before staffing, on any repo, not just this one."""
+        remote = Path(self.tmp.name) / "remote.git"
+        git(self.repo, "init", "-q", "--bare", str(remote))
+        git(self.repo, "remote", "add", "origin", str(remote))
+        git(self.repo, "push", "-q", "-u", "origin", "HEAD:main")
+
+        # Advance the remote past local without updating local, simulating a
+        # merge that happened elsewhere.
+        clone = Path(self.tmp.name) / "clone"
+        subprocess.run(["git", "clone", "-q", str(remote), str(clone)],
+                       check=True, capture_output=True)
+        (clone / "new-file.txt").write_text("later commit\n")
+        git(clone, "add", "-A")
+        git(clone, "commit", "-q", "-m", "a commit local never saw")
+        git(clone, "push", "-q", "origin", "HEAD:main")
+
+        self._run("init")
+        self._run("detect", "--write")
+        self._run("baseline")
+        result = self._run("doctor")
+        out = json.loads(result.stdout)
+        self.assertTrue(out["ok"], out)  # warning, not a blocker
+        remote_check = next(c for c in out["checks"] if c["check"] == "up to date with remote")
+        self.assertFalse(remote_check["ok"])
+        self.assertIn("behind", remote_check["detail"])
+
+    def test_doctor_skips_remote_check_with_no_upstream(self):
+        self._run("init")
+        self._run("detect", "--write")
+        self._run("baseline")
+        result = self._run("doctor")
+        out = json.loads(result.stdout)
+        remote_check = next(c for c in out["checks"] if c["check"] == "up to date with remote")
+        self.assertTrue(remote_check["ok"])
+        self.assertIn("no upstream", remote_check["detail"])
+
     def test_detect_defaults_data_classification_to_internal(self):
         """Governs what capability-curator may put in an external research
         query (see that skill) — needs a sane default on every repo, not just
