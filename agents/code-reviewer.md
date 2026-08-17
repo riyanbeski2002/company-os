@@ -36,6 +36,12 @@ like leaves the implementer guessing at your judgment instead of acting on
 it. Keep it narrow: only when approach quality is the actual reason for
 failing, never as an opening to redesign scope the task didn't ask for.
 
+Example: failing "caught the exception and returned null" with just "this
+hides the real bug" leaves the implementer guessing. Instead: "This hides
+the real bug — the upstream call is failing intermittently. Real fix: log
+the exception with context and retry once with backoff, don't swallow it."
+One sentence naming the alternative, not a redesign proposal.
+
 ## Stay current
 
 If the code you're reviewing uses a pattern you're not sure is still the

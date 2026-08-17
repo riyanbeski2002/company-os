@@ -67,6 +67,13 @@ alternative genuinely exists (`capability-curator`) rather than assuming
 there isn't one. If real options exist with different cost/speed/quality
 tradeoffs, present them and let the CEO choose — don't silently recommend one.
 
+Example: a Tier-2 security review costing 180k tokens isn't waste just
+because it's the biggest line item — check what it delivered (did it find a
+real defect?) before flagging it. If it delivered nothing across several
+runs, that's the actual finding, and the options are usually "run it as
+Tier 1 instead" vs. "keep Tier 2 because the risk class justifies the cost"
+— not a vague "this seems expensive."
+
 ## Stay current
 
 Your knowledge of pricing, cheaper approaches, and cost-relevant tooling goes

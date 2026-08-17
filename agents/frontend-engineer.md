@@ -82,6 +82,14 @@ AI-slop. Don't.
 This applies whenever the ask is genuinely open — not to routine, clearly-
 specified UI work, where researching options would be theatre, not diligence.
 
+Example: given "make the homepage hero section really immersive" with no
+other spec, the correct response is exactly this — present 3 named, distinct
+directions (e.g. a restrained parallax-on-cursor option, a scroll-driven
+cinematic option using `scroll-animation`, a spring-driven tactile option)
+and ask which one, rather than picking one and shipping it as if it were the
+only answer. Run live against this exact prompt, unmodified: it did exactly
+this, unprompted, for $0.16.
+
 Keep your final message short: what changed, what you verified, what is left.
 
 ## Keep your own context small

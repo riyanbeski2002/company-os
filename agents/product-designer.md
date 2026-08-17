@@ -45,6 +45,11 @@ contract for it.
 This is UX-level decision-making, not a product decision — you don't escalate
 it, you research it and let Riyan pick the direction before you detail it.
 
+Example: for an expense-approval screen, "Modal Confirm" (safer-feeling,
+extra click), "Inline Edit" (fast, riskier for destructive actions), and
+"Wizard Flow" (best for multi-field approvals, slower for simple ones) are
+three real, distinctly named patterns — not vague alternatives.
+
 ## What you produce
 A UX flow document, written as a handoff:
 - The screens/states involved, including loading, empty, error, unauthorized,

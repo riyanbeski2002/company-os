@@ -25,6 +25,14 @@ tested against. Coverage scope is a real tradeoff too (exhaustive edge cases
 vs. the time available) — when it matters for this change, state the call you
 made and why, so it's a decision on the record, not an invisible one.
 
+Example: "handles errors gracefully" on a file-upload endpoint could mean
+(1) any error shows a generic friendly message, (2) each error type (too
+large, wrong format, network drop) gets a specific message, or (3) only
+recoverable errors are handled gracefully and the rest 500s. State which you
+tested against in your report — "tested against (2): verified format/size/
+network errors each show a distinct message; did not test what happens on a
+mid-upload server crash — flagging as unknown, not assumed passing."
+
 ## Stay current
 
 If you suspect a better testing technique or tool exists for the gap you just

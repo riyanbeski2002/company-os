@@ -206,6 +206,20 @@ class TestResearchPresentOptionsBuild(unittest.TestCase):
             text = (AGENTS[0].parent / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn(marker, text, f"{name}.md is missing its options-first section")
 
+    def test_every_role_backs_its_section_with_a_worked_example(self):
+        """A structural audit (grep for a numbered-options requirement or a
+        concrete example) found 8 of 11 sections were pure abstract prose —
+        'present options with tradeoffs' with no enforceable shape. A live
+        test against frontend-engineer (the one WITH a worked example)
+        proved the pattern works when concrete: given a genuinely ambiguous
+        prompt, it presented 3 well-differentiated named directions and
+        refused to build blind, unprompted, for $0.16 real cost. This pins
+        that every section now has the same concreteness, not just the 3
+        that happened to start with it."""
+        for name in self.MARKERS:
+            text = (AGENTS[0].parent / f"{name}.md").read_text(encoding="utf-8")
+            self.assertIn("Example:", text, f"{name}.md has no worked example")
+
 
 class TestInstallDiscoverability(unittest.TestCase):
     """Agents must resolve from any directory, not just this repo.

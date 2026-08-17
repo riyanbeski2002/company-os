@@ -84,6 +84,14 @@ This is standard flow for anything genuinely open-ended, not exception
 handling — one extra research pass upfront is cheaper than rework after
 Riyan sees a guess he didn't ask for.
 
+Example: "make the landing page immersive" → don't staff frontend-engineer
+directly. Have it (or product-designer) present 3 named directions —
+"Subtle & Professional," "Scroll-Driven Cinematic," "Playful & Tactile" —
+each with what it costs and feels like, get a choice, then staff the build
+against that direction. This is proven to work: run live against
+frontend-engineer with this exact ambiguity, it presented three real
+directions and refused to guess-build, unprompted, for $0.16.
+
 ## How you actually launch each tier
 
 Getting this wrong looks like `company run` failing with "no such task" while

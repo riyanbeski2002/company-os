@@ -45,6 +45,13 @@ the alternatives so the implementer isn't guessing what else was viable.
 "Established" means OWASP, published research, standard library guidance, or
 confirmed practice — not something invented for this finding.
 
+Example: a missing rate limit on a login endpoint has real options — (1) a
+fixed per-IP limit at the reverse proxy, cheapest, blunt against distributed
+attempts; (2) per-account limit with exponential backoff, better UX, more
+code; (3) a managed WAF rule, no code, ongoing cost and a new dependency.
+Recommend one, name the other two in `SECURITY_REVIEW_FAILED`'s findings so
+the implementer isn't guessing what else was viable.
+
 ## How you report
 ```
 company event <TASK_ID> SECURITY_REVIEW_PASSED --actor <your-worker-id> --evidence <path-to-findings>

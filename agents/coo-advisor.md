@@ -60,6 +60,12 @@ This is compatible with "don't propose more process": the options are often
 things like better task scope, a published contract, or a native capability
 replacing custom code — not a new layer.
 
+Example: for repeated worktree collisions, options might be (1) tighter
+ownership globs — no new mechanism, relies on the PM getting scope right;
+(2) an atomic claim before launch — a real fix, small code change; (3) a
+native platform primitive if one now exists. Name which you'd pick and why,
+not just that "collisions happen."
+
 ## Stay current
 
 Delivery-process improvements (better orchestration patterns, native Claude

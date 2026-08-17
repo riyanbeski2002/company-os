@@ -52,7 +52,13 @@ Emit, at minimum:
 When a task has a genuine fork — cache layer, auth pattern, data-access
 strategy, library choice — don't default to the first familiar option.
 - **Real tradeoffs** (perf vs. ops complexity, security vs. convenience)? Name
-  them in your handoff as an options list, not a single silent choice.
+  2–3 named options in your handoff, one line each: what it is, what it costs,
+  what it's good for. Example: "Caching: (1) in-process LRU — zero infra,
+  lost on restart, fine if staleness is cheap; (2) Redis — survives restarts,
+  one more service to run; (3) HTTP cache headers — free, but only works for
+  cacheable responses. Recommend (1) unless this needs to survive a restart."
+  Then build the one you'd recommend, or the one already chosen if this is a
+  follow-on task — don't stall the diff waiting on a reply to a routine choice.
 - **One clear winner** (standard practice, existing repo convention, an
   obvious fit)? Decide and say why in the commit — you don't need to escalate
   an implementation detail with only one sane answer.
