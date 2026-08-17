@@ -133,6 +133,15 @@ def fold(events: list[dict]) -> dict[str, dict]:
         elif name == "HANDOFF_WRITTEN":
             task.setdefault("handoffs", []).append(data.get("to", "unknown"))
 
+        elif name == "WORKER_STARTED":
+            # The trusted anchor for the actor-role binding check below: this
+            # event is written by worker.py BEFORE the worker's own subprocess
+            # exists, so a worker cannot forge an entry for itself the way it
+            # can override $COMPANY_ACTOR on any of its own Bash commands.
+            role = data.get("role")
+            if role:
+                task.setdefault("worker_roles", {})[ev.get("actor")] = role
+
         elif name == "MERGED":
             task["evidence"]["merged"] = (ev.get("evidence") or {}).get("commit")
 
@@ -202,7 +211,8 @@ class EvidenceRuleViolation(Exception):
     pass
 
 
-def check_done(task: dict, baseline: dict | None = None) -> list[str]:
+def check_done(task: dict, baseline: dict | None = None,
+               gate_roles: dict[str, str] | None = None) -> list[str]:
     """Return the reasons this task may NOT enter DONE. Empty list == allowed.
 
     Checked against the event-derived view alone. No agent's assertion counts.
@@ -211,6 +221,19 @@ def check_done(task: dict, baseline: dict | None = None) -> list[str]:
     run is required. With a red baseline, a run that adds no failures is
     accepted — otherwise a half-built repo could never close a task, and the
     only escapes would be fixing unrelated code or lying.
+
+    `gate_roles` is quality-gates.yaml's gate -> actor_role mapping. Without
+    it, only `actor != owner` is checked (the pre-existing, forgeable check —
+    a worker can set $COMPANY_ACTOR to any string that isn't its own owner id
+    and self-certify). WITH it, the actor is additionally required to have a
+    WORKER_STARTED record on this task, written by the trusted launcher, whose
+    role matches what the gate requires. A live-reproduced bypass: any
+    Tier-2 worker could run `COMPANY_ACTOR=anything company event <task>
+    REVIEW_PASSED --evidence "exit 0"` and satisfy the review gate with zero
+    real review, because nothing checked that "anything" was ever launched as
+    a code-reviewer on this task. Callers should always pass gate_roles;
+    the None default exists only so this function has no required config
+    dependency of its own.
     """
     reasons = []
     ev = task.get("evidence") or {}
@@ -250,4 +273,18 @@ def check_done(task: dict, baseline: dict | None = None) -> list[str]:
                 f"{actor!r}, who is also the task owner. A gated change requires a "
                 f"review from a different worker."
             )
+            continue
+
+        required_role = (gate_roles or {}).get(gate)
+        if actor and required_role:
+            actual_role = (task.get("worker_roles") or {}).get(actor)
+            if actual_role != required_role:
+                reasons.append(
+                    f"gate {gate!r} actor {actor!r} has no verified {required_role!r} "
+                    f"launch record for this task"
+                    + (f" (was launched as {actual_role!r})" if actual_role else "")
+                    + f". {event_name} was accepted from an actor the trusted launcher "
+                    f"never started as {required_role!r} on this task — a self-reported "
+                    f"actor string is not evidence of who actually reviewed it."
+                )
     return reasons

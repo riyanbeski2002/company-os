@@ -139,9 +139,34 @@ def _ensure_line(path: Path, line: str):
             fh.write(line + "\n")
 
 
+LAUNCHER_ONLY_EVENTS = {"WORKER_STARTED", "WORKER_EXITED", "WORKER_HEARTBEAT"}
+# Scoped tightly to the events the actor-role binding in taskstate.check_done
+# actually trusts. TASK_CREATED/TASK_ASSIGNED/BASELINE_RECORDED are also only
+# ever written in-process by staff/baseline today, but blocking them here too
+# was broader than the vulnerability required and had a real cost: it broke
+# an existing test's legitimate use of `company event ... TASK_CREATED` as
+# fixture scaffolding. Widen this set only if a specific forgery of one of
+# those event types is shown to defeat a real check, the same way this one did.
+
+
 def cmd_event(args):
-    """The worker-facing verb. Appends one event. Never mutates a task file."""
+    """The worker-facing verb. Appends one event. Never mutates a task file.
+
+    LAUNCHER_ONLY_EVENTS exist specifically so `check_done`'s actor-role
+    binding (taskstate.py) has something a worker cannot forge: WORKER_STARTED
+    is what proves an actor was actually launched as a given role on a given
+    task. Before this check, a worker could `company event <task>
+    WORKER_STARTED --data '{"role":"code-reviewer"}'` against itself and
+    defeat that binding immediately — live-reproduced, see KNOWN_ISSUES.md.
+    These event types are only ever written by worker.py's own in-process
+    EventLog.append() call (the trusted launcher) or emit_exit.py's SessionEnd
+    hook, never through this CLI verb.
+    """
     root = company_root(args)
+    if args.type in LAUNCHER_ONLY_EVENTS:
+        die(f"{args.type!r} may only be recorded by the trusted launcher, "
+           f"never by a worker's own `company event` call — that distinction "
+           f"is what makes it trustworthy evidence.", 2)
     data = json.loads(args.data) if args.data else None
     evidence = None
     if args.evidence:
@@ -218,8 +243,11 @@ def cmd_task_advance(args):
 
     if target == "DONE":
         import baseline as baseline_mod
+        import staffing
         base = baseline_mod.latest(EventLog(root).read(), task.get("project"))
-        reasons = taskstate.check_done(task, base)
+        gate_roles = {g: spec["actor_role"]
+                     for g, spec in staffing.load_config(root, "quality-gates.yaml")["gates"].items()}
+        reasons = taskstate.check_done(task, base, gate_roles)
         if reasons:
             EventLog(root).append(make_event(
                 event="TASK_BLOCKED", actor=args.actor or "company-cli",
@@ -538,9 +566,12 @@ def cmd_report(args):
 
 def cmd_integrate(args):
     import integrate as integrate_mod
+    import staffing
     root = company_root(args)
     repo = root.parent
     tasks = taskstate.fold(EventLog(root).read())
+    gate_roles = {g: spec["actor_role"]
+                 for g, spec in staffing.load_config(root, "quality-gates.yaml")["gates"].items()}
 
     verify = verify_command(root, args.test_command)
     if not verify:
@@ -557,7 +588,7 @@ def cmd_integrate(args):
     results = []
     for tid in sorted(targets):
         task = tasks.get(tid) or die(f"no such task {tid!r}")
-        reasons = taskstate.check_done(task, _baseline(root, task.get("project")))
+        reasons = taskstate.check_done(task, _baseline(root, task.get("project")), gate_roles)
         blocking = [r for r in reasons if "diff" in r or "test" in r or "self-certified" in r
                     or "not satisfied" in r]
         if blocking and not args.force:
