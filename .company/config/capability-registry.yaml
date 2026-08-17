@@ -443,3 +443,74 @@ entries:
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
+  # --- fourth pass: animation libraries + component-library sources for
+  # frontend-engineer, riyan's direct instruction, 2026-08-17. The
+  # "websites to scrape" request specifically included Dribbble search/tag
+  # pages — deliberately NOT registered or wired as a source. Dribbble is a
+  # designer portfolio site; shots there are individually copyrighted by
+  # their creators, not licensed for reuse as component code. Treated as
+  # visual-inspiration-only in frontend-engineer.md's existing
+  # options-research step, never as something to scrape assets from. ---
+  - id: juliangarnier-anime
+    type: skill
+    purpose: "Long-established, actively maintained JS animation engine for frontend-engineer — real named maintainer, huge adoption, complements GSAP/motion for lighter-weight animation needs."
+    trust_tier: T1
+    source: "https://github.com/juliangarnier/anime"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: motiondivision-motion
+    type: skill
+    purpose: "Motion (formerly Framer Motion) for frontend-engineer — the standard React/JS animation library, actively maintained, real named org."
+    trust_tier: T1
+    source: "https://github.com/motiondivision/motion"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: watermeloncorp-watermellon-registry
+    type: skill
+    purpose: "Copy-paste React component registry (Tailwind + Radix + Framer Motion) for frontend-engineer, source behind ui.watermelon.sh."
+    trust_tier: T2
+    source: "https://github.com/WatermelonCorp/watermellon-registry"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: serafimcloud-21st
+    type: skill
+    purpose: "Community shadcn-style component registry for frontend-engineer, source behind 21st.dev/community/components."
+    trust_tier: T2
+    source: "https://github.com/serafimcloud/21st"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: bklit-bklit-ui
+    type: skill
+    purpose: "Chart/data-visualization components extending shadcn/ui for frontend-engineer, source behind bklit.com/docs/components. Only the UI package is MIT — bklit-ui/studio is a separate proprietary product under its own LICENSE-STUDIO.md; do not treat that part as covered by this entry."
+    trust_tier: T2
+    source: "https://github.com/bklit/bklit-ui"
+    license: "MIT (packages/ui only)"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: themesberg-neumorphism-ui-free
+    type: skill
+    purpose: "Neumorphism-styled Bootstrap components for frontend-engineer, source behind demo.themesberg.com/neumorphism-ui/ (the FREE tier only — 200+ components, MIT). There is a separate paid PRO tier at a different URL/repo ($69, 1000+ components) that is NOT covered by this entry — do not reference PRO content as if it were free."
+    trust_tier: T2
+    source: "https://github.com/themesberg/neumorphism-ui-bootstrap"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: uiverse-io-galaxy
+    type: skill
+    purpose: "The actual legitimate free/open alternative to scraping Dribbble for glassmorphism/neumorphism/claymorphism patterns — community-made CSS/Tailwind UI elements, explicitly covers those exact style categories. Note: the GitHub mirror (galaxy) itself is stale (no push since Sept 2024) because the platform (uiverse.io) is the real source of truth — elements are added continuously there, not via GitHub PRs to this repo, so staleness here doesn't mean the live site is stale."
+    trust_tier: T2
+    source: "https://github.com/uiverse-io/galaxy"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"

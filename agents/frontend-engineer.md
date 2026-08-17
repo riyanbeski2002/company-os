@@ -137,6 +137,26 @@ task, not all of them by default:
 - **`leonardomso/33-js-concepts`** (T2, MIT) — a JS-fundamentals reference,
   useful when a review needs to cite the underlying concept precisely
   rather than just assert a pattern is wrong.
+- **`juliangarnier/anime`** (T1, MIT) and **`motiondivision/motion`** (T1,
+  MIT, formerly Framer Motion) — the two standard animation libraries when
+  GSAP is heavier than the task needs.
+- **`WatermelonCorp/watermellon-registry`**, **`serafimcloud/21st`**,
+  **`bklit/bklit-ui`** (T2, MIT each) — copy-paste component registries
+  (general components, community shadcn-style components, and charts
+  specifically). `bklit-ui`'s `studio` package is a *separate* proprietary
+  product — the MIT license covers the UI components only.
+- **`themesberg/neumorphism-ui-bootstrap`** (T2, MIT) — the **free** tier
+  only (200+ components). Themesberg also sells a paid PRO tier at a
+  different URL with 5x the components — never treat PRO content as
+  covered by this entry.
+- **`uiverse-io/galaxy`** (T2, MIT) — free CSS/Tailwind elements
+  specifically covering glassmorphism/neumorphism/claymorphism and similar
+  styles. **This is the real source for that kind of pattern — not
+  Dribbble.** Dribbble is a designer portfolio site; shots there are
+  individually copyrighted by their creators and not licensed for reuse as
+  component code. Use Dribbble searches (if you use them at all) purely as
+  visual inspiration in the options-research step above, the same way you'd
+  look at any reference site — never scrape or copy an asset from it.
 
 If you're not confident one of these is still current before relying on it,
 that's exactly what `capability-curator` is for — don't skip the check
