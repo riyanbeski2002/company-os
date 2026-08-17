@@ -64,6 +64,29 @@ triggers:
     paths: ["**/integrations/**", "**/connectors/**"]
     gates: [review, security]
 
+  # CISO found this gap by whole-repo audit, not any single task's diff: none
+  # of the triggers above cover a change to the enforcement mechanism itself.
+  # A task editing a hook, the gate table, or the risk table would otherwise
+  # ship with only baseline_gates — one reviewer, no security gate — despite
+  # touching the exact code that decides who else gets reviewed.
+  - name: governance-mechanism
+    keywords: [pretooluse hook, guard_paths, guard_secrets, protect_branches,
+              quality-gates.yaml, risk-triggers.yaml, allowedtools, role_tools]
+    paths: ["hooks/**", "config/quality-gates.yaml", "config/risk-triggers.yaml",
+           "**/worker.py"]
+    gates: [review, security]
+
+  # A worker with Bash/Write access fetching content it does not control
+  # (WebFetch, a webhook payload, third-party MCP/skill output) is the
+  # dominant 2026 attack class against coding agents — prompt injection via
+  # untrusted content the agent then acts on. "webhooks" above only covers
+  # BUILDING a webhook handler; this covers a worker CONSUMING untrusted
+  # content as part of its own task.
+  - name: untrusted-content
+    keywords: [webfetch, fetch url, scrape, third-party content, ingest,
+              external content, mcp server, browse, fetch and summarize]
+    gates: [review, security]
+
 # Gates applied to every task regardless of trigger. Deliberately minimal:
 # gates are risk-based, not universal. A docs change is author -> review -> DONE.
 baseline_gates: [review]

@@ -37,6 +37,27 @@ class TestRiskTable(unittest.TestCase):
         b = staffing.evaluate(CFG, "Add RBAC to approvals", ["api/approvals/**"])
         self.assertEqual(a, b)
 
+    def test_editing_a_guard_hook_forces_security_unasked(self):
+        """CISO's whole-repo finding: a task editing hooks/ previously matched
+        none of the application-domain triggers and shipped with review only,
+        despite touching the code that decides who else gets reviewed."""
+        r = staffing.evaluate(CFG, "simplify the error message in a hook", ["hooks/guard_secrets.py"])
+        self.assertIn("security", r["gates"])
+        self.assertIn("governance-mechanism", [t["trigger"] for t in r["triggers_fired"]])
+
+    def test_editing_the_risk_table_itself_forces_security_unasked(self):
+        r = staffing.evaluate(CFG, "tune gate ordering", ["config/risk-triggers.yaml"])
+        self.assertIn("security", r["gates"])
+
+    def test_editing_worker_launch_wiring_forces_security_unasked(self):
+        r = staffing.evaluate(CFG, "tidy up the launcher", ["tools/company/worker.py"])
+        self.assertIn("security", r["gates"])
+
+    def test_fetching_untrusted_content_forces_security_unasked(self):
+        r = staffing.evaluate(CFG, "fetch and summarize this vendor's API docs", ["docs/**"])
+        self.assertIn("security", r["gates"])
+        self.assertIn("untrusted-content", [t["trigger"] for t in r["triggers_fired"]])
+
     def test_no_substring_false_positives(self):
         # "role" must not fire on "payroll" or "console"
         r = staffing.evaluate(CFG, "tidy the console output in payroll exports", ["lib/**"])
