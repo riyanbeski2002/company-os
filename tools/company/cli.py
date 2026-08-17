@@ -901,15 +901,34 @@ def cmd_advise_finding(args):
     emit({"ok": True, **data})
 
 
+READONLY_ROLES = ("cfo-advisor", "ciso-advisor", "cto-advisor", "coo-advisor",
+                  "code-reviewer", "qa-engineer", "security-reviewer")
+
+
 def cmd_lesson(args):
     """Record a repeatable pattern, or list what's already been recorded.
 
     `--pattern` present -> record. Absent -> list, oldest first, so a fresh
     session can check what this repo has already learned before repeating it.
+
+    Recording is refused for the 7 read-only officer/reviewer roles: none of
+    their prompts document using `company lesson`, and COO's audit caught
+    exactly the failure mode this prevents — cto-advisor, mid-exploration,
+    called it 47 times with placeholder junk ('a repeated pattern'/'f'/'e')
+    while poking at what the command does, permanently polluting the
+    append-only log under a fake project. A read-only role has no legitimate
+    reason to write ANY state-mutating event; this closes the one gap that
+    let it happen by accident rather than by design.
     """
     import lessons
     root = company_root(args)
     if args.pattern:
+        actor_for_check = args.actor or os.environ.get("COMPANY_ACTOR") or ""
+        if any(actor_for_check == r or actor_for_check.startswith(r + "-") for r in READONLY_ROLES):
+            die(f"{actor_for_check!r} is a read-only role and may not record a "
+               f"lesson — recording is for company-pm and implementers only. "
+               f"If you found something worth proposing, use capability-curator's "
+               f"escalation flow instead of exploring against the live event log.", 2)
         if not args.evidence or not args.fix:
             die("--pattern requires --evidence and --fix", 1)
         project = load_project(root, args.project)

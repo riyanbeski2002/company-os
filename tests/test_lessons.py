@@ -122,5 +122,68 @@ class TestCLI(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
 
 
+class TestReadOnlyRolesCannotRecord(unittest.TestCase):
+    """COO's audit finding, live: cto-advisor called `company lesson` 47
+    times with placeholder junk while exploring the CLI, permanently
+    polluting the append-only log. Recording is refused for every read-only
+    role; listing (no --pattern) is still allowed — that's genuinely read-only."""
+
+    def setUp(self):
+        import subprocess
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.repo = Path(self.tmp.name) / "repo"
+        self.repo.mkdir()
+        for cmd in (["git", "init", "-q"], ["git", "config", "user.email", "t@t.co"],
+                   ["git", "config", "user.name", "t"]):
+            subprocess.run(cmd, cwd=self.repo, check=True, capture_output=True)
+        (self.repo / "a.txt").write_text("x")
+        subprocess.run(["git", "add", "-A"], cwd=self.repo, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=self.repo, check=True, capture_output=True)
+        self._run("init")
+
+    def _run(self, *args, actor=None):
+        import os
+        import subprocess
+        env = dict(os.environ)
+        if actor:
+            env["COMPANY_ACTOR"] = actor
+        else:
+            env.pop("COMPANY_ACTOR", None)
+        return subprocess.run(
+            [sys.executable, str(HERE.parent / "tools" / "company" / "cli.py"), *args],
+            cwd=self.repo, capture_output=True, text=True, env=env)
+
+    def test_a_pure_advisor_cannot_record(self):
+        result = self._run("lesson", "--pattern", "x", "--evidence", "e", "--fix", "f",
+                           "--project", "p", actor="cto-advisor")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(EventLog(self.repo / ".company").read(), [])
+
+    def test_a_task_scoped_reviewer_cannot_record(self):
+        """Actor ids for reviewers carry a task suffix (code-reviewer-201),
+        not an exact role-name match — the check must handle that."""
+        result = self._run("lesson", "--pattern", "x", "--evidence", "e", "--fix", "f",
+                           "--project", "p", actor="code-reviewer-201")
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_company_pm_can_still_record(self):
+        result = self._run("lesson", "--pattern", "x", "--evidence", "e", "--fix", "f",
+                           "--project", "p", actor="company-pm")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_an_implementer_can_still_record(self):
+        result = self._run("lesson", "--pattern", "x", "--evidence", "e", "--fix", "f",
+                           "--project", "p", actor="backend-engineer-101")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_a_read_only_role_can_still_list(self):
+        self._run("lesson", "--pattern", "x", "--evidence", "e", "--fix", "f",
+                 "--project", "p", actor="company-pm")
+        result = self._run("lesson", "--project", "p", actor="cto-advisor")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
