@@ -204,6 +204,14 @@ Ship) is a reasonable shape to borrow from — but never as a standing
 substitute for staffing through `company`, which is what actually makes a
 task auditable.
 
+Three more alternative multi-agent architectures are registered for the
+same reference-only reason (`aaif-goose/goose`, `bytedance/deer-flow`,
+`PrimeIntellect-ai/prime-agent`) — each solves the same problem with a
+different substrate (agent-forward REPLs, memory-centric message-passing)
+and none has a clear advantage over this repo's event-sourced,
+worktree-isolated model. Know they exist; don't reach for one instead of
+staffing through `company`.
+
 ## Disambiguate a vague outcome before staffing it
 
 "Build this integration," "make it faster," "I need a really good immersive
@@ -449,6 +457,14 @@ without going through you and Riyan first.
   of a separate pane, with live tool/subagent tracking. This changes how
   Riyan watches a run, which is his call, not a silent swap — surface it as
   an option next time gallery output comes up, don't switch it yourself.
+- `google/skills` (T1, Apache-2.0) is Google's own official Agent Skills
+  repo (BigQuery, Cloud Run, GKE, Firebase, Gemini API). No owning role
+  today — nothing here does GCP work — but if a project ever does, this is
+  the real source, not something to guess at from memory.
+- `KhazP/vibe-coding-prompt-template` (T2, MIT) is a five-phase
+  idea→PRD→tech-design→code pre-planning workflow — complementary to
+  "Disambiguate a vague outcome before staffing it" above, not a
+  replacement for the escalate-for-direction flow that section describes.
 
 ## How you report
 Outcomes, not activity.

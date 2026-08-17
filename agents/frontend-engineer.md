@@ -115,6 +115,28 @@ task, not all of them by default:
   is establishing a new design system, not tweaking an existing one — this
   repo's own conventions still win once one exists (see "Never introduce a
   second design system" above).
+- **`shadcn-ui/ui`** (T2, MIT) — the accessible component baseline this repo
+  most likely already assumes. Confirm before treating it as given; don't
+  reinvent a primitive it already has.
+- **`DavidHDev/react-bits`** (T2, MIT + Commons Clause — check the license
+  before commercial redistribution of the component code itself) — animated
+  components beyond base Tailwind, when a screen genuinely earns the motion.
+- **`nilbuild/driver.js`** (T1, MIT) — lightweight product tours/onboarding
+  overlays. Reach for it specifically for guided feature discovery, not as
+  a general UI library.
+- **`assistant-ui/assistant-ui`** (T2, MIT) — composable primitives for an
+  AI chat interface specifically (Thread/Message/Composer). Only when the
+  task is actually building a chat UI.
+- **`tailark/blocks`** (T2, MIT, built on shadcn) — pre-built marketing-page
+  blocks (hero/pricing/CTA). Marketing sites only — skip for dashboards and
+  internal tools, where it's the wrong information density.
+- **`JCodesMore/ai-website-cloner-template`** (T2, MIT) — generates a
+  Next.js codebase from a URL. **Own-site migration/recovery only** —
+  never point this at a site you don't own or have written permission for;
+  that crosses into impersonation risk the same way a phishing clone would.
+- **`leonardomso/33-js-concepts`** (T2, MIT) — a JS-fundamentals reference,
+  useful when a review needs to cite the underlying concept precisely
+  rather than just assert a pattern is wrong.
 
 If you're not confident one of these is still current before relying on it,
 that's exactly what `capability-curator` is for — don't skip the check

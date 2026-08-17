@@ -100,5 +100,16 @@ weighted signal (not editorial ranking) across recent discussion — useful
 when the question is genuinely "what's the current real consensus on X,"
 not for routine technical facts a normal search already answers.
 
+`BerriAI/litellm` (T2, MIT core, registered in
+`.company/config/capability-registry.yaml`) is a real answer if a project
+genuinely needs multi-LLM-provider routing or redundancy — a gap Company
+OS's own architecture doesn't cover. Don't recommend it reflexively; most
+projects here have no reason to route across providers at all.
+
+`ByteByteGoHq/system-design-101` (T3, registered) is a real visual
+architecture reference — useful for grounding an explanation, never for
+lifting content into a deliverable: it's CC BY-NC-ND, no derivatives, no
+commercial reuse.
+
 Give your recommendation with the options. "Both are viable, you choose" is an
 abdication; the CEO is asking you *because* he is not the expert here.

@@ -224,3 +224,222 @@ entries:
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
+  # --- third pass: 24 more repos, riyan's direct instruction, 2026-08-17.
+  # All verified against `gh api repos/<owner>/<repo>` before wiring or
+  # registering. Two corrections the research got wrong, caught by the API:
+  # shadcn-ui/ui called T1 ("Anthropic-adjacent") — it isn't Anthropic,
+  # downgraded to T2; ByteByteGoHq/system-design-101 called "actively
+  # maintained through Feb 2026" — real last push is April 2025, 16 months
+  # stale. block/goose confirmed to genuinely redirect to aaif-goose/goose
+  # (real ownership transfer, not an impostor). ---
+  - id: davidhdev-react-bits
+    type: skill
+    purpose: "165+ animated React components for frontend-engineer, complementing shadcn/taste-skill for polished motion beyond base Tailwind."
+    trust_tier: T2
+    source: "https://github.com/DavidHDev/react-bits"
+    license: "MIT + Commons Clause (per repo's own claim — GitHub's detector shows NOASSERTION, could not independently confirm the LICENSE file; verify before any commercial redistribution of the component code itself)"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: shadcn-ui-ui
+    type: skill
+    purpose: "De facto standard accessible React component baseline for frontend-engineer. Not Anthropic — T2, corrected from the research pass's mistaken T1 claim."
+    trust_tier: T2
+    source: "https://github.com/shadcn-ui/ui"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: nilbuild-driverjs
+    type: skill
+    purpose: "Lightweight dependency-free product-tour/onboarding library for frontend-engineer. Confirmed legitimate: kamranahmedse/driver.js transparently redirects to this repo via the real GitHub API (ownership transfer, not an impostor fork)."
+    trust_tier: T1
+    source: "https://github.com/nilbuild/driver.js"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: assistant-ui-assistant-ui
+    type: skill
+    purpose: "Composable React primitives for AI chat UIs (Thread, Message, Composer) for frontend-engineer, when a task specifically needs an LLM chat interface."
+    trust_tier: T2
+    source: "https://github.com/assistant-ui/assistant-ui"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: tailark-blocks
+    type: skill
+    purpose: "Pre-built marketing-page blocks (hero/pricing/CTA) for frontend-engineer/product-designer, built on shadcn. Marketing sites only — skip for internal tools/dashboards."
+    trust_tier: T2
+    source: "https://github.com/tailark/blocks"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: sqlmapproject-sqlmap
+    type: tool
+    purpose: "Industry-standard automated SQL-injection testing tool for security-reviewer/ciso-advisor. AUTHORIZED TESTING ONLY — the same authorization-context rule that governs all dual-use security tooling here applies without exception."
+    trust_tier: T2
+    source: "https://github.com/sqlmapproject/sqlmap"
+    license: "GPL-2.0 (per the project's own COPYING file; GitHub's license detector shows NOASSERTION)"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: theartofhacking-h4cker
+    type: skill
+    purpose: "Explicitly educational security-training reference (Omar Santos) for security-reviewer/ciso-advisor — training material, not an attack toolkit."
+    trust_tier: T2
+    source: "https://github.com/The-Art-of-Hacking/h4cker"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: d4vinci-scrapling
+    type: tool
+    purpose: "Web-scraping framework with built-in bot-protection bypass (Cloudflare Turnstile, TLS fingerprint spoofing). Real dual-use concern — its stealth features are designed to evade a site's own anti-bot protections, not just scrape efficiently. Reference only: if it shows up in a diff, security-reviewer verifies target authorization/robots.txt/ToS before it's treated as legitimate, same as sqlmap."
+    trust_tier: T3
+    source: "https://github.com/D4Vinci/Scrapling"
+    license: "BSD-3-Clause"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: jcodesmore-ai-website-cloner-template
+    type: skill
+    purpose: "AI website-to-Next.js generator for frontend-engineer. Own-site migration/recovery ONLY — the project's own docs explicitly prohibit cloning a site you don't own or have written permission for (impersonation/phishing risk); require documented ownership/permission before use, same bar as any authorized-use tool here."
+    trust_tier: T2
+    source: "https://github.com/JCodesMore/ai-website-cloner-template"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: berriai-litellm
+    type: tool
+    purpose: "Unified multi-LLM-provider gateway (100+ providers, cost tracking, load balancing) for cto-advisor, when a project genuinely needs provider routing/redundancy — a real gap Company OS's own architecture doesn't cover."
+    trust_tier: T2
+    source: "https://github.com/BerriAI/litellm"
+    license: "MIT (core); enterprise/ subdirectory has a separate commercial license"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: khazp-vibe-coding-prompt-template
+    type: skill
+    purpose: "Five-phase (idea->PRD->tech design->code) pre-planning workflow for company-pm's 'Disambiguate a vague outcome' step — complementary to company-os's own staffing pipeline, not competing with it."
+    trust_tier: T2
+    source: "https://github.com/KhazP/vibe-coding-prompt-template"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: leonardomso-33-js-concepts
+    type: skill
+    purpose: "Long-established JS-fundamentals reference for frontend-engineer onboarding/review. Real named maintainer, 66k+ stars — corrected from the research pass's T3 to T2."
+    trust_tier: T2
+    source: "https://github.com/leonardomso/33-js-concepts"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  # --- reference-only / no owning agent: real and verified, but no current
+  # concrete task in this repo needs them, or a better-trusted option is
+  # already available. Registered per Riyan's 'necessary for relevant
+  # staff to know these are at their disposal' instruction, not force-fit. ---
+  - id: google-skills
+    type: skill
+    purpose: "Google's official Agent Skills repo (BigQuery, Cloud Run, GKE, Firebase, Gemini API). No owning agent — nothing in Company OS does GCP work today. Confirmed genuinely Google-owned via the API (google org)."
+    trust_tier: T1
+    source: "https://github.com/google/skills"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: aaif-goose-goose
+    type: tool
+    purpose: "General-purpose terminal AI agent, formerly Block's Goose, now under the Linux Foundation's Agentic AI Foundation (confirmed: block/goose redirects here via the real API). Reference/architecture-comparison only, same treatment as gstack — different execution model (agent-forward vs. Company OS's event-sourced task-forward model), not a gap-filler."
+    trust_tier: T2
+    source: "https://github.com/aaif-goose/goose"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: bytedance-deer-flow
+    type: tool
+    purpose: "ByteDance's multi-agent orchestration framework (memory-centric + message-passing). Reference only — genuinely different architecture from Company OS's event-sourced worktree model, no clear advantage, not a gap-filler."
+    trust_tier: T2
+    source: "https://github.com/bytedance/deer-flow"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: primeintellect-ai-prime-agent
+    type: tool
+    purpose: "Recursive-language-model coding agent (persistent REPL, subagents as function calls). Reference only — different architecture, same problem Company OS already solves, no gap filled."
+    trust_tier: T2
+    source: "https://github.com/PrimeIntellect-ai/prime-agent"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: coleam00-context-engineering-intro
+    type: skill
+    purpose: "Context-engineering methodology/templates (PRP generation). Reference for the underlying methodology only — project itself is stale (no push since March 2026, 5+ months as of this check)."
+    trust_tier: T3
+    source: "https://github.com/coleam00/context-engineering-intro"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: bytebytegohq-system-design-101
+    type: skill
+    purpose: "Visual system-design reference for cto-advisor. CC BY-NC-ND — no commercial use, no derivatives; internal learning only, never bundle its content into anything Company OS produces. Also stale: real last push April 2025 (16 months), not the 'active through Feb 2026' the research pass claimed."
+    trust_tier: T3
+    source: "https://github.com/ByteByteGoHq/system-design-101"
+    license: "CC BY-NC-ND 4.0 — non-commercial, no derivatives"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: denoland-celld
+    type: tool
+    purpose: "Deno's self-hosted Cloudflare-Workers-compatible edge runtime. Confirmed genuinely Deno-owned. Reference only — niche, no owning agent, self-hosted edge compute is out of scope."
+    trust_tier: T2
+    source: "https://github.com/denoland/celld"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: coleam00-excalidraw-diagram-skill
+    type: skill
+    purpose: "Hand-drawn-style Excalidraw diagram generation with a render-and-verify (Playwright) loop. Complements artifact-diagramming's Mermaid approach for softer/presentation-style diagrams. No license file detected at all (not even NOASSERTION) and stale since March 2026 — reference only, do not fork or redistribute."
+    trust_tier: T3
+    source: "https://github.com/coleam00/excalidraw-diagram-skill"
+    license: "none detected — treat as all-rights-reserved until confirmed otherwise"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: pipecat-ai-pipecat
+    type: tool
+    purpose: "Real-time voice/multimodal conversational-agent framework. No owning agent — voice AI is out of scope for a software-delivery orchestrator today. Registered as known-available if that ever changes."
+    trust_tier: T2
+    source: "https://github.com/pipecat-ai/pipecat"
+    license: "BSD-2-Clause"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: semantica-agi-semantica
+    type: tool
+    purpose: "Knowledge-graph/decision-provenance platform (Rete/Datalog/SPARQL reasoning). No owning agent — orthogonal to task orchestration. Registered as known-available."
+    trust_tier: T2
+    source: "https://github.com/semantica-agi/semantica"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"
+  - id: daytonaio-daytona
+    type: tool
+    purpose: "Sandboxed remote dev-environment runtime. SKIPPED, not just deprioritized: no license detected at all via the real API (license: null), and this session already has vercel:vercel-sandbox available — a better-trusted option for the same need. Registered only so nobody re-proposes it without knowing why it was passed over."
+    trust_tier: T3
+    source: "https://github.com/daytonaio/daytona"
+    license: "none detected via API — do not adopt until this is resolved"
+    approved_by: riyan
+    approved_at: "2026-08-17"
+    checked_at: "2026-08-17"

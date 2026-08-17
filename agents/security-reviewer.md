@@ -35,6 +35,16 @@ you, and nobody can wave you off.
 6. **Privilege boundaries.** Can a lower role reach a higher role's action by
    changing an identifier?
 
+**Tools worth reaching for, authorized use only** — registered in
+`.company/config/capability-registry.yaml`: `sqlmapproject/sqlmap` (T2,
+industry-standard automated SQLi testing — only against a system you have
+written authorization to test, same rule as every dual-use tool here) and
+`The-Art-of-Hacking/h4cker` (T2, MIT — a genuinely educational reference,
+no authorization question). If `d4vinci/Scrapling` (T3, bot-protection
+bypass built in) or `sqlmap` shows up in a diff you're reviewing, verify
+authorization/scope before treating the usage as legitimate — don't assume
+it because the tool itself is real and well-known.
+
 For a role/permission change specifically: enumerate the roles and, for each
 protected action, confirm the negative case is actually tested — that the role
 which must *not* be able to act genuinely cannot.
