@@ -17,6 +17,8 @@ def _translate(pattern: str) -> re.Pattern[str]:
     `**`  matches across separators (any number of path segments)
     `*`   matches within one segment
     `?`   matches one character within a segment
+    `[...]` matches one character from the class, within one segment
+            (`[!...]`/`[^...]` negates; a literal `]` may lead the class)
     """
     i, out = 0, ["^"]
     while i < len(pattern):
@@ -33,6 +35,23 @@ def _translate(pattern: str) -> re.Pattern[str]:
         elif c == "?":
             out.append("[^/]")
             i += 1
+        elif c == "[":
+            end = pattern.find("]", i + 2)  # +2: a leading `]` in the class is literal
+            if end == -1:
+                out.append(re.escape(c))
+                i += 1
+                continue
+            body = pattern[i + 1:end]
+            negate = body[:1] in ("!", "^")
+            chars = body[1:] if negate else body
+            # Only `\` needs escaping inside a class; `-` stays live so
+            # ranges like `[a-z]` keep working, matching glob convention.
+            escaped = chars.replace("\\", "\\\\")
+            cls = f"[^{escaped}]" if negate else f"[{escaped}]"
+            # A lookahead, not a `/` baked into the class, blocks `/` even
+            # when a range implies it (e.g. `[.-0]` spans the `/` byte).
+            out.append(f"(?:(?!/){cls})")
+            i = end + 1
         else:
             out.append(re.escape(c))
             i += 1

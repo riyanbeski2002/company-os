@@ -28,6 +28,39 @@ class TestGlob(unittest.TestCase):
     def test_no_accidental_prefix_match(self):
         self.assertFalse(pathrules.matches("services/authority/x.py", "services/auth/**"))
 
+    def test_bracket_class_matches_any_listed_char(self):
+        self.assertTrue(pathrules.matches("config/opt1.yaml", "config/opt[12].yaml"))
+        self.assertTrue(pathrules.matches("config/opt2.yaml", "config/opt[12].yaml"))
+        self.assertFalse(pathrules.matches("config/opt3.yaml", "config/opt[12].yaml"))
+
+    def test_bracket_class_supports_ranges(self):
+        self.assertTrue(pathrules.matches("services/x/y.py", "services/[a-z]/y.py"))
+        self.assertFalse(pathrules.matches("services/X/y.py", "services/[a-z]/y.py"))
+
+    def test_bracket_class_negation(self):
+        self.assertFalse(pathrules.matches("a.py", "[!a-c].py"))
+        self.assertTrue(pathrules.matches("d.py", "[!a-c].py"))
+        self.assertTrue(pathrules.matches("d.py", "[^a-c].py"))
+
+    def test_bracket_class_never_crosses_segments(self):
+        # Neither a positive nor a negated class may match `/`.
+        self.assertFalse(pathrules.matches("a/b.py", "a[/]b.py"))
+        self.assertFalse(pathrules.matches("a/b.py", "a[!x]b.py"))
+
+    def test_bracket_class_leading_literal_bracket(self):
+        self.assertTrue(pathrules.matches("bracket]lit.txt", "bracket[]x]lit.txt"))
+        self.assertTrue(pathrules.matches("bracketxlit.txt", "bracket[]x]lit.txt"))
+        self.assertFalse(pathrules.matches("bracketylit.txt", "bracket[]x]lit.txt"))
+
+    def test_unclosed_bracket_is_treated_literally(self):
+        self.assertTrue(pathrules.matches("a[b.py", "a[b.py"))
+
+    def test_range_spanning_slash_byte_still_excludes_it(self):
+        # ord('.')=46, ord('/')=47, ord('0')=48 — the range implies `/`
+        # without it being written literally in the pattern.
+        self.assertFalse(pathrules.matches("a/b.py", "a[.-0]b.py"))
+        self.assertTrue(pathrules.matches("a.b.py", "a[.-0]b.py"))
+
 
 class TestCheck(unittest.TestCase):
     OWNED = ["api/approvals/**", "tests/**"]
