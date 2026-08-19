@@ -7,3 +7,4 @@ __pycache__/
 .company/state/
 .claude/worktrees/
 .company/events/.lock
+.company/events/events.jsonl

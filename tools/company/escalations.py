@@ -75,11 +75,26 @@ def resolve(company_root: Path, esc_id: str, *, actor: str, project: str,
 def fold(events: list[dict]) -> dict[str, dict]:
     """Open escalations, derived by replay. Resolved ones drop out."""
     open_escalations: dict[str, dict] = {}
+    malformed: list[dict] = []
     for ev in events:
         name = ev.get("event")
         data = ev.get("data") or {}
         if name == "ESCALATION_RAISED":
-            open_escalations[data["id"]] = {
+            esc_id = data.get("id")
+            if esc_id is None:
+                # A malformed event must never crash replay — fold() runs
+                # from scratch on every call, so one bad line anywhere in a
+                # project's log would permanently wedge the CLI for that
+                # project (and, since this file is shared, for every other
+                # project on the machine too). Same defensive pattern as
+                # taskstate.py's STATUS_CHANGED handler. The return shape
+                # here is `id -> escalation dict` consumed directly by
+                # render.status (each value must be a real escalation dict,
+                # never a bare list) — so the anomaly is logged, not stored
+                # in the map itself.
+                malformed.append({"seq": ev.get("seq"), "event": name, "data": data})
+                continue
+            open_escalations[esc_id] = {
                 **data,
                 "raised_by": ev.get("actor"),
                 "raised_at": ev["ts"],
@@ -88,6 +103,11 @@ def fold(events: list[dict]) -> dict[str, dict]:
             }
         elif name == "ESCALATION_RESOLVED":
             open_escalations.pop(data.get("id"), None)
+    if malformed:
+        import sys
+        for m in malformed:
+            print(f"warning: skipped malformed {m['event']} event (seq={m['seq']}, "
+                  f"missing 'id') during escalations.fold() replay", file=sys.stderr)
     return open_escalations
 
 
@@ -98,7 +118,12 @@ def all_escalations(events: list[dict]) -> dict[str, dict]:
         name = ev.get("event")
         data = ev.get("data") or {}
         if name == "ESCALATION_RAISED":
-            everything[data["id"]] = {
+            esc_id = data.get("id")
+            if esc_id is None:
+                # Same malformed-event guard as fold() above — never let one
+                # bad line anywhere in any project's log crash the shared CLI.
+                continue
+            everything[esc_id] = {
                 **data, "raised_by": ev.get("actor"), "raised_at": ev["ts"],
                 "task": ev.get("task"), "project": ev.get("project"),
                 "status": "open",
