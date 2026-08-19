@@ -341,3 +341,9 @@ python3 -m unittest discover -q tests
 
 Stdlib only — no pytest, no dependencies. The event-log suite spawns 8
 concurrent processes writing 200 events to prove the lock holds.
+
+## License
+
+All Rights Reserved — see [LICENSE](LICENSE). This repo is public for
+reference and evaluation only; it is not open source. No permission is
+granted to copy, modify, or redistribute it without prior written consent.
