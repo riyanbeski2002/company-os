@@ -200,6 +200,46 @@ Pick the cheapest that works. Tier inflation is the main failure mode.
 
 A task that could have been Tier 1 but ran as Tier 2 is a defect.
 
+## Efficiency addendum (v1)
+
+Three things quietly inflate cost even though nothing forbids the cheap path:
+tier inflation (smallest team was advisory, not a default), gate-by-default
+(review firing on work the risk table never asked for), and context bloat
+inside one long PM session. Delta on top of the two ideas above:
+
+- **Fast path is the default, not a judgment call (D9).** A request with zero
+  risk-trigger hits (`config/risk-triggers.yaml`) and a diff within
+  `fast_path`'s bounds (default: ≤1 file, ≤50 lines) is Tier 0 by default.
+  `company gates --files-touched N --diff-lines N` reports it; escalating
+  past it needs a recorded reason, the same discipline D4 already applies to
+  adding a gate.
+- **Review is risk-based now, not universal (D10).** `baseline_gates` is
+  empty — a docs change with no trigger hit is author → hook-verified exit
+  code → DONE, no review event. Adding review back on an untriggered task is
+  a scope addition and needs the same recorded reason (`staffing.reconcile()`
+  already refuses an unreasoned addition — this required no new code, just
+  removing review's special-cased universal status).
+- **Model/effort scale with tier and risk, not with anxiety (D11).**
+  `config/staffing.yaml` maps tier → model/effort/thinking; `worker.py` sets
+  `--model`/`--effort` on every launch from it, and `MAX_THINKING_TOKENS=0`
+  for the mechanical, ungated case (no CLI flag for thinking exists).
+  Escalating the model is the same "needs a reason" discipline as everything
+  else here — never a default "just in case", because switching mid-task
+  busts the prompt cache and re-prefills the whole conversation at full price.
+- **Session hygiene is a habit, not a config knob:** `/clear` between
+  unrelated requests, `/compact` before stepping away rather than after, and
+  saying "this is routine, keep it fast" up front removes the PM's own
+  temptation to over-investigate a one-file fix. See `agents/company-pm.md`.
+
+Native Claude Code features this leans on instead of custom machinery:
+subagent forking (a forked Tier-1 subagent inherits the parent's context and
+cache instead of re-reading it), `--model`/`--effort` per launch,
+`--max-budget-usd` as a process-level spend cap underneath `company stop`
+(which additionally preserves worktrees — Company OS state the native flag
+doesn't know about), and the native per-session/concurrent subagent caps,
+which this repo's own `budgets.yaml` (4 concurrent Tier-2 workers) already
+sits comfortably inside of.
+
 ## Why `claude -p` and not `--bg`
 
 They are mutually exclusive: `claude -p` rejects `--bg`. Background sessions

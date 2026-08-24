@@ -1,10 +1,15 @@
-"""Staffing engine (D4): the risk table runs first, and it cannot be argued with.
+"""Staffing engine (D4, D9): the risk table runs first, and it cannot be argued with.
 
 Gate selection is a pure table lookup over the request text and the paths a
 task touches. The PM may only ever ADD gates beyond what this produces, and
 only with a recorded reason — never subtract one. That is what makes identical
 requests produce identical mandatory staffing, and what means nobody has to
 remember to ask for a security review.
+
+`fast_path` (D9, efficiency addendum v1) is the same principle pointed the
+other way: a request with zero trigger hits and a small enough predicted diff
+is Tier 0 by default, not a judgment call. Escalating past it needs the same
+recorded reason a gate addition needs.
 """
 
 from __future__ import annotations
@@ -45,10 +50,17 @@ def _path_hit(paths, patterns) -> str | None:
     return None
 
 
-def evaluate(config: dict, request: str = "", paths=None) -> dict:
+def evaluate(config: dict, request: str = "", paths=None,
+             files_touched: int | None = None, diff_lines: int | None = None) -> dict:
     """Return the mandatory gates and which triggers produced them.
 
     Deterministic: same inputs, same output, every time.
+
+    `files_touched`/`diff_lines` are optional (D9, efficiency addendum v1).
+    When given, and no trigger fired, and both are within the configured
+    `fast_path` bounds, the result recommends Tier 0 — the PM does it
+    inline, no staffing pipeline. Omitting them (the default) leaves
+    tier recommendation unset; only the gate lookup runs, exactly as before.
     """
     fired = []
     gates: list[str] = []
@@ -72,7 +84,16 @@ def evaluate(config: dict, request: str = "", paths=None) -> dict:
         if gate not in gates:
             gates.append(gate)
 
-    return {"gates": gates, "triggers_fired": fired}
+    fp = config.get("fast_path") or {}
+    fast_path = False
+    recommended_tier = None
+    if fp.get("enabled") and not fired and files_touched is not None and diff_lines is not None:
+        if files_touched <= fp.get("max_files_touched", 0) and diff_lines <= fp.get("max_diff_lines", 0):
+            fast_path = True
+            recommended_tier = 0
+
+    return {"gates": gates, "triggers_fired": fired,
+            "fast_path": fast_path, "recommended_tier": recommended_tier}
 
 
 def order_gates(gates, quality_gates: dict) -> list[str]:
@@ -96,6 +117,27 @@ def reconcile(proposed_gates, mandatory_gates, reason: str | None = None) -> tup
             final.append(gate)
             additions.append(gate)
     return final, additions
+
+
+# --- model/effort policy (D11) -----------------------------------------------
+
+def model_policy(config: dict, tier: int, gated: bool) -> dict:
+    """Look up the model/effort/thinking row for a launch.
+
+    `config` is staffing.yaml's `policy` block. `gated` means the task carries
+    at least one risk-trigger gate (review alone from a PM-added reason still
+    counts) — only a genuinely gated Tier-2 task gets the expensive row.
+    Falls back to the Tier-1 row for anything the table doesn't name, since
+    that's the conservative middle ground rather than silently going cheap.
+    """
+    policy = (config or {}).get("policy", {})
+    if tier == 2:
+        key = "tier2_gated" if gated else "tier2_ungated"
+    elif tier == 0:
+        key = "tier0"
+    else:
+        key = "tier1"  # covers tier 1 and any tier the table doesn't name
+    return policy.get(key) or policy.get("tier1") or {}
 
 
 # --- overlap prediction -----------------------------------------------------

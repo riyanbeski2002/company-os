@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 from eventlog import EventLog, make_event
+import staffing
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 
@@ -149,7 +150,7 @@ def _copy_worktree_includes(repo: Path, wt: Path) -> None:
 # --- launch -----------------------------------------------------------------
 
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
-              worktree: Path) -> dict:
+              worktree: Path, thinking: bool = True) -> dict:
     """Build the worker's environment.
 
     COMPANY_REPO is the *worktree*, not the main checkout: the worker's whole
@@ -181,11 +182,18 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
         "COMPANY_PROJECT": task.get("project", ""),
         "PATH": f"{PLUGIN_ROOT / 'bin'}:{env.get('PATH', '')}",
     })
+    if not thinking:
+        # No CLI flag for thinking exists (checked `claude -p --help`,
+        # v2.1.239) — MAX_THINKING_TOKENS=0 is the actual lever, reserved for
+        # mechanical, ungated work where thinking is pure cost (D11 / §2,
+        # efficiency addendum v1).
+        env["MAX_THINKING_TOKENS"] = "0"
     return env
 
 
-def build_command(task: dict, role: str) -> list[str]:
-    return [
+def build_command(task: dict, role: str, model: str | None = None,
+                   effort: str | None = None) -> list[str]:
+    cmd = [
         "claude", "-p",
         # --agent is what makes this affordable. The agent file's `tools:` list
         # removes every other tool DEFINITION from context, not just permission
@@ -202,6 +210,15 @@ def build_command(task: dict, role: str) -> list[str]:
         "--permission-mode", "acceptEdits",
         "--allowedTools", ROLE_TOOLS.get(role, "Read,Grep,Glob,Bash"),
     ]
+    # Model/effort come from staffing.yaml's tier policy (D11), not a
+    # default — switching either mid-task busts the prompt cache and
+    # re-prefills the whole conversation at full price, so this is set once
+    # at launch and never changed by a running worker.
+    if model:
+        cmd += ["--model", model]
+    if effort:
+        cmd += ["--effort", effort]
+    return cmd
 
 
 CLAIM_STALE_AFTER_S = 7200  # comfortably above any real launch timeout — a
@@ -306,18 +323,24 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         state.mkdir(parents=True, exist_ok=True)
         out_path, err_path = state / "stdout.json", state / "stderr.log"
 
+        policy_cfg = staffing.load_config(company_root, "staffing.yaml")
+        policy = staffing.model_policy(policy_cfg, tier=2, gated=bool(task.get("gates")))
+
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
             task=task["id"],
             data={"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
-                  "timeout_s": timeout},
+                  "timeout_s": timeout, "model": policy.get("model"),
+                  "effort": policy.get("effort")},
         ))
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
-                build_command(task, role), cwd=str(wt),
-                env=build_env(repo, company_root, task, actor, wt),
+                build_command(task, role, model=policy.get("model"), effort=policy.get("effort")),
+                cwd=str(wt),
+                env=build_env(repo, company_root, task, actor, wt,
+                              thinking=policy.get("thinking", "on") != "off"),
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
             (state / "pid").write_text(str(proc.pid))
@@ -438,11 +461,16 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
     state.mkdir(parents=True, exist_ok=True)
     out_path, err_path = state / "stdout.json", state / "stderr.log"
 
+    policy_cfg = staffing.load_config(company_root, "staffing.yaml")
+    policy = staffing.model_policy(policy_cfg, tier=1, gated=False)
+
     log.append(make_event(
         event="WORKER_STARTED", actor=actor, project=project,
-        data={"role": role, "tier": 1, "readonly": True, "timeout_s": timeout}))
+        data={"role": role, "tier": 1, "readonly": True, "timeout_s": timeout,
+              "model": policy.get("model"), "effort": policy.get("effort")}))
 
-    env = build_env(repo, company_root, {"id": "", "project": project}, actor, repo)
+    env = build_env(repo, company_root, {"id": "", "project": project}, actor, repo,
+                     thinking=policy.get("thinking", "on") != "off")
     env.pop("COMPANY_TASK", None)   # not task-scoped; nothing to own
 
     cmd = [
@@ -454,6 +482,10 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
         "--permission-mode", "acceptEdits",
         "--allowedTools", "Read,Grep,Glob,Bash",
     ]
+    if policy.get("model"):
+        cmd += ["--model", policy["model"]]
+    if policy.get("effort"):
+        cmd += ["--effort", policy["effort"]]
 
     started = time.monotonic()
     with open(out_path, "w") as out, open(err_path, "w") as err:

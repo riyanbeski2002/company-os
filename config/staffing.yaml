@@ -1,0 +1,38 @@
+# Model/effort policy by tier (D11 / §2, efficiency addendum v1).
+#
+# The single biggest cost lever: a bigger model or higher effort multiplies
+# every other cost, and most Tier 0/1 work is mechanical, not ambiguous.
+# Escalate model/effort UP only when the risk table or a recorded judgment
+# call says so — never as a default "just in case", same discipline as D9's
+# tier escalation and D4's gate additions.
+#
+# Tier 0 has no CLI launch (the PM does it inline) so its row is read by the
+# PM directly, not by worker.py — it exists so the policy is documented in
+# one place instead of split between config and prose.
+#
+# `worker.py` reads the tier2_ungated/tier2_gated/tier1 rows to set
+# `--model`/`--effort` on every `claude -p` launch, and `thinking: off` rows
+# set `MAX_THINKING_TOKENS=0` in the worker's environment (no CLI flag for
+# thinking exists as of Claude Code v2.1.239).
+
+policy:
+  tier0:
+    model: sonnet
+    effort: low
+    thinking: off
+    note: "PM inline, mechanical edits — read by the PM, not launched by worker.py"
+
+  tier1:
+    model: sonnet
+    effort: medium
+    thinking: on
+
+  tier2_ungated:
+    model: sonnet
+    effort: medium
+    thinking: on
+
+  tier2_gated:
+    model: opus
+    effort: high
+    thinking: on

@@ -179,7 +179,16 @@ before crediting or blaming it in a report to Riyan.
 
 ## Pick the cheapest tier that works
 
-Tier inflation is the primary failure mode of a system like this.
+Tier inflation is the primary failure mode of a system like this. It used to
+be a judgment call, drifting toward "do more" under a vague request — it
+isn't one anymore: a request with zero risk-trigger hits and a predicted diff
+within `fast_path`'s bounds (`config/risk-triggers.yaml`, default ≤1 file,
+≤50 lines) is **Tier 0 by default**. Check it with
+`company gates --request "..." --paths <globs> --files-touched N --diff-lines N`
+before you reach for anything bigger. Escalating past it needs a one-line
+recorded reason (`company lesson`/`company escalate`, same as any other scope
+addition) — no reason, no escalation. That flips the burden: understaffing is
+the default now, overstaffing is the exception that has to justify itself.
 
 - **Tier 0 — you do it inline.** Trivial edits, single-file changes, questions,
   status. Zero workers. **Most requests land here.**
@@ -475,6 +484,27 @@ Outcomes, not activity.
 
 Percentages come from completed acceptance criteria, never from your feeling
 about progress. If progress cannot be computed from evidence, print "unknown".
+
+## Session hygiene (efficiency addendum v1, §6)
+
+Nothing in `.company/config/` enforces this — it's how you run your own long
+session day to day, not a gate.
+
+- `/clear` between unrelated requests. Don't let yesterday's feature sit in
+  context while Riyan asks about today's typo fix — every turn re-sends (and
+  re-bills, even at cache-read price) everything still in context.
+- `/compact` before you go idle, not after. Compacting a cached conversation
+  is cheap; compacting a stale one re-prefills everything at full price.
+- If Riyan says a task is routine ("this is a one-file fix", "keep it fast"),
+  take that as the fast-path signal it is — don't "investigate first" on work
+  he already told you is mechanical.
+- Model and effort are picked once per launch (`config/staffing.yaml`) and
+  never switched mid-task by a running worker — switching busts the prompt
+  cache and re-prefills the whole conversation at full price.
+- Watch `company status`. If a request that should read "0 Tier-2 workers, PM
+  inline" shows workers spun up, that's the fast-path default being violated
+  — say so, and it should self-correct once you're actually checking `company
+  gates` before escalating.
 
 ## Non-negotiable
 - Never merge on a worker's assertion. Merge on a green run in the integration

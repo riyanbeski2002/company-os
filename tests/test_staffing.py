@@ -11,12 +11,17 @@ import staffing  # noqa: E402
 
 CFG = staffing.load_config(Path("/nonexistent"), "risk-triggers.yaml")
 QG = staffing.load_config(Path("/nonexistent"), "quality-gates.yaml")
+SP = staffing.load_config(Path("/nonexistent"), "staffing.yaml")
 
 
 class TestRiskTable(unittest.TestCase):
-    def test_docs_change_gets_review_only(self):
+    def test_untriggered_change_gets_no_mandatory_gate(self):
+        """D10, efficiency addendum v1: baseline_gates is empty now — review
+        is risk-based like qa/security, not universal. Adding it back on an
+        untriggered task needs a recorded reason, same as any other gate
+        addition (see TestReconcile.test_pm_addition_needs_a_reason)."""
         r = staffing.evaluate(CFG, "Fix the typo on the settings screen", ["docs/**"])
-        self.assertEqual(r["gates"], ["review"])
+        self.assertEqual(r["gates"], [])
         self.assertEqual(r["triggers_fired"], [])
 
     def test_authorization_forces_security_unasked(self):
@@ -82,6 +87,66 @@ class TestReconcile(unittest.TestCase):
         final, added = staffing.reconcile(["qa"], ["review"], reason="touches billing exports")
         self.assertIn("qa", final)
         self.assertEqual(added, ["qa"])
+
+    def test_review_on_an_untriggered_task_needs_a_reason_too(self):
+        """D10: review lost its special unconditional status. Adding it back
+        on a task the risk table cleared is a scope addition like any other."""
+        final, added = staffing.reconcile(["review"], [])
+        self.assertNotIn("review", final)
+        self.assertEqual(added, [])
+
+        final, added = staffing.reconcile(["review"], [], reason="new to this codebase")
+        self.assertIn("review", final)
+        self.assertEqual(added, ["review"])
+
+
+class TestFastPath(unittest.TestCase):
+    def test_recommends_tier_0_within_bounds(self):
+        r = staffing.evaluate(CFG, "Fix the typo on the settings screen", ["docs/**"],
+                              files_touched=1, diff_lines=10)
+        self.assertTrue(r["fast_path"])
+        self.assertEqual(r["recommended_tier"], 0)
+
+    def test_does_not_apply_over_bounds(self):
+        r = staffing.evaluate(CFG, "Fix the typo on the settings screen", ["docs/**"],
+                              files_touched=3, diff_lines=200)
+        self.assertFalse(r["fast_path"])
+        self.assertIsNone(r["recommended_tier"])
+
+    def test_does_not_apply_when_a_trigger_fires(self):
+        r = staffing.evaluate(CFG, "Add role-based expense approvals", ["api/approvals/**"],
+                              files_touched=1, diff_lines=5)
+        self.assertFalse(r["fast_path"])
+        self.assertIsNone(r["recommended_tier"])
+
+    def test_unset_without_diff_stats(self):
+        """Omitting files_touched/diff_lines leaves tier recommendation
+        unset — existing callers (`company gates` with no counts) see no
+        behavior change from D9 beyond baseline_gates now being empty."""
+        r = staffing.evaluate(CFG, "Fix the typo on the settings screen", ["docs/**"])
+        self.assertFalse(r["fast_path"])
+        self.assertIsNone(r["recommended_tier"])
+
+
+class TestModelPolicy(unittest.TestCase):
+    def test_tier2_gated_gets_the_expensive_row(self):
+        p = staffing.model_policy(SP, tier=2, gated=True)
+        self.assertEqual(p["model"], "opus")
+        self.assertEqual(p["effort"], "high")
+
+    def test_tier2_ungated_stays_cheap(self):
+        p = staffing.model_policy(SP, tier=2, gated=False)
+        self.assertEqual(p["model"], "sonnet")
+        self.assertEqual(p["effort"], "medium")
+
+    def test_tier1_row(self):
+        p = staffing.model_policy(SP, tier=1, gated=False)
+        self.assertEqual(p["model"], "sonnet")
+        self.assertEqual(p["effort"], "medium")
+
+    def test_unknown_tier_falls_back_to_tier1_not_the_expensive_row(self):
+        p = staffing.model_policy(SP, tier=99, gated=True)
+        self.assertEqual(p, staffing.model_policy(SP, tier=1, gated=False))
 
 
 class TestOverlap(unittest.TestCase):

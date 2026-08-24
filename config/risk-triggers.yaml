@@ -87,6 +87,24 @@ triggers:
               external content, mcp server, browse, fetch and summarize]
     gates: [review, security]
 
-# Gates applied to every task regardless of trigger. Deliberately minimal:
-# gates are risk-based, not universal. A docs change is author -> review -> DONE.
-baseline_gates: [review]
+# Gates applied to every task regardless of trigger. Empty on purpose (D10,
+# efficiency addendum v1): review is risk-based now, same as qa/security, not
+# universal. A docs change with no trigger hit is author -> hook-verified ->
+# DONE, no review event required. Adding review back on an untriggered task
+# is a scope addition like any other and needs a recorded reason —
+# `staffing.reconcile()` already drops an unreasoned addition, so this list
+# being empty is the only change needed to make that apply to review too.
+baseline_gates: []
+
+# Fast path (D9, efficiency addendum v1): a request with zero risk-trigger
+# hits and a diff within these bounds is Tier 0 by default — the PM does it
+# inline, no staffing pipeline, no gates. This is evaluated by
+# `staffing.evaluate()` when the caller supplies file/line counts (e.g.
+# `company gates --files-touched N --diff-lines N`); without those counts,
+# fast_path only reports whether triggers fired, same as before. Escalating
+# past Tier 0 despite fast_path applying needs the same recorded reason a
+# gate addition needs — never a default "just in case".
+fast_path:
+  enabled: true
+  max_files_touched: 1
+  max_diff_lines: 50

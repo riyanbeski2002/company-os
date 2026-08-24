@@ -352,7 +352,8 @@ def cmd_gates(args):
     root = company_root(args)
     cfg = staffing.load_config(root, "risk-triggers.yaml")
     qg = staffing.load_config(root, "quality-gates.yaml")
-    result = staffing.evaluate(cfg, args.request or "", args.paths or [])
+    result = staffing.evaluate(cfg, args.request or "", args.paths or [],
+                                files_touched=args.files_touched, diff_lines=args.diff_lines)
     result["gates"] = staffing.order_gates(result["gates"], qg)
     emit(result)
 
@@ -1222,6 +1223,10 @@ def build_parser():
     g = sub.add_parser("gates", help="deterministic risk-table lookup")
     g.add_argument("--request", help="the request text")
     g.add_argument("--paths", nargs="*", help="owned globs the work touches")
+    g.add_argument("--files-touched", type=int,
+                    help="predicted file count — enables the D9 fast-path check")
+    g.add_argument("--diff-lines", type=int,
+                    help="predicted changed-line count — enables the D9 fast-path check")
     g.set_defaults(fn=cmd_gates)
 
     pl = sub.add_parser("plan", help="apply the risk table to a proposed task graph")
