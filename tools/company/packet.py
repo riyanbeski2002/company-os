@@ -32,7 +32,8 @@ def render(task: dict, *, why: str, contracts: list[dict] | None = None,
            architecture: list[str] | None = None, decisions: list[str] | None = None,
            handoff_target: str = "pm", max_turns: int = 60,
            timeout_s: int = 1800, enforce_budget: bool = True,
-           verify: str | None = None, baseline: dict | None = None) -> str:
+           verify: str | None = None, baseline: dict | None = None,
+           diff_summary: str | None = None) -> str:
     contracts = contracts or []
     verify = verify or task.get("test_command")
     if not verify:
@@ -62,6 +63,16 @@ def render(task: dict, *, why: str, contracts: list[dict] | None = None,
         contract_text = "\n".join(
             f"  - {c.get('name')}: {c.get('summary')}" for c in contracts)
 
+    # CFO audit, 2026-08-24: a gate role (review/qa/security) is launched
+    # against this same task after implementation, and previously received
+    # this identical packet with no record of what actually changed — it had
+    # to rediscover the diff itself via Bash before it could review anything,
+    # every single time. This doesn't shrink what a gate verifies, only what
+    # it has to re-derive before it can start.
+    diff_section = ""
+    if diff_summary:
+        diff_section = f"\nCHANGES SO FAR (git diff --stat against the base branch)\n{diff_summary}\n"
+
     packet = f"""TASK {task['id']} — {task.get('title', 'untitled')}
 TIER {task.get('tier', 2)}
 
@@ -85,7 +96,7 @@ DEPENDENCIES
 
 CONTRACTS PUBLISHED BY YOUR DEPENDENCIES (build against these, not guesses)
 {contract_text}
-
+{diff_section}
 RELEVANT ARCHITECTURE (pointers, read them if you need them)
 {_bullets(architecture, empty='(nothing beyond the files in your owned globs)')}
 

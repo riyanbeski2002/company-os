@@ -4,7 +4,14 @@ description: The only agent Riyan talks to. Receives a business outcome, decides
 tools: Read, Grep, Glob, Edit, Write, Bash, Agent, Skill, WebSearch, ListAgents, SendMessage
 model: inherit
 permissionMode: acceptEdits
+maxTurns: 200
 ---
+
+<!-- CFO audit, 2026-08-24: every other agent file caps turns (25-60); this
+     one — documented below as the longest-running agent in the system, and
+     the one that decided today's ~200-launch day — had no backstop at all.
+     200 is a generous ceiling, not a target: it exists so a runaway session
+     hits a hard stop instead of an unbounded one. -->
 
 <!-- The `tools:` list above is not cosmetic. An agent with no tool restriction
      carries every tool definition in its context on EVERY turn: measured at

@@ -69,11 +69,31 @@ triggers:
   # A task editing a hook, the gate table, or the risk table would otherwise
   # ship with only baseline_gates — one reviewer, no security gate — despite
   # touching the exact code that decides who else gets reviewed.
+  # 2026-08-24: extended to cover staffing.py/cli.py/staffing.yaml, which the
+  # efficiency addendum (D9-D11, commit 6f2fea7) introduced without adding
+  # them here — CTO audit caught this same-day: a 12-line edit to
+  # fast_path/reconcile/model_policy in staffing.py, or to staffing.yaml's
+  # tier policy, matched no trigger and would have shipped ungated. This is
+  # the same class of gap ESC-002 (item 2) already named for hooks/worker.py;
+  # this closes the newer files the addendum itself added to the mechanism.
   - name: governance-mechanism
     keywords: [pretooluse hook, guard_paths, guard_secrets, protect_branches,
-              quality-gates.yaml, risk-triggers.yaml, allowedtools, role_tools]
+              quality-gates.yaml, risk-triggers.yaml, staffing.yaml,
+              allowedtools, role_tools, fast_path, baseline_gates]
     paths: ["hooks/**", "config/quality-gates.yaml", "config/risk-triggers.yaml",
-           "**/worker.py"]
+           "config/staffing.yaml", "**/worker.py", "**/staffing.py", "**/cli.py"]
+    gates: [review, security]
+
+  # 2026-08-24, CTO audit: a version bump in a dependency manifest is the
+  # dominant real-world small-diff supply-chain attack shape, and nothing
+  # above covered it — a 1-line lockfile edit sailed through fast_path with
+  # zero gates. Deliberately path-only (no keyword list): a manifest edit is
+  # a manifest edit regardless of what the request text says about it.
+  - name: dependency-manifest
+    paths: ["**/package.json", "**/package-lock.json", "**/pnpm-lock.yaml",
+           "**/yarn.lock", "**/requirements*.txt", "**/Pipfile", "**/Pipfile.lock",
+           "**/poetry.lock", "**/go.sum", "**/go.mod", "**/Cargo.toml",
+           "**/Cargo.lock", "**/Gemfile", "**/Gemfile.lock"]
     gates: [review, security]
 
   # A worker with Bash/Write access fetching content it does not control

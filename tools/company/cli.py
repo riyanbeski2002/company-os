@@ -377,10 +377,12 @@ def cmd_plan(args):
     request = spec.get("request", "")
     tasks = spec.get("tasks") or die("plan spec needs a non-empty 'tasks' list")
 
-    planned, forced = [], []
+    planned, forced, unreasoned_escalations = [], [], []
     for task in tasks:
         verdict = staffing.evaluate(cfg, f"{request} {task.get('title', '')}",
-                                    task.get("owned_globs"))
+                                    task.get("owned_globs"),
+                                    files_touched=task.get("files_touched"),
+                                    diff_lines=task.get("diff_lines"))
         mandatory = staffing.order_gates(verdict["gates"], qg)
         final, additions = staffing.reconcile(
             task.get("gates"), mandatory, task.get("gate_reason"))
@@ -388,10 +390,24 @@ def cmd_plan(args):
         if unrequested:
             forced.append({"task": task["id"], "gates": unrequested,
                            "because": [t["trigger"] for t in verdict["triggers_fired"]]})
+
+        # D9 (efficiency addendum v1): fast_path said this task's own numbers
+        # (no trigger hit, diff in-bounds) belong at Tier 0, PM inline — yet
+        # here it is anyway, staffed as Tier 2+. That is the same kind of
+        # scope addition a gate the table didn't ask for is, and needs the
+        # same recorded reason `reconcile()` already requires for those.
+        if verdict["fast_path"] and int(task.get("tier") or 0) >= 1 and not task.get("tier_reason"):
+            unreasoned_escalations.append({
+                "task": task["id"], "tier": task.get("tier"),
+                "predicted": {"files_touched": task.get("files_touched"),
+                             "diff_lines": task.get("diff_lines")},
+            })
+
         task = dict(task)
         task["gates"] = staffing.order_gates(final, qg)
         task["project"] = project
         task["triggers_fired"] = [t["trigger"] for t in verdict["triggers_fired"]]
+        task["fast_path"] = verdict["fast_path"]
         if additions:
             task["gates_added_by_pm"] = additions
         planned.append(task)
@@ -406,6 +422,7 @@ def cmd_plan(args):
         "staffing": band, "tier2_workers": len(tier2),
         "gates_forced_by_risk_table": forced,
         "predicted_file_overlap": collisions,
+        "tier_escalations_without_reason": unreasoned_escalations,
     }
 
     if collisions and not args.allow_overlap:
@@ -413,6 +430,15 @@ def cmd_plan(args):
         plan["refusal"] = (
             "parallel tasks have overlapping file ownership — sequence them with "
             "depends_on, split the globs, or pass --allow-overlap"
+        )
+        emit(plan, 3)
+
+    if unreasoned_escalations and not args.allow_tier_escalation:
+        plan["ok"] = False
+        plan["refusal"] = (
+            "fast_path recommends Tier 0 for one or more tasks (no risk trigger, "
+            "diff in-bounds) but they're staffed above it with no recorded reason — "
+            "set 'tier_reason' on the task, or pass --allow-tier-escalation"
         )
         emit(plan, 3)
 
@@ -467,6 +493,41 @@ def cmd_staff(args):
     emit({"ok": True, "project": project, "staffed": staffed})
 
 
+GATE_ROLES = {"code-reviewer", "qa-engineer", "security-reviewer"}
+
+
+def _diff_summary_for_gate(repo, root, task, role, worker_mod):
+    """`git diff --stat` + the commit SHA, for a gate role reviewing a task
+    that already has implementation work committed (CFO audit, 2026-08-24).
+
+    Only computed for gate roles — the implementer's own first launch has
+    nothing to diff yet, and calling this then would just be wasted git calls
+    around an empty worktree. Degrades to None on any failure (a fresh
+    worktree, no commits yet, git error) rather than blocking the launch —
+    this is a cost optimization, not something a gate's correctness depends on.
+    """
+    if role not in GATE_ROLES:
+        return None
+    try:
+        import subprocess
+        wt, _branch = worker_mod.ensure_worktree(repo, root, task)
+        base = task.get("base") or worker_mod._default_base(repo)
+        count = subprocess.run(
+            ["git", "-C", str(wt), "rev-list", "--count", f"{base}..HEAD"],
+            capture_output=True, text=True, timeout=10)
+        if count.returncode != 0 or int(count.stdout.strip() or 0) == 0:
+            return None
+        sha = subprocess.run(["git", "-C", str(wt), "rev-parse", "HEAD"],
+                             capture_output=True, text=True, timeout=10)
+        stat = subprocess.run(["git", "-C", str(wt), "diff", "--stat", f"{base}..HEAD"],
+                              capture_output=True, text=True, timeout=10)
+        if stat.returncode != 0:
+            return None
+        return f"HEAD {sha.stdout.strip()}\n{stat.stdout.rstrip()}"
+    except Exception:
+        return None
+
+
 def cmd_run(args):
     """Launch a Tier-2 worker for one task and supervise it to completion."""
     import packet as packet_mod
@@ -495,6 +556,7 @@ def cmd_run(args):
     try:
         body = packet_mod.render(
             task, why=args.why or "Requested by the CEO.",
+            diff_summary=_diff_summary_for_gate(repo, root, task, args.role, worker_mod),
             contracts=contracts, handoff_target=args.handoff_to,
             max_turns=args.max_turns, timeout_s=args.timeout,
             verify=verify_command(root, args.verify),
@@ -1233,6 +1295,8 @@ def build_parser():
     pl.add_argument("--spec", help="path to a plan JSON (default: stdin)")
     pl.add_argument("--allow-overlap", action="store_true",
                     help="plan anyway despite predicted file collisions")
+    pl.add_argument("--allow-tier-escalation", action="store_true",
+                    help="plan anyway despite an unreasoned Tier 0 -> staffed escalation (D9)")
     pl.set_defaults(fn=cmd_plan)
 
     sf = sub.add_parser("staff", help="apply a plan: tasks, branches, worktrees")

@@ -58,6 +58,36 @@ class TestRiskTable(unittest.TestCase):
         r = staffing.evaluate(CFG, "tidy up the launcher", ["tools/company/worker.py"])
         self.assertIn("security", r["gates"])
 
+    def test_editing_the_staffing_engine_itself_forces_security_unasked(self):
+        """CTO audit, 2026-08-24: the efficiency addendum (D9-D11) put the
+        fast_path/reconcile/model_policy logic in staffing.py without adding
+        it to this table — an edit there decided every other task's gates
+        while being invisible to the table itself."""
+        r = staffing.evaluate(CFG, "tune the fast path bounds", ["tools/company/staffing.py"])
+        self.assertIn("security", r["gates"])
+        self.assertIn("governance-mechanism", [t["trigger"] for t in r["triggers_fired"]])
+
+    def test_editing_the_tier_policy_itself_forces_security_unasked(self):
+        r = staffing.evaluate(CFG, "swap the tier2 model", ["config/staffing.yaml"])
+        self.assertIn("security", r["gates"])
+
+    def test_editing_the_cli_wiring_forces_security_unasked(self):
+        r = staffing.evaluate(CFG, "add a flag to gates", ["tools/company/cli.py"])
+        self.assertIn("security", r["gates"])
+
+    def test_dependency_manifest_edit_forces_security_unasked(self):
+        """CTO audit, 2026-08-24: a version bump in a lockfile is the
+        dominant small-diff supply-chain attack shape and previously matched
+        no trigger — it would sail through fast_path with zero gates."""
+        r = staffing.evaluate(CFG, "bump a dependency", ["requirements.txt"])
+        self.assertIn("security", r["gates"])
+        self.assertIn("dependency-manifest", [t["trigger"] for t in r["triggers_fired"]])
+
+    def test_dependency_manifest_edit_is_never_fast_pathed(self):
+        r = staffing.evaluate(CFG, "bump lodash", ["package-lock.json"],
+                              files_touched=1, diff_lines=2)
+        self.assertFalse(r["fast_path"])
+
     def test_fetching_untrusted_content_forces_security_unasked(self):
         r = staffing.evaluate(CFG, "fetch and summarize this vendor's API docs", ["docs/**"])
         self.assertIn("security", r["gates"])
@@ -129,10 +159,16 @@ class TestFastPath(unittest.TestCase):
 
 
 class TestModelPolicy(unittest.TestCase):
-    def test_tier2_gated_gets_the_expensive_row(self):
-        p = staffing.model_policy(SP, tier=2, gated=True)
-        self.assertEqual(p["model"], "opus")
-        self.assertEqual(p["effort"], "high")
+    def test_tier2_gated_gets_the_high_effort_row(self):
+        """Model here is whatever staffing.yaml currently says (Riyan
+        downgraded tier2_gated opus->sonnet 2026-08-24 for cost + an Opus
+        outage — see the ADR and the comment in that file) — assert the
+        structural property (highest effort, distinct from ungated), not a
+        specific model name that's a live policy knob, not a code contract."""
+        gated = staffing.model_policy(SP, tier=2, gated=True)
+        ungated = staffing.model_policy(SP, tier=2, gated=False)
+        self.assertEqual(gated["effort"], "high")
+        self.assertNotEqual(gated["effort"], ungated["effort"])
 
     def test_tier2_ungated_stays_cheap(self):
         p = staffing.model_policy(SP, tier=2, gated=False)

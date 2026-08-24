@@ -33,6 +33,12 @@ policy:
     thinking: on
 
   tier2_gated:
-    model: opus
+    model: sonnet
     effort: high
     thinking: on
+    # Changed from opus 2026-08-24, decided by Riyan directly (cost discipline:
+    # "no extensive use of Opus for things sonnet can do"), reinforced by an
+    # active Anthropic Opus-specific outage that stalled 6 gated tasks the same
+    # session this was decided. Effort stays high — only the model changed.
+    # If gate quality regresses on genuinely hard reviews, escalate back up
+    # per-task via a recorded judgment call, not by reverting this default.
