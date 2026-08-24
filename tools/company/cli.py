@@ -624,9 +624,17 @@ def cmd_gate_group(args):
     genuinely parallel siblings with disjoint history. A group whose tasks
     don't merge cleanly in that order refuses outright rather than guessing.
     """
+    import re
     import worker as worker_mod
     import gategroup
     import packet as packet_mod
+
+    # args.group lands directly in a worktree path and a git branch name
+    # (gategroup.py) — unvalidated, "../../anything" would escape
+    # .company/worktrees/. Same bar as a task id or branch slug elsewhere.
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", args.group or ""):
+        die(f"gate_group {args.group!r} must be alphanumeric plus ._- only "
+            f"(it's used directly in a worktree path and a branch name)", 1)
 
     root = company_root(args)
     repo = root.parent
@@ -692,11 +700,63 @@ def cmd_gate_group(args):
               "packet_tokens": packet_mod.estimate_tokens(body), "packet": body})
 
     actor = args.actor or f"{args.role}-group-{args.group}"
-    result = worker_mod.launch_group(repo, root, args.group, group_tasks, wt, body,
-                                     args.role, actor, project, timeout=args.timeout)
+
+    if args.detach:
+        # Same reason `company run --detach` exists: a PM running as
+        # `claude -p` cannot outlive its own turn, and a group review can
+        # run as long as any solo gate.
+        import subprocess
+        argv = [sys.executable, str(Path(__file__).resolve()),
+                "--root", str(root), "gate-group", args.group, "--role", args.role,
+                "--actor", actor, "--timeout", str(args.timeout)]
+        if args.why:
+            argv += ["--why", args.why]
+        if args.tasks:
+            argv += ["--tasks", *args.tasks]
+        if args.max_concurrent:
+            argv += ["--max-concurrent", str(args.max_concurrent)]
+
+        state = root / "state" / "workers" / actor
+        state.mkdir(parents=True, exist_ok=True)
+        out = open(state / "detached.json", "w")
+        proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out,
+                                stderr=subprocess.STDOUT, start_new_session=True,
+                                env={**os.environ, "COMPANY_PROJECT": project})
+        emit({"ok": True, "detached": True, "group": args.group, "actor": actor,
+              "supervisor_pid": proc.pid, "result_file": str(state / "detached.json"),
+              "note": "poll `company status`; the review survives this turn ending"})
+
+    # Same concurrency cap as a solo gate — a group launch is still one
+    # process, but nothing before this enforced budgets.yaml's cap on it.
+    import slots
+    import staffing
+    budgets = staffing.load_config(root, "budgets.yaml")
+    cap = args.max_concurrent or budgets.get("max_concurrent_workers", 4)
+    try:
+        slot, queued_s = slots.acquire(
+            root, actor, cap, timeout=budgets.get("queue_timeout_s", 1800))
+    except slots.SlotTimeout as exc:
+        die(str(exc), 1)
+
+    if queued_s > 0:
+        EventLog(root).append(make_event(
+            event="DEPENDENCY_WAITING", actor=actor, project=project,
+            data={"gate_group": args.group, "reason": "concurrency cap",
+                  "cap": cap, "queued_s": queued_s}))
+
+    try:
+        result = worker_mod.launch_group(repo, root, args.group, group_tasks, wt, body,
+                                         args.role, actor, project, timeout=args.timeout)
+    except worker_mod.WorkerError as exc:
+        slots.release(slot)
+        die(str(exc), 1)
+    finally:
+        slots.release(slot)
 
     taskstate.rebuild(root)
     result["packet_tokens"] = packet_mod.estimate_tokens(body)
+    result["queued_s"] = queued_s
+    result["concurrency_cap"] = cap
     emit(result, 0 if not result.get("is_error") and not result.get("missing_verdict") else 1)
 
 
@@ -1406,6 +1466,11 @@ def build_parser():
     gg.add_argument("--max-turns", type=int, default=60)
     gg.add_argument("--timeout", type=int, default=1800, help="wall-clock seconds")
     gg.add_argument("--verify", help="override the configured verify command")
+    gg.add_argument("--detach", action="store_true",
+                    help="return immediately; the review survives this turn ending "
+                         "(required when launching from a `claude -p` PM)")
+    gg.add_argument("--max-concurrent", type=int,
+                    help="override the concurrency cap from budgets.yaml")
     gg.add_argument("--dry-run", action="store_true",
                     help="render and measure the packet without launching")
     gg.set_defaults(fn=cmd_gate_group)
