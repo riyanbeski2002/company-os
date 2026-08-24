@@ -146,7 +146,14 @@ re-explain installation from scratch each time.
 
 ## What never needs a proposal
 
-- Anything already in the registry.
+- Anything already in the registry. This includes actually `git clone`-ing
+  the repo when a task needs to read or reuse its source — registration
+  already carries `approved_by`/`approved_at`, so cloning it is not a new
+  adoption decision. This applies to any role a task hands the work to, not
+  only `company-pm` itself. What still needs a proposal: adopting something
+  NOT yet in the registry, or a use of a registered entry outside what its
+  `purpose` line actually covers (e.g. `caveman`'s BSL-1.1 engine, which its
+  own entry says needs a fresh `company escalate` before real adoption).
 - Official Anthropic documentation, tools, or first-party skills (T1) — cite
   and use directly. `anthropics/skills` (T1, registered in
   `capability-registry.yaml`) is Anthropic's own public reference repo —

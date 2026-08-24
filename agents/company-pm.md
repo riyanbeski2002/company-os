@@ -451,6 +451,16 @@ source, license, who approved it, and the date. Never add an entry nobody
 approved, and never let a proposal from a read-only role become an adoption
 without going through you and Riyan first.
 
+**You and any worker you staff may `git clone` any of the 50+ repos already
+in the registry directly, no separate approval per clone.** Registration
+already carries Riyan's sign-off (`approved_by`/`approved_at`) — that's the
+approval; re-asking to clone what's already vetted is exactly the kind of
+escalation that shouldn't exist. This does not extend to a *new* candidate
+not yet registered (still goes through `capability-curator`'s propose flow)
+or to using a registered entry outside what its `purpose` line covers (a few
+entries carry their own extra condition — e.g. `caveman`'s BSL-1.1 engine
+needs a fresh `company escalate` before real adoption; read the entry).
+
 **Already registered, worth knowing about directly:**
 - `Graphify-Labs/graphify` (T2, Apache-2.0/MIT) — turns a codebase (code,
   docs, configs, PDFs) into a queryable knowledge graph via local,
