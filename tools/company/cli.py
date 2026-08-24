@@ -495,10 +495,20 @@ def cmd_staff(args):
 
 GATE_ROLES = {"code-reviewer", "qa-engineer", "security-reviewer"}
 
+# Chars, not tokens (packet.py's own CHARS_PER_TOKEN=4) — deliberately well
+# under the packet's 2000-token budget so embedding the patch can't itself
+# trigger PacketTooLarge and block a gate launch. Past this, a gate gets the
+# file list (git diff --stat) and reads the rest itself — degrading to the
+# old behavior for a genuinely large diff, never blocking on one.
+DIFF_PATCH_CHAR_CAP = 4000
+
 
 def _diff_summary_for_gate(repo, root, task, role, worker_mod):
-    """`git diff --stat` + the commit SHA, for a gate role reviewing a task
-    that already has implementation work committed (CFO audit, 2026-08-24).
+    """Hand a gate role the actual patch, not just a pointer to go find it
+    (CFO audit + Riyan, 2026-08-24) — bounded so it can't itself blow the
+    packet budget. Falls back to `git diff --stat` + a note when the real
+    patch is too large to embed; the gate still has Read/Grep/Bash for that
+    case, exactly like before this existed.
 
     Only computed for gate roles — the implementer's own first launch has
     nothing to diff yet, and calling this then would just be wasted git calls
@@ -519,11 +529,20 @@ def _diff_summary_for_gate(repo, root, task, role, worker_mod):
             return None
         sha = subprocess.run(["git", "-C", str(wt), "rev-parse", "HEAD"],
                              capture_output=True, text=True, timeout=10)
+        header = f"HEAD {sha.stdout.strip()}"
+
+        patch = subprocess.run(["git", "-C", str(wt), "diff", f"{base}..HEAD"],
+                               capture_output=True, text=True, timeout=10)
+        if patch.returncode == 0 and 0 < len(patch.stdout) <= DIFF_PATCH_CHAR_CAP:
+            return f"{header}\n{patch.stdout.rstrip()}"
+
         stat = subprocess.run(["git", "-C", str(wt), "diff", "--stat", f"{base}..HEAD"],
                               capture_output=True, text=True, timeout=10)
         if stat.returncode != 0:
             return None
-        return f"HEAD {sha.stdout.strip()}\n{stat.stdout.rstrip()}"
+        return (f"{header}\n{stat.stdout.rstrip()}\n"
+                "(full patch too large to embed — run "
+                f"`git diff {base}..HEAD` in your worktree for the rest)")
     except Exception:
         return None
 

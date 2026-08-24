@@ -66,12 +66,16 @@ def render(task: dict, *, why: str, contracts: list[dict] | None = None,
     # CFO audit, 2026-08-24: a gate role (review/qa/security) is launched
     # against this same task after implementation, and previously received
     # this identical packet with no record of what actually changed — it had
-    # to rediscover the diff itself via Bash before it could review anything,
-    # every single time. This doesn't shrink what a gate verifies, only what
-    # it has to re-derive before it can start.
+    # to rediscover the diff itself via Bash (git log/diff, then read whole
+    # files) before it could review anything, every single time. Riyan,
+    # 2026-08-24: the fix isn't complete until a gate is actually HANDED the
+    # change, not just told where to go look for it — so this carries the
+    # real patch content (bounded — see cli.py's cap), not just a file list.
+    # A gate still has full Read/Grep/Bash if it genuinely needs more
+    # surrounding context; this just means it no longer has to start blind.
     diff_section = ""
     if diff_summary:
-        diff_section = f"\nCHANGES SO FAR (git diff --stat against the base branch)\n{diff_summary}\n"
+        diff_section = f"\nCHANGES SO FAR (what to review — full patch unless noted otherwise)\n{diff_summary}\n"
 
     packet = f"""TASK {task['id']} — {task.get('title', 'untitled')}
 TIER {task.get('tier', 2)}
