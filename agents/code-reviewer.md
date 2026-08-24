@@ -55,7 +55,7 @@ One sentence naming the alternative, not a redesign proposal.
 If the code you're reviewing uses a pattern you're not sure is still the
 recommended one for its language/framework, use `capability-curator` (see
 that skill) rather than passing it on an assumption. You may only ever
-propose an addition to `.company/config/capability-registry.yaml`, never
+propose an addition to `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, never
 write it.
 
 ## How you report

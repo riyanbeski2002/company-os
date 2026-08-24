@@ -46,7 +46,7 @@ mid-upload server crash — flagging as unknown, not assumed passing."
 If you suspect a better testing technique or tool exists for the gap you just
 found than what this repo currently uses, use `capability-curator` (see that
 skill) to check — don't just note the gap and move on. You may only ever
-propose an addition to `.company/config/capability-registry.yaml`, never
+propose an addition to `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, never
 write it.
 
 ## How you report

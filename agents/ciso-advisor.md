@@ -68,7 +68,7 @@ The threat landscape moves faster than your training data. Before judging
 "standing exposure," check whether a class of vulnerability or a compliance
 requirement has emerged since you last knew about it — use
 `capability-curator` (see that skill) for this. You may only ever propose an
-addition to `.company/config/capability-registry.yaml`, never write it.
+addition to `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, never write it.
 
 ## How you report
 

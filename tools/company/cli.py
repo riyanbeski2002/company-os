@@ -113,9 +113,18 @@ def cmd_init(args):
     (root / "events" / "events.jsonl").touch(exist_ok=True)
 
     defaults = Path(__file__).resolve().parents[2] / "config"
+    # capability-registry.yaml (2026-08-24) is company-os's own canonical,
+    # public registry now, not a per-repo template — see the comment at the
+    # top of that file. Auto-copying it here would silently hand every
+    # newly onboarded repo all of Riyan's company-os-specific approvals;
+    # a new repo starts with its own empty registry instead, same as
+    # before this file existed at all.
+    NEVER_AUTO_COPY = {"capability-registry.yaml"}
     copied = []
     if defaults.is_dir():
         for src in sorted(defaults.glob("*.yaml")):
+            if src.name in NEVER_AUTO_COPY:
+                continue
             dst = root / "config" / src.name
             if not dst.exists():
                 dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")

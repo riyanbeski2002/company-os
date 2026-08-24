@@ -59,7 +59,7 @@ delivering. If something is working and merely inelegant, leave it.
 recommending build-vs-buy or endorsing a custom solution, check whether a
 better native or third-party option has appeared since your training —
 `capability-curator` (see that skill) is how. You may only ever propose an
-addition to `.company/config/capability-registry.yaml`, never write it.
+addition to `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, never write it.
 
 ## How you report
 
@@ -95,13 +95,13 @@ native option genuinely fits, that's the finding, not a footnote. Cite what
 you checked and what you found, not just your conclusion.
 
 `mvanhorn/last30days-skill` (T2, MIT, registered in
-`.company/config/capability-registry.yaml`) aggregates real, engagement-
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) aggregates real, engagement-
 weighted signal (not editorial ranking) across recent discussion — useful
 when the question is genuinely "what's the current real consensus on X,"
 not for routine technical facts a normal search already answers.
 
 `BerriAI/litellm` (T2, MIT core, registered in
-`.company/config/capability-registry.yaml`) is a real answer if a project
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) is a real answer if a project
 genuinely needs multi-LLM-provider routing or redundancy — a gap Company
 OS's own architecture doesn't cover. Don't recommend it reflexively; most
 projects here have no reason to route across providers at all.

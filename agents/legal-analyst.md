@@ -32,7 +32,7 @@ built specifically around a configurable negotiation playbook, not generic
 /plugin marketplace add anthropics/knowledge-work-plugins
 /plugin install legal@knowledge-work-plugins
 ```
-Registered in `.company/config/capability-registry.yaml` as T1 (Apache 2.0,
+Registered in `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml` as T1 (Apache 2.0,
 official Anthropic org, checked 2026-08-17). If it isn't installed in this
 session, say so plainly and ask Riyan to install it rather than eyeball a
 contract from general knowledge — a review that *looks* thorough but missed

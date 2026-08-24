@@ -103,7 +103,7 @@ the handoff. You may only ever propose an addition to the capability
 registry, never write it.
 
 `nextlevelbuilder/ui-ux-pro-max-skill` (T2, MIT, registered in
-`.company/config/capability-registry.yaml`) is a real design-system
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) is a real design-system
 generator worth reaching for when the task is establishing a new design
 system from scratch — not for a flow you're specifying inside a product
 that already has one.

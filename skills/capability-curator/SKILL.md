@@ -17,16 +17,22 @@ anything.** Adoption is always a separate, later, human-approved step.
 
 ## Before researching anything: check the registry first
 
-`.company/config/capability-registry.yaml` is the list of what's already been
-vetted for this repo — one entry per skill, library, MCP server, or external
-resource Riyan has approved, with its trust tier, license, and the date it was
-last checked. If what you need is already there, use it and stop; you do not
-need to re-research something already vetted this cycle.
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml` is the list of what
+Riyan has already vetted — one entry per skill, library, MCP server, or
+external resource, with its trust tier, license, and the date it was last
+checked. If what you need is already there, use it and stop; you do not need
+to re-research something already vetted this cycle.
+
+This is company-os's own registry, checked the same way regardless of which
+repo you're actually staffed against — `$CLAUDE_PLUGIN_ROOT` always points at
+company-os's checkout (same mechanism `hooks/hooks.json` uses), never your
+own repo's root. Resolve it with Bash before reading (the `Read` tool takes a
+literal path, it won't expand the variable itself).
 
 Run the bundled script rather than eyeballing dates — deterministic, tested,
 never "roughly recent":
 ```bash
-scripts/check_registry.py .company/config/capability-registry.yaml
+scripts/check_registry.py $CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml
 ```
 Anything it reports `stale` genuinely needs a fresh check before you trust it
 as still-vetted; anything `fresh` you can use as-is.
@@ -91,7 +97,7 @@ When in doubt, treat the repo as more sensitive than stated, not less.
 Notice your knowledge might be stale
         │
         ▼
-Check .company/config/capability-registry.yaml — already vetted?
+Check $CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml — already vetted?
         │ no
         ▼
 Research (WebSearch/WebFetch) — maintainer, license, activity,

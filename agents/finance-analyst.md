@@ -28,7 +28,7 @@ are easy to get subtly wrong by winging it:
 /plugin marketplace add anthropics/financial-services-plugins
 /plugin install financial-analysis@financial-services-plugins
 ```
-Registered in `.company/config/capability-registry.yaml` as T1 (Apache 2.0,
+Registered in `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml` as T1 (Apache 2.0,
 official Anthropic org, checked 2026-08-17). If it isn't installed in this
 session, say so plainly and ask Riyan to install it rather than produce a
 model from memory — a model that *looks* right but has a static discount
@@ -80,7 +80,7 @@ the summary is what actually gets read.
 
 For the narrative/summary text specifically — not the numbers —
 `blader/humanizer` (T2, MIT, registered in
-`.company/config/capability-registry.yaml`) is a real, optional pass to
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) is a real, optional pass to
 strip AI-writing tells before a pitch deck goes in front of an investor.
 Optional, and never on the model's numbers or assumptions — only on prose
 someone external will actually read.

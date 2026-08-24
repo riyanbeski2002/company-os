@@ -124,22 +124,23 @@ class TestMotionVocabularySkill(unittest.TestCase):
         self.assertIn("default for anything entering", text)
         self.assertIn("layout thrashing", text)
 
-    def test_shipped_template_stays_empty(self):
-        """config/capability-registry.yaml is the template `company init`
-        copies into every newly onboarded repo — a company-os-specific
-        approval does not belong there, or it would leak into every other
-        project someone onboards. Caught this live: first attempt edited
-        the template instead of company-os's own .company/ instance."""
+    def test_registry_is_no_longer_a_blank_per_repo_template(self):
+        """2026-08-24, Riyan: the registry must be visibly public, not
+        buried in the dot-prefixed .company/ folder. config/capability-
+        registry.yaml is now company-os's own canonical, populated registry
+        (see the file's own header comment for the full history) — but it
+        must still never leak into another repo's .company/config/ via
+        `company init`'s copy-if-not-exists, which is what the ORIGINAL
+        empty-template rule protected against. See
+        test_capability_registry_is_excluded_from_company_init below for
+        the mechanism that keeps that protection intact in the new shape."""
         import yaml
         data = yaml.safe_load((ROOT / "config" / "capability-registry.yaml").read_text())
-        self.assertEqual(data.get("entries"), [])
+        self.assertTrue(data.get("entries"), "the canonical registry should not be empty")
 
     def test_is_registered_and_approved_in_company_os_own_registry(self):
         import yaml
-        reg_path = ROOT / ".company" / "config" / "capability-registry.yaml"
-        if not reg_path.exists():
-            self.skipTest("company-os not onboarded onto itself in this checkout")
-        data = yaml.safe_load(reg_path.read_text())
+        data = yaml.safe_load((ROOT / "config" / "capability-registry.yaml").read_text())
         entry = next((e for e in data["entries"] if e["id"] == "motion-vocabulary"), None)
         self.assertIsNotNone(entry)
         self.assertEqual(entry["approved_by"], "riyan")
@@ -207,9 +208,7 @@ class TestScrollAnimationSkill(unittest.TestCase):
 
     def test_is_registered_in_company_os_own_registry(self):
         import yaml
-        reg_path = ROOT / ".company" / "config" / "capability-registry.yaml"
-        if not reg_path.exists():
-            self.skipTest("company-os not onboarded onto itself in this checkout")
+        reg_path = ROOT / "config" / "capability-registry.yaml"
         data = yaml.safe_load(reg_path.read_text())
         entry = next((e for e in data["entries"] if e["id"] == "scroll-animation"), None)
         self.assertIsNotNone(entry)
@@ -227,15 +226,41 @@ class TestCapabilityRegistryConfig(unittest.TestCase):
     def test_shipped_default_exists(self):
         self.assertTrue(self.path.exists())
 
-    def test_starts_empty(self):
+    def test_is_the_canonical_public_registry_not_a_blank_template(self):
         import yaml
         data = yaml.safe_load(self.path.read_text(encoding="utf-8"))
-        self.assertEqual(data.get("entries"), [])
+        self.assertTrue(data.get("entries"))
 
-    def test_gets_installed_by_company_init(self):
-        """Same mechanism as risk-triggers.yaml / budgets.yaml — no new code
-        path, just a new file in config/ that cmd_init's glob already picks
-        up. This pins that assumption rather than trusting it silently."""
+    def test_is_excluded_from_company_init_auto_copy(self):
+        """2026-08-24: this file used to be copied into every newly
+        onboarded repo's .company/config/ like risk-triggers.yaml/
+        budgets.yaml (same mechanism, no special-casing). Now that it's
+        company-os's own populated, public registry rather than a blank
+        template, that copy would silently hand every new repo all of
+        Riyan's company-os-specific approvals — cmd_init excludes it on
+        purpose. A newly onboarded repo starts with no registry at all,
+        same as before this file was ever populated."""
+        import subprocess
+        import sys as _sys
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.email", "t@t.co"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+            (repo / "README.md").write_text("x")
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+            result = subprocess.run(
+                [_sys.executable, str(ROOT / "tools" / "company" / "cli.py"), "init"],
+                cwd=repo, check=True, capture_output=True, text=True)
+            self.assertFalse((repo / ".company" / "config" / "capability-registry.yaml").exists())
+            self.assertNotIn("capability-registry.yaml", result.stdout)
+
+    def test_other_config_files_are_still_auto_copied(self):
+        """Pins that the exclusion above is scoped to capability-registry.yaml
+        specifically — not a regression that silently stopped every config
+        file from being installed for a new repo."""
         import subprocess
         import sys as _sys
         import tempfile
@@ -249,7 +274,8 @@ class TestCapabilityRegistryConfig(unittest.TestCase):
             subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
             subprocess.run([_sys.executable, str(ROOT / "tools" / "company" / "cli.py"), "init"],
                           cwd=repo, check=True, capture_output=True)
-            self.assertTrue((repo / ".company" / "config" / "capability-registry.yaml").exists())
+            self.assertTrue((repo / ".company" / "config" / "risk-triggers.yaml").exists())
+            self.assertTrue((repo / ".company" / "config" / "staffing.yaml").exists())
 
 
 class TestCuratorAccessIsScoped(unittest.TestCase):

@@ -210,7 +210,7 @@ A task that could have been Tier 1 but ran as Tier 2 is a defect. Record the
 tier on every task.
 
 `garrytan/gstack` (T2, MIT, registered in
-`.company/config/capability-registry.yaml`) is a real fallback pattern
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) is a real fallback pattern
 reference, not a replacement for any of this — it's slash-command role
 templates (CEO/Designer/Eng Manager/QA) with no event log, no Evidence
 Rule, no replay. If the `plan`/`staff`/`run` pipeline is genuinely
@@ -346,7 +346,7 @@ running a Tier-2 worker for a Tier-1 job.
 **`finance-analyst`/`legal-analyst` (both Tier 1, no worktree) exist for
 real business deliverables, not code** — a DCF, an LBO, a comps set, a
 contract review, NDA triage. Their actual methodology comes from official
-Anthropic plugins (T1, `.company/config/capability-registry.yaml`), not
+Anthropic plugins (T1, `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`), not
 reimplementation; if the plugin isn't installed, they'll say so rather than
 improvise. You will not always need them — most tasks are still code — but
 when Riyan asks for a financial model or a contract read, staff the role
@@ -408,7 +408,7 @@ Ask well:
 - Mark it `--non-blocking` if work continues meanwhile. Be honest about which.
 
 `ayghri/i-have-adhd` (T2, MIT, registered in
-`.company/config/capability-registry.yaml`) is a real fallback for exactly
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) is a real fallback for exactly
 this discipline — action-first, no preamble, numbered steps — when you
 notice your own escalation or report is burying the actual ask under
 reasoning. Most of the time this file's own "one line, plainly" instruction
@@ -475,13 +475,23 @@ log nobody reads.
 ## Keeping the company's knowledge current
 
 Every role can propose a new capability (a skill, library, or tool it thinks
-is worth adopting) via `capability-curator`, but you are the only one who ever
-writes `.company/config/capability-registry.yaml` — because you are the only
-one with Write access to it. When Riyan approves a proposal via `company
-resolve`, add the registry entry yourself: id, type, purpose, trust tier,
-source, license, who approved it, and the date. Never add an entry nobody
-approved, and never let a proposal from a read-only role become an adoption
-without going through you and Riyan first.
+is worth adopting) via `capability-curator`, but you are the only one who
+ever writes `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml` — because
+you are the only one with Write access to it. When Riyan approves a proposal
+via `company resolve`, add the registry entry yourself: id, type, purpose,
+trust tier, source, license, who approved it, and the date. Never add an
+entry nobody approved, and never let a proposal from a read-only role become
+an adoption without going through you and Riyan first.
+
+**This is company-os's own registry, not this repo's** (2026-08-24) — your
+own worktree's cwd is whatever repo you're staffed against, so a bare
+`config/capability-registry.yaml` resolves nowhere except inside company-os
+itself. `$CLAUDE_PLUGIN_ROOT` is the same env var `hooks/hooks.json` already
+relies on for exactly this — it always points at company-os's checkout
+regardless of which repo launched you. Resolve it with Bash before reading
+or writing (`echo $CLAUDE_PLUGIN_ROOT`, or `cat`/append directly against
+`"$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml"`) — the `Read`/`Write`
+tools take a literal path, they will not expand the variable themselves.
 
 **You and any worker you staff may `git clone` any of the 50+ repos already
 in the registry directly, no separate approval per clone.** Registration

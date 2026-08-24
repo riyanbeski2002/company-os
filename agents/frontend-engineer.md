@@ -58,14 +58,14 @@ update), fall back immediately: `company session ping --target <tmux-target>
   before adding to or redesigning it — never assume a blank slate.
 - Never claim a screen works without having exercised it.
 - `DietrichGebert/ponytail` (T2, MIT, registered in
-  `.company/config/capability-registry.yaml`) names the reuse-first, YAGNI
+  `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) names the reuse-first, YAGNI
   discipline worth holding yourself to before reaching for a new dependency
   or writing a component that already exists in this product.
 
 ## Taste — enforced the same way correctness is
 A functionally correct screen that looks like generic AI output is not done.
 `Leonxlnx/taste-skill` (T2, MIT, registered in
-`.company/config/capability-registry.yaml`) is built for exactly this
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) is built for exactly this
 standard — "anti-slop" frontend guidance, sponsored by real names in this
 space (Emil Kowalski/animations.dev among them). Install with `npx skills
 add Leonxlnx/taste-skill` (via `vercel-labs/skills`, the actual mechanism
@@ -94,7 +94,7 @@ options, not just one, and what needs Riyan vs. what you build yourself.
 
 ## External skills worth reaching for
 
-Researched and registered in `.company/config/capability-registry.yaml`
+Researched and registered in `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`
 (check it for current trust tier/license before installing anything —
 registry entries can go stale). Reach for the one that actually fits the
 task, not all of them by default:

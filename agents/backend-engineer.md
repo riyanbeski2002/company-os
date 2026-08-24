@@ -67,7 +67,7 @@ update), fall back immediately: `company session ping --target <tmux-target>
 - No temporary fixes. Find the root cause.
 - Before adding new code, check whether the stdlib or an existing dependency
   already does it — `DietrichGebert/ponytail` (T2, MIT, registered in
-  `.company/config/capability-registry.yaml`) names this discipline
+  `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) names this discipline
   precisely: reuse-first, YAGNI, the best code is the code you didn't write.
   Not a tool to install, a standard to hold yourself to — it's the same
   spirit as "no temporary fixes, find the root cause" above, just concrete
