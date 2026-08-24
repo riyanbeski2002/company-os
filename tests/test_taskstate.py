@@ -23,6 +23,22 @@ def ev(seq, event, task="TASK-1", data=None, actor="pm", project="p"):
             "actor": actor, "project": project, "task": task, "data": data or {}}
 
 
+class TestGateGroupField(unittest.TestCase):
+    def test_gate_group_survives_the_fold(self):
+        """Efficiency addendum v1, 2026-08-24: `company gate-group` finds a
+        group's tasks by reading this field back off the folded task view —
+        it has to actually round-trip through TASK_CREATED, not just be
+        accepted and dropped."""
+        events = [ev(1, "TASK_CREATED", data={"title": "t", "gate_group": "iam"})]
+        task = taskstate.fold(events)["TASK-1"]
+        self.assertEqual(task["gate_group"], "iam")
+
+    def test_a_task_with_no_gate_group_has_none(self):
+        events = [ev(1, "TASK_CREATED", data={"title": "t"})]
+        task = taskstate.fold(events)["TASK-1"]
+        self.assertNotIn("gate_group", task)
+
+
 class TestMalformedStatusChanged(unittest.TestCase):
     def test_a_well_formed_status_changed_still_applies_normally(self):
         events = [

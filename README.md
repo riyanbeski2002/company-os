@@ -169,6 +169,7 @@ files. Explicitly **not** to check less — only to carry less.
 | `company plan [--spec f.json]` | Apply the risk table to a proposed task graph; refuse colliding parallel work. |
 | `company staff [--project P]` | Apply a plan: tasks in the log, branches and worktrees on disk. |
 | `company run <task> --role <agent>` | Launch a Tier-2 worker: worktree, packet, supervision, budget. |
+| `company gate-group <gate_group> --role <agent>` | One gate launch for several tasks sharing a `gate_group` — combined diff, one verdict per task, not one launch each. |
 | `company task show\|advance <id>` | Inspect, or transition (enforces the Evidence Rule). |
 | `company integrate [--task T]` | Rebase into `integration`, run the suite there, merge **only** on green. |
 | `company rebuild [--verify]` | Replay events into views; `--verify` compares instead of writing. |

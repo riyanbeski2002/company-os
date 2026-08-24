@@ -423,6 +423,113 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         release_claim(company_root, task["id"])
 
 
+def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict],
+                 worktree: Path, packet: str, role: str, actor: str, project: str,
+                 timeout: int = 1800) -> dict:
+    """Run one gate launch against a combined worktree covering several
+    tasks (efficiency addendum v1, 2026-08-24 — grouped gating). Structurally
+    `launch()`, minus per-task worktree creation (the caller already built
+    the group's combined worktree via `gategroup.build_group_review`) and
+    with the post-exit verdict check applied to EVERY task in the group, not
+    one — a task that didn't get its own verdict event is GATE_NO_VERDICT,
+    same as a solo gate, never silently covered by a sibling's review.
+    """
+    claim_id = f"gate-group-{group_id}"
+    if not claim_task(company_root, claim_id, actor):
+        busy = live_worker_on(company_root, claim_id) or "another worker"
+        raise WorkerError(
+            f"{busy} is already reviewing gate group {group_id!r}. Wait for it, "
+            f"or `company stop`."
+        )
+    try:
+        log = EventLog(company_root)
+        state = company_root / "state" / "workers" / actor
+        state.mkdir(parents=True, exist_ok=True)
+        out_path, err_path = state / "stdout.json", state / "stderr.log"
+
+        policy_cfg = staffing.load_config(company_root, "staffing.yaml")
+        policy = staffing.model_policy(policy_cfg, tier=2, gated=True)
+        task_ids = [t["id"] for t in tasks]
+
+        log.append(make_event(
+            event="WORKER_STARTED", actor=actor, project=project,
+            data={"role": role, "tier": 2, "gate_group": group_id, "tasks": task_ids,
+                  "worktree": str(worktree), "timeout_s": timeout,
+                  "model": policy.get("model"), "effort": policy.get("effort")},
+        ))
+
+        env = build_env(repo, company_root, {"id": "", "project": project}, actor,
+                        worktree, thinking=policy.get("thinking", "on") != "off")
+        env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
+
+        started = time.monotonic()
+        with open(out_path, "w") as out, open(err_path, "w") as err:
+            proc = subprocess.Popen(
+                build_command({"id": claim_id}, role, model=policy.get("model"),
+                              effort=policy.get("effort")),
+                cwd=str(worktree), env=env,
+                stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
+            )
+            (state / "pid").write_text(str(proc.pid))
+            (state / "started_task").write_text(claim_id)
+            release_claim(company_root, claim_id)
+            try:
+                proc.communicate(input=packet, timeout=timeout)
+                timed_out = False
+            except subprocess.TimeoutExpired:
+                proc.send_signal(signal.SIGTERM)
+                try:
+                    proc.wait(timeout=30)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                timed_out = True
+
+        elapsed = round(time.monotonic() - started, 1)
+        result = _read_result(out_path)
+        session_id = result.get("session_id")
+        if session_id:
+            (state / "session_id").write_text(session_id)
+
+        log.append(make_event(
+            event="WORKER_EXITED", actor=actor, project=project,
+            data={"gate_group": group_id, "tasks": task_ids,
+                  "exit_code": proc.returncode, "timed_out": timed_out,
+                  "elapsed_s": elapsed, "session_id": session_id,
+                  "is_error": result.get("is_error"),
+                  "terminal_reason": result.get("terminal_reason"),
+                  "cost_usd_estimate": result.get("total_cost_usd"),
+                  "tokens": _usage(result)},
+        ))
+
+        missing_verdict = []
+        if role in GATE_VERDICT_EVENTS:
+            current = log.read()
+            for t in tasks:
+                expected = gave_no_verdict(current, t["id"], actor, role)
+                if expected:
+                    missing_verdict.append(t["id"])
+                    log.append(make_event(
+                        event="GATE_NO_VERDICT", actor=actor, project=project,
+                        task=t["id"],
+                        data={"role": role, "expected_one_of": list(expected),
+                              "gate_group": group_id, "exit_code": proc.returncode,
+                              "is_error": result.get("is_error"),
+                              "terminal_reason": result.get("terminal_reason")},
+                    ))
+
+        return {
+            "actor": actor, "gate_group": group_id, "tasks": task_ids, "role": role,
+            "worktree": str(worktree), "exit_code": proc.returncode, "timed_out": timed_out,
+            "elapsed_s": elapsed, "session_id": session_id,
+            "is_error": result.get("is_error"),
+            "structured_output": result.get("structured_output"),
+            "missing_verdict": missing_verdict,
+            "stdout": str(out_path), "stderr": str(err_path),
+        }
+    finally:
+        release_claim(company_root, claim_id)
+
+
 def _usage(result: dict) -> dict:
     """Token consumption — the thing a subscription actually meters.
 

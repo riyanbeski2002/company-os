@@ -495,56 +495,19 @@ def cmd_staff(args):
 
 GATE_ROLES = {"code-reviewer", "qa-engineer", "security-reviewer"}
 
-# Chars, not tokens (packet.py's own CHARS_PER_TOKEN=4) — deliberately well
-# under the packet's 2000-token budget so embedding the patch can't itself
-# trigger PacketTooLarge and block a gate launch. Past this, a gate gets the
-# file list (git diff --stat) and reads the rest itself — degrading to the
-# old behavior for a genuinely large diff, never blocking on one.
-DIFF_PATCH_CHAR_CAP = 4000
-
 
 def _diff_summary_for_gate(repo, root, task, role, worker_mod):
     """Hand a gate role the actual patch, not just a pointer to go find it
-    (CFO audit + Riyan, 2026-08-24) — bounded so it can't itself blow the
-    packet budget. Falls back to `git diff --stat` + a note when the real
-    patch is too large to embed; the gate still has Read/Grep/Bash for that
-    case, exactly like before this existed.
-
-    Only computed for gate roles — the implementer's own first launch has
-    nothing to diff yet, and calling this then would just be wasted git calls
-    around an empty worktree. Degrades to None on any failure (a fresh
-    worktree, no commits yet, git error) rather than blocking the launch —
-    this is a cost optimization, not something a gate's correctness depends on.
+    (CFO audit + Riyan, 2026-08-24). Only computed for gate roles — the
+    implementer's own first launch has nothing to diff yet, and calling this
+    then would just be wasted git calls around an empty worktree.
     """
     if role not in GATE_ROLES:
         return None
-    try:
-        import subprocess
-        wt, _branch = worker_mod.ensure_worktree(repo, root, task)
-        base = task.get("base") or worker_mod._default_base(repo)
-        count = subprocess.run(
-            ["git", "-C", str(wt), "rev-list", "--count", f"{base}..HEAD"],
-            capture_output=True, text=True, timeout=10)
-        if count.returncode != 0 or int(count.stdout.strip() or 0) == 0:
-            return None
-        sha = subprocess.run(["git", "-C", str(wt), "rev-parse", "HEAD"],
-                             capture_output=True, text=True, timeout=10)
-        header = f"HEAD {sha.stdout.strip()}"
-
-        patch = subprocess.run(["git", "-C", str(wt), "diff", f"{base}..HEAD"],
-                               capture_output=True, text=True, timeout=10)
-        if patch.returncode == 0 and 0 < len(patch.stdout) <= DIFF_PATCH_CHAR_CAP:
-            return f"{header}\n{patch.stdout.rstrip()}"
-
-        stat = subprocess.run(["git", "-C", str(wt), "diff", "--stat", f"{base}..HEAD"],
-                              capture_output=True, text=True, timeout=10)
-        if stat.returncode != 0:
-            return None
-        return (f"{header}\n{stat.stdout.rstrip()}\n"
-                "(full patch too large to embed — run "
-                f"`git diff {base}..HEAD` in your worktree for the rest)")
-    except Exception:
-        return None
+    import gitutil
+    wt, _branch = worker_mod.ensure_worktree(repo, root, task)
+    base = task.get("base") or worker_mod._default_base(repo)
+    return gitutil.diff_patch_or_stat(wt, base)
 
 
 def cmd_run(args):
@@ -646,6 +609,95 @@ def cmd_run(args):
     result["queued_s"] = queued_s
     result["concurrency_cap"] = cap
     emit(result, 0 if not result.get("is_error") else 1)
+
+
+def cmd_gate_group(args):
+    """One gate launch covering several tasks that touch the same core,
+    instead of one launch per task (Riyan, 2026-08-24 — efficiency addendum
+    v1: 'not every task deserves its own gate... one review pass instead of
+    3'). Does not weaken the Evidence Rule: every task in the group still
+    needs its own verdict event, checked individually after the launch.
+
+    v1 scope: a dependency chain / sequential group only. Tasks are merged
+    into the review worktree in the order found (task-creation order, unless
+    --tasks gives an explicit order) — this is NOT a topological merge of
+    genuinely parallel siblings with disjoint history. A group whose tasks
+    don't merge cleanly in that order refuses outright rather than guessing.
+    """
+    import worker as worker_mod
+    import gategroup
+    import packet as packet_mod
+
+    root = company_root(args)
+    repo = root.parent
+    all_tasks = taskstate.fold(EventLog(root).read())
+
+    group_tasks = [t for t in all_tasks.values() if t.get("gate_group") == args.group]
+    if args.tasks:
+        order = args.tasks
+        by_id = {t["id"]: t for t in group_tasks}
+        missing = [tid for tid in order if tid not in by_id]
+        if missing:
+            die(f"{missing} not found, or don't carry gate_group={args.group!r}", 1)
+        group_tasks = [by_id[tid] for tid in order]
+    if not group_tasks:
+        die(f"no tasks found with gate_group={args.group!r}", 1)
+    if len(group_tasks) < 2:
+        die(f"gate_group={args.group!r} has only 1 task — run `company run` "
+            f"directly, grouping is for 2+ tasks reviewed together", 1)
+
+    projects = {t.get("project") for t in group_tasks}
+    if len(projects) > 1:
+        die(f"gate_group={args.group!r} spans multiple projects: {sorted(projects)}", 1)
+    project = projects.pop()
+
+    # Preflight: every task needs its own implementation + real test
+    # evidence already — the gate-event reasons are expected here (that's
+    # what this launch is about to satisfy) and filtered out.
+    baseline = _baseline(root, project)
+    blocking = []
+    for t in group_tasks:
+        reasons = [r for r in taskstate.check_done(t, baseline=baseline) if not r.startswith("gate ")]
+        if reasons:
+            blocking.append({"task": t["id"], "reasons": reasons})
+    if blocking:
+        emit({"ok": False, "group": args.group,
+              "refusal": "not every task in this group is implementation-complete yet",
+              "blocking": blocking}, 3)
+
+    base = next((t.get("base") for t in group_tasks if t.get("base")), None) \
+        or worker_mod._default_base(repo)
+
+    try:
+        wt = gategroup.build_group_review(repo, root, args.group, group_tasks, base)
+    except gategroup.GroupMergeConflict as exc:
+        EventLog(root).append(make_event(
+            event="TASK_BLOCKED", actor=args.actor or "pm", project=project,
+            task=exc.task_id,
+            data={"stage": "gate_group_merge", "gate_group": args.group, "detail": exc.detail}))
+        die(str(exc), 1)
+
+    import gitutil
+    diff_summary = gitutil.diff_patch_or_stat(wt, base)
+
+    body = packet_mod.render_group(
+        group_tasks, group_id=args.group,
+        why=args.why or "Requested by the CEO.",
+        diff_summary=diff_summary, verify=verify_command(root, args.verify),
+        baseline=baseline, max_turns=args.max_turns, timeout_s=args.timeout)
+
+    if args.dry_run:
+        emit({"ok": True, "group": args.group, "dry_run": True,
+              "tasks": [t["id"] for t in group_tasks],
+              "packet_tokens": packet_mod.estimate_tokens(body), "packet": body})
+
+    actor = args.actor or f"{args.role}-group-{args.group}"
+    result = worker_mod.launch_group(repo, root, args.group, group_tasks, wt, body,
+                                     args.role, actor, project, timeout=args.timeout)
+
+    taskstate.rebuild(root)
+    result["packet_tokens"] = packet_mod.estimate_tokens(body)
+    emit(result, 0 if not result.get("is_error") and not result.get("missing_verdict") else 1)
 
 
 def _contracts_for(tasks: dict, task: dict) -> list[dict]:
@@ -1341,6 +1393,22 @@ def build_parser():
     rn.add_argument("--dry-run", action="store_true",
                     help="render and measure the packet without launching")
     rn.set_defaults(fn=cmd_run)
+
+    gg = sub.add_parser("gate-group",
+                        help="one gate launch for several tasks that touch the same core, "
+                             "instead of one per task")
+    gg.add_argument("group", help="the gate_group value shared by the tasks")
+    gg.add_argument("--role", required=True, choices=sorted(GATE_ROLES))
+    gg.add_argument("--tasks", nargs="+",
+                    help="explicit task id order (default: task-creation order)")
+    gg.add_argument("--actor", help="default: <role>-group-<group>")
+    gg.add_argument("--why", help="one line: why this matters, in business terms")
+    gg.add_argument("--max-turns", type=int, default=60)
+    gg.add_argument("--timeout", type=int, default=1800, help="wall-clock seconds")
+    gg.add_argument("--verify", help="override the configured verify command")
+    gg.add_argument("--dry-run", action="store_true",
+                    help="render and measure the packet without launching")
+    gg.set_defaults(fn=cmd_gate_group)
 
     sx = sub.add_parser("status", help="derived state — never estimated")
     sx.add_argument("--project")

@@ -289,6 +289,31 @@ company run TASK-101 --role backend-engineer --detach
 `company run <task-id>` will refuse anything not already staffed — that
 refusal means step 1/2 didn't happen, not that the CLI is broken.
 
+**Not every task deserves its own gate (Riyan, 2026-08-24).** When several
+tasks touch the same core — a dependency chain like IAM design → IAM UI →
+onboarding — give them the same `gate_group` at plan time, then gate them
+together instead of three separate passes:
+```
+echo '{"project":"p","request":"IAM","tasks":[
+  {"id":"TASK-1","title":"IAM design","tier":2,"gate_group":"iam","owned_globs":["iam/design/**"]},
+  {"id":"TASK-2","title":"IAM UI","tier":2,"gate_group":"iam","depends_on":["TASK-1"],"owned_globs":["iam/ui/**"]},
+  {"id":"TASK-3","title":"onboard users","tier":2,"gate_group":"iam","depends_on":["TASK-2"],"owned_globs":["iam/onboarding/**"]}
+]}' | company plan --spec /dev/stdin
+company staff --project p
+# ... each task implements and reaches IMPLEMENTATION_READY + a green TEST_RUN, same as always ...
+company gate-group iam --role code-reviewer --detach
+```
+This is 1 launch instead of 3, reviewing the group's combined diff (all
+three branches merged into a throwaway review worktree) — not 3 launches
+each rediscovering a third of the same feature. It does **not** weaken the
+Evidence Rule: every task still needs its own `REVIEW_PASSED` (or
+`QA_PASSED`/`SECURITY_REVIEW_PASSED`) event, and `gate-group` verifies each
+task actually got one after the launch — a task missing its own verdict is
+`GATE_NO_VERDICT`, exactly like a solo gate that exits silently, never
+covered by a sibling's review. v1 scope is a dependency chain: tasks that
+don't merge together cleanly (real conflicting changes, not just related
+ones) refuse outright rather than guessing at a resolution.
+
 ## Staffing, in this order
 
 1. What outcome is requested, in business terms?

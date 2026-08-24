@@ -42,6 +42,12 @@ FIELDS_FROM_DATA = (
     "title", "tier", "owner", "department", "priority", "depends_on", "blocks",
     "owned_globs", "forbidden_globs", "branch", "worktree", "gates",
     "acceptance_criteria", "base",
+    # gate_group (efficiency addendum v1, 2026-08-24): tasks sharing this
+    # value get one combined gate launch (`company gate-group`) instead of
+    # one each. Purely orchestration metadata — check_done()'s Evidence
+    # Rule check is unchanged either way, each task still needs its own
+    # verdict event.
+    "gate_group",
 )
 
 

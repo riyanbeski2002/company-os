@@ -143,3 +143,84 @@ HOW TO REPORT
 
 def estimate_tokens(packet: str) -> int:
     return len(packet) // CHARS_PER_TOKEN
+
+
+def render_group(tasks: list[dict], *, group_id: str, why: str,
+                 diff_summary: str | None, verify: str, baseline: dict | None = None,
+                 max_turns: int = 60, timeout_s: int = 1800,
+                 enforce_budget: bool = True) -> str:
+    """Grouped gate packet (efficiency addendum, 2026-08-24): several tasks
+    that touch the same core get ONE gate launch instead of one each — this
+    is that launch's packet. It does not change what a gate must verify or
+    the Evidence Rule's per-task bookkeeping: the worker is instructed to
+    emit its own verdict event for EVERY task listed below, individually,
+    with the same evidence. `cli.py`'s `cmd_gate_group` then checks each task
+    actually got one — a task that doesn't is unreviewed, exactly like a
+    solo gate that exits with no verdict, never silently passed through
+    because a sibling in the group was reviewed.
+    """
+    if baseline and not baseline.get("green"):
+        base_note = (
+            f"  ⚠ This repo was ALREADY RED before this group's work: exit "
+            f"{baseline.get('exit_code')}"
+            + (f", {baseline['failures']} failures" if baseline.get("failures") is not None else "")
+            + ".\n  Pre-existing failures are out of scope — do not fail the group over them."
+        )
+    else:
+        base_note = "  The repo is green at baseline. Any new failure is this group's to explain."
+
+    task_lines = []
+    for t in tasks:
+        task_lines.append(
+            f"  {t['id']} — {t.get('title', 'untitled')}\n"
+            f"    owned: {', '.join(t.get('owned_globs') or []) or '(none declared)'}\n"
+            f"    acceptance criteria:\n"
+            + "\n".join(f"      - {c}" for c in (t.get('acceptance_criteria') or ['(none declared)']))
+        )
+    tasks_text = "\n".join(task_lines)
+    verdict_lines = "\n".join(
+        f"    company event {t['id']} <PASS_OR_FAIL_EVENT> --evidence <sha-or-log-path>"
+        for t in tasks)
+
+    diff_section = ""
+    if diff_summary:
+        diff_section = f"\nCOMBINED CHANGES (what to review — full patch unless noted otherwise)\n{diff_summary}\n"
+
+    packet = f"""GATE GROUP {group_id} — {len(tasks)} tasks reviewed together, one pass
+These tasks touch the same core and are being reviewed as one unit instead of
+{len(tasks)} separate passes. Review them together — the combined diff below
+is the real unit of change; do not review each task's slice in isolation.
+
+TASKS IN THIS GROUP
+{tasks_text}
+
+WHY IT MATTERS
+  {why}
+{diff_section}
+REQUIRED VERIFICATION
+  Run: {verify}
+{base_note}
+
+BUDGET
+  max turns: {max_turns}   wall clock: {timeout_s}s
+
+HOW TO REPORT
+  You MUST emit one verdict event for EVERY task above, individually — not
+  one combined event, not just the last task. A task with no verdict event
+  from you is treated as unreviewed, the same as a solo gate exiting silently:
+{verdict_lines}
+
+  Do not certify a task you did not actually examine. If the group's diff
+  reveals that one task is fine and another is not, FAIL that one task and
+  PASS the rest — a group review is still an independent judgment per task,
+  not a single verdict rubber-stamped across all of them.
+"""
+    if enforce_budget:
+        estimate = len(packet) // CHARS_PER_TOKEN
+        if estimate > TOKEN_BUDGET:
+            raise PacketTooLarge(
+                f"group packet for {group_id} is ~{estimate} tokens, over the "
+                f"{TOKEN_BUDGET} budget. Split the group, or drop the embedded "
+                f"patch (a large combined diff pushes this over on its own)."
+            )
+    return packet
