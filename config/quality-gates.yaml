@@ -11,7 +11,11 @@ gates:
     fail_event: REVIEW_FAILED
     actor_role: code-reviewer
     tier: 1
-    description: Independent correctness and fit review of the task branch.
+    description: >
+      Independent correctness and fit review of the task branch. Fires at
+      the milestone/PR boundary, not per task (2026-08-25) — code-reviewer
+      runs the native /code-review low skill on its own worktree as its
+      primary mechanism, scoped to the diff, not the whole repo.
 
   qa:
     event: QA_PASSED

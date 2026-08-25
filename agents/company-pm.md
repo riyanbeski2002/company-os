@@ -289,10 +289,17 @@ company run TASK-101 --role backend-engineer --detach
 `company run <task-id>` will refuse anything not already staffed — that
 refusal means step 1/2 didn't happen, not that the CLI is broken.
 
-**Not every task deserves its own gate (Riyan, 2026-08-24).** When several
-tasks touch the same core — a dependency chain like IAM design → IAM UI →
-onboarding — give them the same `gate_group` at plan time, then gate them
-together instead of three separate passes:
+**Gate at the milestone/PR boundary, not per task — this is the default now,
+not an opt-in (Riyan, 2026-08-25): "kill the rule that says code review, qa,
+security for every task, it is only for milestones and PRs."** The risk
+table still decides *what* gates a piece of work needs — that part is
+unchanged, uniformly, including auth/payments/PII/migrations/secrets. What
+changed is *when*: a task reaching `IMPLEMENTATION_READY` + a green
+`TEST_RUN` no longer means "stage its gate now." It means "this task is
+ready for its PR" — implementation-ready comes just before the PR/commit
+point, not before a review. Hold gating until the actual milestone/PR
+boundary, then gate everything in it together, whether that boundary
+contains one task or ten:
 ```
 echo '{"project":"p","request":"IAM","tasks":[
   {"id":"TASK-1","title":"IAM design","tier":2,"gate_group":"iam","owned_globs":["iam/design/**"]},
@@ -300,17 +307,36 @@ echo '{"project":"p","request":"IAM","tasks":[
   {"id":"TASK-3","title":"onboard users","tier":2,"gate_group":"iam","depends_on":["TASK-2"],"owned_globs":["iam/onboarding/**"]}
 ]}' | company plan --spec /dev/stdin
 company staff --project p
-# ... each task implements and reaches IMPLEMENTATION_READY + a green TEST_RUN, same as always ...
+# ... every task in the milestone implements and reaches IMPLEMENTATION_READY + a green TEST_RUN ...
 company gate-group iam --role code-reviewer --detach
 ```
-This is 1 launch instead of 3, reviewing the group's combined diff (all
-three branches merged into a throwaway review worktree) — not 3 launches
-each rediscovering a third of the same feature. It does **not** weaken the
-Evidence Rule: every task still needs its own `REVIEW_PASSED` (or
-`QA_PASSED`/`SECURITY_REVIEW_PASSED`) event, and `gate-group` verifies each
-task actually got one after the launch — a task missing its own verdict is
-`GATE_NO_VERDICT`, exactly like a solo gate that exits silently, never
-covered by a sibling's review. v1 scope is a dependency chain: tasks that
+Tag every task headed for the same PR/milestone with the same `gate_group`
+at plan time — that tagging decision, not a separate gate call per task, is
+now the actual staffing step. A milestone that really is just one task still
+gates once, at its own PR point (`company run --role <gate> --detach` on
+that one task) — the point being killed is staging the gate *immediately
+after implementation* as a reflex, not the case where a PR genuinely is one
+task.
+
+This does **not** weaken the Evidence Rule: every task still needs its own
+`REVIEW_PASSED` (or `QA_PASSED`/`SECURITY_REVIEW_PASSED`) event before it can
+reach DONE — `check_done()` is untouched, and `gate-group` verifies each
+task in a group actually got its own verdict after the launch. A task
+missing one is `GATE_NO_VERDICT`, exactly like a solo gate that exits
+silently, never covered by a sibling's review or waved through because the
+milestone shipped. What moved is when the gate fires, not whether it does.
+
+**For the review gate specifically, this is now cheaper too:**
+`code-reviewer` uses the native `/code-review low` skill on its own
+worktree as its primary mechanism (see `agents/code-reviewer.md`) — scoped
+to the diff it was actually launched against, not the whole codebase, and
+genuinely independent (it's still launched through `worker.py`, so the
+Evidence Rule's actor-role binding still holds — never let your own PM
+session run `/code-review` and record the verdict itself, that's
+self-certification with extra steps regardless of which tool did the
+reading).
+
+v1 scope for `gate-group` itself is still a dependency chain: tasks that
 don't merge together cleanly (real conflicting changes, not just related
 ones) refuse outright rather than guessing at a resolution.
 

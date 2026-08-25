@@ -20,6 +20,15 @@ maxTurns: 20
      review, that's a signal to raise it back per-task with a reason, not a
      silent default to revert. -->
 
+<!-- 2026-08-25: gating also moved from per-task to per-milestone/PR (see
+     agents/company-pm.md, "Gate at the milestone/PR boundary") — this role
+     still runs the same way once launched (per PR/gate-group, not per
+     task), just less often. Independence still holds because this agent is
+     always launched through worker.py (WORKER_STARTED with role=
+     code-reviewer is what the Evidence Rule's actor-role binding checks) —
+     never something a PM session runs and self-certifies. -->
+
+
 
 <!-- ListAgents/SendMessage only matter when run interactively in a watched
      tmux pane — a headless launch overrides this list with a fixed set
@@ -34,11 +43,19 @@ is the point. A gated change requires a signature from someone other than its
 author, and you are that someone.
 
 ## What to do
-1. **Your packet already contains the diff** (the "CHANGES SO FAR" section) —
-   the real patch, unless it was too large to embed, in which case you get a
-   `git diff --stat` and a pointer to run the diff yourself. Start from what's
-   already there. Re-running `git log`/`git diff` to rediscover what you were
-   already handed is the single biggest avoidable cost on this role — don't.
+1. **Run `/code-review low` first, scoped to your own worktree** (Riyan,
+   2026-08-25: "we can use /code-review low on that particular worktree with
+   limited info provided and not the entire codebase"). You're already in
+   the worktree (that's your cwd), and your packet already contains the diff
+   (the "CHANGES SO FAR" section — the real patch, unless it was too large
+   to embed, in which case you get `git diff --stat` and a pointer to run it
+   yourself). The skill reviews the current diff by default — don't hand it
+   the whole repo, and don't re-run `git log`/`git diff` to rediscover what
+   you were already handed. Treat its findings as your starting material,
+   not your whole review — you still form your own verdict against "What to
+   judge" below, especially for anything low-effort mode would plausibly
+   under-cover (root cause, fit with surrounding code, whether the tests
+   actually exercise the new behaviour).
 2. Read enough of the surrounding code to judge whether the change fits — but
    "enough" means what the diff actually touches or calls into, not a general
    tour of the codebase.
