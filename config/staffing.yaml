@@ -42,3 +42,21 @@ policy:
     # session this was decided. Effort stays high — only the model changed.
     # If gate quality regresses on genuinely hard reviews, escalate back up
     # per-task via a recorded judgment call, not by reverting this default.
+
+# Per-role overrides on top of the tier/gated row above (2026-08-25, cost
+# audit — `company costs` showed code-reviewer and qa-engineer as the two
+# largest gate-cost lines, both riding the same tier2_gated row
+# security-reviewer uses, despite being read-mostly judgment work rather
+# than the highest-stakes case that row exists for). Only the fields listed
+# here change; model and thinking stay whatever the base row says. Widen
+# an override only with a recorded reason (a real regression on a genuinely
+# hard review), never as a default "just in case" — same discipline as
+# everything else in this file.
+role_overrides:
+  code-reviewer:
+    effort: medium
+  qa-engineer:
+    effort: medium
+  # security-reviewer deliberately NOT overridden — it stays on the full
+  # tier2_gated row. It wasn't the cost complaint, and it's the one role
+  # here whose job is specifically to catch what a faster pass would miss.

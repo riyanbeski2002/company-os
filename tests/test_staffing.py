@@ -184,6 +184,37 @@ class TestModelPolicy(unittest.TestCase):
         p = staffing.model_policy(SP, tier=99, gated=True)
         self.assertEqual(p, staffing.model_policy(SP, tier=1, gated=False))
 
+    def test_role_override_cuts_effort_without_touching_the_role_that_wasnt_named(self):
+        """Cost audit, 2026-08-25: code-reviewer and qa-engineer were the two
+        largest gate-cost lines, both riding the same tier2_gated row
+        security-reviewer uses. The override should touch only the roles
+        named — security-reviewer's cost wasn't the complaint."""
+        base = staffing.model_policy(SP, tier=2, gated=True)
+        reviewer = staffing.model_policy(SP, tier=2, gated=True, role="code-reviewer")
+        qa = staffing.model_policy(SP, tier=2, gated=True, role="qa-engineer")
+        security = staffing.model_policy(SP, tier=2, gated=True, role="security-reviewer")
+
+        self.assertEqual(reviewer["effort"], "medium")
+        self.assertEqual(qa["effort"], "medium")
+        self.assertEqual(security["effort"], base["effort"])
+        self.assertEqual(security, base)
+
+    def test_role_override_only_changes_the_fields_it_names(self):
+        """An override naming only `effort` must not silently also change
+        model or thinking — those still come from the base tier/gated row."""
+        base = staffing.model_policy(SP, tier=2, gated=True)
+        overridden = staffing.model_policy(SP, tier=2, gated=True, role="code-reviewer")
+        self.assertEqual(overridden["model"], base["model"])
+        self.assertEqual(overridden.get("thinking"), base.get("thinking"))
+
+    def test_no_role_given_is_unaffected_by_overrides(self):
+        p = staffing.model_policy(SP, tier=2, gated=True, role=None)
+        self.assertEqual(p, staffing.model_policy(SP, tier=2, gated=True))
+
+    def test_unknown_role_is_unaffected_by_overrides(self):
+        p = staffing.model_policy(SP, tier=2, gated=True, role="some-role-not-in-the-table")
+        self.assertEqual(p, staffing.model_policy(SP, tier=2, gated=True))
+
 
 class TestOverlap(unittest.TestCase):
     def test_detects_shared_ownership(self):

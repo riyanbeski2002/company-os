@@ -324,7 +324,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         out_path, err_path = state / "stdout.json", state / "stderr.log"
 
         policy_cfg = staffing.load_config(company_root, "staffing.yaml")
-        policy = staffing.model_policy(policy_cfg, tier=2, gated=bool(task.get("gates")))
+        policy = staffing.model_policy(policy_cfg, tier=2, gated=bool(task.get("gates")), role=role)
 
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
@@ -340,7 +340,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                 build_command(task, role, model=policy.get("model"), effort=policy.get("effort")),
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
-                              thinking=policy.get("thinking", "on") != "off"),
+                              thinking=bool(policy.get("thinking", True))),
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
             (state / "pid").write_text(str(proc.pid))
@@ -448,7 +448,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         out_path, err_path = state / "stdout.json", state / "stderr.log"
 
         policy_cfg = staffing.load_config(company_root, "staffing.yaml")
-        policy = staffing.model_policy(policy_cfg, tier=2, gated=True)
+        policy = staffing.model_policy(policy_cfg, tier=2, gated=True, role=role)
         task_ids = [t["id"] for t in tasks]
 
         log.append(make_event(
@@ -459,7 +459,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         ))
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
-                        worktree, thinking=policy.get("thinking", "on") != "off")
+                        worktree, thinking=bool(policy.get("thinking", True)))
         env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
 
         started = time.monotonic()
@@ -569,7 +569,7 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
     out_path, err_path = state / "stdout.json", state / "stderr.log"
 
     policy_cfg = staffing.load_config(company_root, "staffing.yaml")
-    policy = staffing.model_policy(policy_cfg, tier=1, gated=False)
+    policy = staffing.model_policy(policy_cfg, tier=1, gated=False, role=role)
 
     log.append(make_event(
         event="WORKER_STARTED", actor=actor, project=project,
@@ -577,7 +577,7 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
               "model": policy.get("model"), "effort": policy.get("effort")}))
 
     env = build_env(repo, company_root, {"id": "", "project": project}, actor, repo,
-                     thinking=policy.get("thinking", "on") != "off")
+                     thinking=bool(policy.get("thinking", True)))
     env.pop("COMPANY_TASK", None)   # not task-scoped; nothing to own
 
     cmd = [

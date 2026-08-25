@@ -121,14 +121,24 @@ def reconcile(proposed_gates, mandatory_gates, reason: str | None = None) -> tup
 
 # --- model/effort policy (D11) -----------------------------------------------
 
-def model_policy(config: dict, tier: int, gated: bool) -> dict:
+def model_policy(config: dict, tier: int, gated: bool, role: str | None = None) -> dict:
     """Look up the model/effort/thinking row for a launch.
 
-    `config` is staffing.yaml's `policy` block. `gated` means the task carries
-    at least one risk-trigger gate (review alone from a PM-added reason still
-    counts) — only a genuinely gated Tier-2 task gets the expensive row.
-    Falls back to the Tier-1 row for anything the table doesn't name, since
-    that's the conservative middle ground rather than silently going cheap.
+    `config` is staffing.yaml's full document (`policy` + optional
+    `role_overrides`). `gated` means the task carries at least one
+    risk-trigger gate (review alone from a PM-added reason still counts) —
+    only a genuinely gated Tier-2 task gets the expensive row. Falls back to
+    the Tier-1 row for anything the table doesn't name, since that's the
+    conservative middle ground rather than silently going cheap.
+
+    `role_overrides` (2026-08-25, cost audit — `company costs`: code-reviewer
+    and qa-engineer were the two largest gate-cost lines, both riding the
+    same tier2_gated row security-reviewer uses) lets a specific role sit on
+    a cheaper effort than its tier/gated row would otherwise give it, without
+    touching that row for every OTHER role that shares it. Only fields the
+    override actually names are changed — everything else (model, thinking)
+    stays whatever the base row said, so an override can't silently also
+    change the model.
     """
     policy = (config or {}).get("policy", {})
     if tier == 2:
@@ -137,7 +147,12 @@ def model_policy(config: dict, tier: int, gated: bool) -> dict:
         key = "tier0"
     else:
         key = "tier1"  # covers tier 1 and any tier the table doesn't name
-    return policy.get(key) or policy.get("tier1") or {}
+    base = dict(policy.get(key) or policy.get("tier1") or {})
+
+    overrides = (config or {}).get("role_overrides", {}) or {}
+    if role and role in overrides:
+        base.update(overrides[role])
+    return base
 
 
 # --- overlap prediction -----------------------------------------------------

@@ -4,8 +4,20 @@ description: Independent verification that a change actually delivers its accept
 tools: Read, Grep, Glob, Bash, Skill, WebSearch, ListAgents, SendMessage
 disallowedTools: Write, Edit, NotebookEdit
 model: inherit
-maxTurns: 30
+maxTurns: 20
 ---
+
+<!-- Cost audit, 2026-08-25 (`company costs`): this role and code-reviewer
+     were the two largest gate-cost lines, both on cache-read tokens — which
+     scale with turn count, since every turn re-sends the whole conversation
+     so far. maxTurns cut 30->20 and effort dropped to medium (config/
+     staffing.yaml's role_overrides). "What to do" #1 below now points at
+     the packet's embedded diff so scoping what changed doesn't cost its own
+     round of exploration. security-reviewer is deliberately untouched by
+     either change. If a genuinely large gated change starts hitting the
+     20-turn ceiling before finishing real verification, that's a signal to
+     raise it back per-task with a reason, not a silent default to revert. -->
+
 
 <!-- ListAgents/SendMessage only matter when run interactively in a watched
      tmux pane — a headless launch overrides this list with a fixed set
@@ -19,10 +31,14 @@ You verify one task against its acceptance criteria. You are not the person who
 built it, and you have no deploy path.
 
 ## What to do
-1. Run the full suite on the task branch and record the **real** exit code.
-2. Work through each acceptance criterion and decide, with evidence, whether it
+1. **Your packet already contains the diff** (the "CHANGES SO FAR" section) —
+   use it to scope which acceptance criteria are actually implicated before
+   you go looking for anything. Don't spend turns rediscovering what changed
+   via `git log`/`git diff` when it's already in front of you.
+2. Run the full suite on the task branch and record the **real** exit code.
+3. Work through each acceptance criterion and decide, with evidence, whether it
    is met. "The tests pass" is not the same as "the criterion is met."
-3. Hunt for what the implementer's tests do not cover: boundary values, empty
+4. Hunt for what the implementer's tests do not cover: boundary values, empty
    and error states, permission edges, concurrent or repeated actions.
 
 ## When a criterion or coverage scope is genuinely ambiguous
