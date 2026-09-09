@@ -58,6 +58,24 @@ def fold(events: list[dict]) -> dict[str, dict]:
     for ev in events:
         tid = ev.get("task")
         if not tid:
+            # A GROUP gate launch (`company gate-group`) writes one
+            # WORKER_STARTED for the whole group: no `task` field, the members
+            # listed in data.tasks. Skipping it outright left every
+            # group-gated task with no launch record, so check_done's
+            # actor-role binding could never be satisfied and the task could
+            # never reach DONE however genuinely it had been reviewed —
+            # measured on finos 2026-09-09: 7 freshly gated tasks and ~52
+            # historical ones, all uncloseable by construction.
+            #
+            # Same trust guarantee as the per-task case: this event is written
+            # by worker.py before the worker's subprocess exists, so it is not
+            # forgeable by the worker it describes.
+            data = ev.get("data") or {}
+            if ev.get("event") == "WORKER_STARTED" and data.get("role"):
+                for member in data.get("tasks") or []:
+                    if member in tasks:
+                        tasks[member].setdefault(
+                            "worker_roles", {})[ev.get("actor")] = data["role"]
             continue
         name = ev.get("event")
         data = ev.get("data") or {}
