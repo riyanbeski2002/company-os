@@ -200,6 +200,15 @@ def fold(events: list[dict]) -> dict[str, dict]:
                     task["criteria_met"].append(c)
 
         implied = IMPLIED_STATUS.get(name)
+        # A TASK_BLOCKED carrying `attempted_transition` is not a work
+        # blocker: it is `company task advance` recording that the Evidence
+        # Rule REFUSED a close. Treating it as BLOCKED made the ledger claim
+        # a task was stuck when it had already merged — finos 2026-09-09:
+        # MONEY-PAISE-M1 merged 20 Aug, a refused close on 25 Aug repainted it
+        # BLOCKED, and it was still being reported as unstarted work today.
+        # The refusal stays in the log; it just no longer overwrites reality.
+        if name == "TASK_BLOCKED" and data.get("attempted_transition"):
+            implied = None
         if implied and name != "STATUS_CHANGED":
             # MERGED must never downgrade DONE. DONE is the stronger claim —
             # shipped AND evidenced — and a merge recorded after it would

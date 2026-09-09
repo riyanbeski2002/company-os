@@ -23,6 +23,33 @@ def ev(seq, event, task="TASK-1", data=None, actor="pm", project="p"):
             "actor": actor, "project": project, "task": task, "data": data or {}}
 
 
+class TestRefusedCloseIsNotABlocker(unittest.TestCase):
+    """A TASK_BLOCKED carrying attempted_transition is `company task advance`
+    recording that the Evidence Rule refused a close — not a work blocker.
+    finos 2026-09-09: MONEY-PAISE-M1 merged 20 Aug, a refused close on 25 Aug
+    repainted it BLOCKED, and it was still reported as unstarted work weeks
+    later."""
+
+    def test_a_refused_close_does_not_overwrite_merged(self):
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "MERGED"),
+            ev(3, "TASK_BLOCKED", data={"attempted_transition": "DONE",
+                                        "reasons": ["no test evidence"]}),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "MERGED")
+
+    def test_a_real_blocker_still_blocks(self):
+        """Without attempted_transition it is a genuine blocker and must
+        still set BLOCKED — the fix must not blunt the real signal."""
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "TASK_BLOCKED", data={"stage": "gate_group_merge",
+                                        "detail": "merge conflict"}),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "BLOCKED")
+
+
 class TestMergedStatus(unittest.TestCase):
     """2026-09-09: MERGED recorded evidence but moved no status, so a task
     could be live on main and still read BLOCKED forever. finos showed 175 of
