@@ -169,6 +169,53 @@ class TestRenderGroup(unittest.TestCase):
             self.assertIn(f"company event {t['id']}", body)
         self.assertIn("independent judgment per task", body)
 
+class TestPerRoleGroupWorktrees(GitRepoCase):
+    """2026-09-09: the three gate roles used to share one `_gate-group-<id>`
+    worktree AND branch, so they could only run one at a time — and launching
+    two at once left the second dead on "cannot lock ref" and the first
+    half-created (a directory with no .git, which `cd` resolves to the MAIN
+    repo, whose task merge then targets the real working tree). Both the
+    worktree/branch names and the worker claim are now per role.
+    """
+
+    def test_two_roles_get_independent_worktrees_for_the_same_group(self):
+        self._branch("task/1", "design.py", "design\n")
+        tasks = [self._task("TASK-1", "task/1")]
+
+        rev = gategroup.build_group_review(
+            self.repo, self.company_root, "iam", tasks, "main", role="code-reviewer")
+        qa = gategroup.build_group_review(
+            self.repo, self.company_root, "iam", tasks, "main", role="qa-engineer")
+
+        # Distinct paths, and building the second did not destroy the first.
+        self.assertNotEqual(rev, qa)
+        self.assertTrue(rev.exists(), "building the qa worktree tore down the reviewer's")
+        self.assertTrue(qa.exists())
+        self.assertTrue((rev / "design.py").exists())
+        self.assertTrue((qa / "design.py").exists())
+
+        branches = _git(self.repo, "branch", "--list", "_gate-group-iam*").stdout
+        self.assertIn("_gate-group-iam-code-reviewer", branches)
+        self.assertIn("_gate-group-iam-qa-engineer", branches)
+
+    def test_role_none_keeps_the_legacy_unsuffixed_name(self):
+        legacy = gategroup.group_worktree_path(self.company_root, "iam")
+        self.assertEqual(legacy.name, "_gate-group-iam")
+
+    def test_group_claim_is_per_role_not_per_group(self):
+        """Without this, the per-role worktrees still could not run at once:
+        the second role was refused by a claim keyed on group_id alone."""
+        self.assertTrue(worker.claim_task(
+            self.company_root, "gate-group-iam-code-reviewer", "rev-1"))
+        # A different role on the SAME group must still be able to claim.
+        self.assertTrue(worker.claim_task(
+            self.company_root, "gate-group-iam-qa-engineer", "qa-1"))
+        # The same role twice must not.
+        self.assertFalse(worker.claim_task(
+            self.company_root, "gate-group-iam-code-reviewer", "rev-2"))
+
+
+class TestPacketBudget(GitRepoCase):
     def test_over_budget_raises_same_as_a_solo_packet(self):
         tasks = [{"id": "TASK-1", "title": "t", "acceptance_criteria": ["a" * 9000]}]
         with self.assertRaises(packet_mod.PacketTooLarge):

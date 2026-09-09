@@ -434,12 +434,18 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
     one — a task that didn't get its own verdict event is GATE_NO_VERDICT,
     same as a solo gate, never silently covered by a sibling's review.
     """
-    claim_id = f"gate-group-{group_id}"
+    # Per-role claim (2026-09-09), matching gategroup's per-role worktree and
+    # branch. Keyed on group_id alone, this claim re-serialized the three gate
+    # roles even after their worktrees stopped colliding: the second role was
+    # refused outright rather than running alongside the first. Review, qa and
+    # security are independent read-only judgments of the same merge, so the
+    # thing that must not run twice is one ROLE on one group, not the group.
+    claim_id = f"gate-group-{group_id}-{role}"
     if not claim_task(company_root, claim_id, actor):
         busy = live_worker_on(company_root, claim_id) or "another worker"
         raise WorkerError(
-            f"{busy} is already reviewing gate group {group_id!r}. Wait for it, "
-            f"or `company stop`."
+            f"{busy} is already running the {role} gate on group {group_id!r}. "
+            f"Wait for it, or `company stop`."
         )
     try:
         log = EventLog(company_root)

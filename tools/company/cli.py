@@ -686,7 +686,8 @@ def cmd_gate_group(args):
         or worker_mod._default_base(repo)
 
     try:
-        wt = gategroup.build_group_review(repo, root, args.group, group_tasks, base)
+        wt = gategroup.build_group_review(repo, root, args.group, group_tasks, base,
+                                          role=args.role)
     except gategroup.GroupMergeConflict as exc:
         EventLog(root).append(make_event(
             event="TASK_BLOCKED", actor=args.actor or "pm", project=project,

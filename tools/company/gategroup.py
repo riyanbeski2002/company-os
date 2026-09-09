@@ -37,12 +37,22 @@ def _git(repo: Path, *args, cwd: Path | None = None):
         ["git", "-C", str(cwd or repo), *args], capture_output=True, text=True)
 
 
-def group_worktree_path(company_root: Path, group_id: str) -> Path:
-    return Path(company_root) / "worktrees" / f"_gate-group-{group_id}"
+def group_worktree_path(company_root: Path, group_id: str,
+                        role: str | None = None) -> Path:
+    # Per-role, not per-group (2026-09-09): every gate role used to share one
+    # `_gate-group-<id>` worktree+branch, so review/qa/security could only run
+    # one at a time. Launching two concurrently left the second dead on
+    # "cannot lock ref" AND the first half-created — a dir with no .git that
+    # `cd` resolves to the MAIN repo, whose task merge then tries to overwrite
+    # the real working tree. Measured live: three 5-minute gates took ~30
+    # minutes as a forced sequence. Suffixing the role makes them independent.
+    suffix = f"-{role}" if role else ""
+    return Path(company_root) / "worktrees" / f"_gate-group-{group_id}{suffix}"
 
 
 def build_group_review(repo: Path, company_root: Path, group_id: str,
-                       tasks: list[dict], base: str) -> Path:
+                       tasks: list[dict], base: str,
+                       role: str | None = None) -> Path:
     """Rebuild a throwaway worktree at `base` and merge every task's branch
     into it, in the given order. Raises GroupMergeConflict on the first
     branch that doesn't merge cleanly — a group that doesn't even merge
@@ -53,12 +63,12 @@ def build_group_review(repo: Path, company_root: Path, group_id: str,
     or already-superseded code after a FAILED verdict sent a task back for
     rework. This worktree is scratch, not durable state.
     """
-    wt = group_worktree_path(company_root, group_id)
+    wt = group_worktree_path(company_root, group_id, role)
     if wt.exists():
         _git(repo, "worktree", "remove", "--force", str(wt))
         shutil.rmtree(wt, ignore_errors=True)
 
-    branch = f"_gate-group-{group_id}"
+    branch = f"_gate-group-{group_id}{f'-{role}' if role else ''}"
     _git(repo, "branch", "-D", branch)  # ignore failure if it doesn't exist
 
     wt.parent.mkdir(parents=True, exist_ok=True)
