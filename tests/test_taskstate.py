@@ -23,6 +23,53 @@ def ev(seq, event, task="TASK-1", data=None, actor="pm", project="p"):
             "actor": actor, "project": project, "task": task, "data": data or {}}
 
 
+class TestGroupLaunchBinding(unittest.TestCase):
+    """2026-09-09: a GROUP gate launch writes ONE WORKER_STARTED for the whole
+    group — no `task` field, members in data.tasks. fold() opened with
+    `if not tid: continue`, so that record was discarded and check_done's
+    actor-role binding had nothing to verify: every group-gated task was
+    uncloseable however genuinely it had been reviewed. 70 real tasks on finos
+    were holding passing verdicts they could never spend.
+    """
+
+    def _group_started(self, seq, actor, role, members):
+        return {"seq": seq, "ts": "2026-09-09T00:00:00Z",
+                "event": "WORKER_STARTED", "actor": actor, "project": "p",
+                "data": {"role": role, "tasks": members, "gate_group": "g"}}
+
+    def test_group_launch_binds_the_role_to_every_member(self):
+        events = [
+            ev(1, "TASK_CREATED", task="TASK-1", data={"title": "a"}),
+            ev(2, "TASK_CREATED", task="TASK-2", data={"title": "b"}),
+            self._group_started(3, "rev-g", "code-reviewer", ["TASK-1", "TASK-2"]),
+        ]
+        tasks = taskstate.fold(events)
+        for tid in ("TASK-1", "TASK-2"):
+            self.assertEqual(tasks[tid]["worker_roles"]["rev-g"], "code-reviewer",
+                             f"{tid} lost its group launch record")
+
+    def test_only_tasks_the_launcher_named_are_bound(self):
+        """The binding is evidence, not a blanket grant: a task absent from
+        data.tasks must NOT inherit the role."""
+        events = [
+            ev(1, "TASK_CREATED", task="TASK-1", data={"title": "a"}),
+            ev(2, "TASK_CREATED", task="TASK-2", data={"title": "b"}),
+            self._group_started(3, "rev-g", "code-reviewer", ["TASK-1"]),
+        ]
+        tasks = taskstate.fold(events)
+        self.assertEqual(tasks["TASK-1"]["worker_roles"]["rev-g"], "code-reviewer")
+        self.assertNotIn("rev-g", tasks["TASK-2"].get("worker_roles", {}))
+
+    def test_a_taskless_event_that_is_not_a_group_launch_is_still_skipped(self):
+        events = [
+            ev(1, "TASK_CREATED", task="TASK-1", data={"title": "a"}),
+            {"seq": 2, "ts": "2026-09-09T00:00:00Z", "event": "ESCALATION_RAISED",
+             "actor": "pm", "project": "p", "data": {"need": "x"}},
+        ]
+        tasks = taskstate.fold(events)
+        self.assertNotIn("worker_roles", tasks["TASK-1"])
+
+
 class TestGateGroupField(unittest.TestCase):
     def test_gate_group_survives_the_fold(self):
         """Efficiency addendum v1, 2026-08-24: `company gate-group` finds a
