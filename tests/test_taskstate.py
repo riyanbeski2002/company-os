@@ -23,6 +23,36 @@ def ev(seq, event, task="TASK-1", data=None, actor="pm", project="p"):
             "actor": actor, "project": project, "task": task, "data": data or {}}
 
 
+class TestMergedStatus(unittest.TestCase):
+    """2026-09-09: MERGED recorded evidence but moved no status, so a task
+    could be live on main and still read BLOCKED forever. finos showed 175 of
+    218 tasks shipped while the ledger claimed 134 DONE."""
+
+    def test_merged_moves_a_task_off_in_progress(self):
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "WORKER_STARTED", data={"role": "backend-engineer"}),
+            ev(3, "MERGED"),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "MERGED")
+
+    def test_merged_does_not_downgrade_done(self):
+        """DONE is the stronger claim — shipped AND evidenced. A merge
+        recorded afterwards must not erase it."""
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "TASK_COMPLETED"),
+            ev(3, "MERGED"),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "DONE")
+
+    def test_merged_is_not_treated_as_done(self):
+        """MERGED must stay distinct: back-dating DONE onto historical work
+        would launder unverified changes into verified ones."""
+        events = [ev(1, "TASK_CREATED", data={"title": "t"}), ev(2, "MERGED")]
+        self.assertNotEqual(taskstate.fold(events)["TASK-1"]["status"], "DONE")
+
+
 class TestGroupLaunchBinding(unittest.TestCase):
     """2026-09-09: a GROUP gate launch writes ONE WORKER_STARTED for the whole
     group — no `task` field, members in data.tasks. fold() opened with

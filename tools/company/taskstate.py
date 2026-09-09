@@ -15,7 +15,8 @@ LIFECYCLE = [
     "DRAFT", "PLANNED", "READY", "IN_PROGRESS", "IMPLEMENTATION_READY",
     "REVIEW", "QA", "SECURITY_REVIEW", "INTEGRATION", "DONE",
 ]
-OFF_PATH = {"WAITING", "BLOCKED", "FAILED", "RETRYING", "ESCALATED", "ABANDONED"}
+OFF_PATH = {"WAITING", "BLOCKED", "FAILED", "RETRYING", "ESCALATED", "ABANDONED",
+            "MERGED"}
 
 # Events that move a task along on their own. Everything else is recorded but
 # does not advance state; `company task advance` is the only other mover.
@@ -29,6 +30,16 @@ IMPLIED_STATUS = {
     "TASK_FAILED": "FAILED",
     "ESCALATION_RAISED": "ESCALATED",
     "MERGE_READY": "INTEGRATION",
+    # A merge is a FACT, not a judgment: the branch is on main, in production.
+    # Previously MERGED recorded evidence but moved nothing, so a task could
+    # ship and still read BLOCKED or IN_PROGRESS forever — measured on finos
+    # 2026-09-09: 175 of 218 tasks were live on main while the ledger showed
+    # 134 DONE, and six tasks reported BLOCKED had shipped weeks earlier.
+    # MERGED is deliberately NOT "DONE": DONE additionally asserts the
+    # Evidence Rule was satisfied, and back-dating that onto historical work
+    # would launder unverified changes into verified ones. This says exactly
+    # what is true and no more.
+    "MERGED": "MERGED",
     "TASK_COMPLETED": "DONE",
 }
 
@@ -190,7 +201,14 @@ def fold(events: list[dict]) -> dict[str, dict]:
 
         implied = IMPLIED_STATUS.get(name)
         if implied and name != "STATUS_CHANGED":
-            task["status"] = implied
+            # MERGED must never downgrade DONE. DONE is the stronger claim —
+            # shipped AND evidenced — and a merge recorded after it would
+            # otherwise silently erase that. MERGED only fills the gap for a
+            # task that shipped without ever reaching DONE.
+            if implied == "MERGED" and task.get("status") == "DONE":
+                pass
+            else:
+                task["status"] = implied
 
     return tasks
 
