@@ -5,7 +5,7 @@ company history, no other worker's reasoning, no PM deliberation. The role
 definition already lives in the agent file — this does not re-teach the worker
 what a senior backend engineer is.
 
-Budget: ~2k tokens. Over budget means the task is too big or the scoping was
+Budget: ~3.5k tokens. Over budget means the task is too big or the scoping was
 lazy, so `render` raises rather than quietly shipping a bloated packet.
 """
 
@@ -13,7 +13,48 @@ from __future__ import annotations
 
 from pathlib import Path
 
-TOKEN_BUDGET = 2000
+# RAISED 2000 -> 3500 on 5 Sep 2026 by Riyan's explicit decision, after the
+# budget blocked TWO finished Wave 7 tasks from being gated at all:
+# TASK-MERCHANT-RULE-BUILD rendered ~3002 tokens and TASK-IAM-VOCABULARY-DESIGN
+# ~2818, both with one-line briefs. Neither was blocked by a fat brief — the
+# packet embeds the task's DIFF and its accumulated gates_failed history, so a
+# long design document and a task with ten rounds of recorded findings both
+# exceed the cap no matter how tersely the PM writes.
+#
+# Riyan was offered three options (ship the three already-gated tasks; split
+# the two blocked ones; raise the budget) and chose to raise it.
+#
+# HONEST COST, recorded so this is not mistaken for drift: 2000 was doing real
+# work. It flagged TASK-MERCHANT-RULE-BUILD as oversized hours before nine gate
+# rounds proved it, and the PM worked around it once instead of splitting —
+# which a fable root-cause analysis later identified as a genuine contributing
+# factor. Raising the ceiling removes that early warning for every task, not
+# just these two. If a task approaches 3500, treat it as the same signal 2000
+# used to give and split it rather than raising this again.
+# RESTORED to 3500 on 10 Sep 2026. It was raised to 4000 on 8 Sep as
+# an explicit loan — Riyan: "raise it but once done bring it back again" — to
+# unblock sep08d/sep08e. Those groups are gated and gone, so the loan is repaid.
+# The measurements below are kept because they explain what the ceiling is FOR;
+# they are the argument for a future exception, not for leaving it raised.
+#
+# WHY, with measurements rather than assertion. Riyan first chose to SPLIT the
+# oversized tasks rather than raise this, which was the right instinct. The
+# split was done and measured:
+#   9-file task, full brief ......... 3787
+#   6-file half, full brief ......... 3853
+#   6-file half, TWELVE-WORD brief .. 3644
+# Stripping the brief to nothing saved ~200 tokens; the embedded diff alone is
+# ~3400. So a half-sized task with an empty brief STILL does not fit. Splitting
+# further would work at ~3 files, but that turns five near-identical mechanical
+# edits ("stop building IN-lists, page instead") into three separate reviews —
+# and a reviewer wants them together precisely to confirm the pattern was
+# applied consistently.
+#
+# That is the distinction this budget could not previously express: it catches
+# a task doing too many DIFFERENT things, but a mechanical sweep across N files
+# is one thing done N times. 3500 admits that case and still refuses genuinely
+# fat ones.
+TOKEN_BUDGET = 3500
 CHARS_PER_TOKEN = 4  # rough, deliberately conservative
 
 # A GROUP packet is not a task packet. TOKEN_BUDGET caps one task's brief,
