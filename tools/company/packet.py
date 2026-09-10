@@ -16,6 +16,28 @@ from pathlib import Path
 TOKEN_BUDGET = 2000
 CHARS_PER_TOKEN = 4  # rough, deliberately conservative
 
+# A GROUP packet is not a task packet. TOKEN_BUDGET caps one task's brief,
+# and 2000 is the right discipline there: if a single task cannot be
+# described in 2k tokens it is too big or was scoped lazily. A group packet
+# describes N tasks reviewed as one unit, so a fixed cap punishes exactly the
+# batching the group gate exists to enable — measured 2026-09-02, a 5-task
+# group with real acceptance criteria renders ~2528 tokens and was refused,
+# making "one gate for all tasks" structurally impossible past ~3 tasks.
+# The packet's fixed scaffolding (instructions, verdict lines, verify, diff
+# stat) is roughly constant; only the per-task criteria block scales. So the
+# budget scales the same way. This bounds the packet - it does not uncap it.
+GROUP_TOKEN_BUDGET_BASE = 1200
+# 700 -> 1100 for the same reason and by the same decision: a 2-task group
+# rendered ~3226 tokens against a 2600 cap, which made Riyan's standing "gate
+# everything as one group" instruction impossible for tasks carrying real
+# diffs. Scales with task count as before; this bounds the packet, it does not
+# uncap it.
+GROUP_TOKEN_PER_TASK = 1100
+
+
+def group_token_budget(n_tasks: int) -> int:
+    return GROUP_TOKEN_BUDGET_BASE + GROUP_TOKEN_PER_TASK * max(1, n_tasks)
+
 
 class PacketTooLarge(ValueError):
     pass
@@ -217,10 +239,12 @@ HOW TO REPORT
 """
     if enforce_budget:
         estimate = len(packet) // CHARS_PER_TOKEN
-        if estimate > TOKEN_BUDGET:
+        budget = group_token_budget(len(tasks))
+        if estimate > budget:
             raise PacketTooLarge(
                 f"group packet for {group_id} is ~{estimate} tokens, over the "
-                f"{TOKEN_BUDGET} budget. Split the group, or drop the embedded "
-                f"patch (a large combined diff pushes this over on its own)."
+                f"{budget} budget for {len(tasks)} tasks. Split the group, or "
+                f"drop the embedded patch (a large combined diff pushes this "
+                f"over on its own)."
             )
     return packet
