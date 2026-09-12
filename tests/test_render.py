@@ -142,6 +142,31 @@ class TestGatesWithNoVerdict(unittest.TestCase):
     def test_no_events_no_findings(self):
         self.assertEqual(render.gates_with_no_verdict([]), {})
 
+    def test_resolved_task_stops_being_flagged(self):
+        """12 Sep 2026: a real from-scratch ledger audit found all 37 tasks
+        `company status` showed STALLED were in fact already merged to main —
+        every one traced back to this exact bug. A GATE_NO_VERDICT from a
+        worker that exited without a verdict must stop being surfaced once
+        the task it belongs to later resolved (a clean re-run, or landing via
+        a different gate entirely) rather than flagging it forever."""
+        events = [
+            {"event": "GATE_NO_VERDICT", "task": "T-1", "actor": "security-reviewer-1",
+             "data": {"role": "security-reviewer",
+                      "expected_one_of": ["SECURITY_REVIEW_PASSED", "SECURITY_REVIEW_FAILED"]}},
+            {"event": "SECURITY_REVIEW_PASSED", "task": "T-1", "actor": "security-reviewer-2"},
+        ]
+        still_active = [{"id": "T-1", "status": "SECURITY_REVIEW"}]
+        merged = [{"id": "T-1", "status": "MERGED"}]
+        done = [{"id": "T-1", "status": "DONE"}]
+
+        # No task list given (back-compat): old, unfiltered behaviour.
+        self.assertIn("T-1", render.gates_with_no_verdict(events))
+        # Task still genuinely in flight: correctly still surfaced.
+        self.assertIn("T-1", render.gates_with_no_verdict(events, still_active))
+        # Task resolved since: no longer flagged.
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events, merged))
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events, done))
+
 
 if __name__ == "__main__":
     unittest.main()

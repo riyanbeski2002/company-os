@@ -65,13 +65,22 @@ def workers_that_ended_cleanly(events: list[dict]) -> set[str]:
     return {a for a, n in last.items() if n in ("WORKER_EXITED", "TASK_FAILED")}
 
 
-def gates_with_no_verdict(events: list[dict]) -> dict[str, str]:
+def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None) -> dict[str, str]:
     """Tasks whose gate worker exited without a PASSED/FAILED verdict.
 
     KNOWN_ISSUES #3: this looked identical to success — a gate worker ending
     cleanly with no verdict got silently re-run under a new actor name and
     paid for twice. GATE_NO_VERDICT events (worker.py) are the fix; this is
     what surfaces them rather than leaving them buried in the raw log.
+
+    A GATE_NO_VERDICT is only actionable while the task hasn't otherwise
+    resolved. Without this, a task that later got a clean re-run (or landed
+    entirely, e.g. via a different gate) stayed permanently flagged as
+    STALLED forever, even after reaching DONE/MERGED — a real bug, not a
+    ledger-update someone forgot: found 12 Sep when a from-scratch audit
+    showed all 37 "STALLED" tasks were in fact already merged to main, every
+    one traced back to exactly this. A task is only genuinely still waiting
+    on this verdict if its current status is not yet DONE_ISH.
     """
     out = {}
     for ev in events:
@@ -84,6 +93,9 @@ def gates_with_no_verdict(events: list[dict]) -> dict[str, str]:
             f"neither of {data.get('expected_one_of')} — the review did not happen, "
             f"even though nothing failed loudly. Investigate before re-running the gate."
         )
+    if tasks is not None:
+        done_ids = {t["id"] for t in tasks if t.get("status") in DONE_ISH}
+        out = {tid: why for tid, why in out.items() if tid not in done_ids}
     return out
 
 
