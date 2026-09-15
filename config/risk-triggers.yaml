@@ -107,14 +107,32 @@ triggers:
               external content, mcp server, browse, fetch and summarize]
     gates: [review, security]
 
-# Gates applied to every task regardless of trigger. Empty on purpose (D10,
-# efficiency addendum v1): review is risk-based now, same as qa/security, not
-# universal. A docs change with no trigger hit is author -> hook-verified ->
-# DONE, no review event required. Adding review back on an untriggered task
-# is a scope addition like any other and needs a recorded reason —
-# `staffing.reconcile()` already drops an unreasoned addition, so this list
-# being empty is the only change needed to make that apply to review too.
-baseline_gates: []
+# Gates applied to every task regardless of trigger.
+#
+# D10 (efficiency addendum v1, 2026-08-24) made this empty on purpose: review
+# would be risk-based like qa/security, not universal. REVERSED 2026-09-14
+# (cost audit, Riyan: "i want cost to be lower - without compromising code
+# safety") on real evidence, not suspicion — finos alone shipped 8 of 225
+# merged tasks with literally zero independent review, ever, including
+# TASK-IAM-MODULE-ADMIN-T3-CASEFIX (an authorization RLS function edit) and
+# TASK-MODULE-CONTEXT-DEDUP, whose own task brief says "This touches every
+# module's core data-loading pattern - needs real review." An untriggered
+# task big enough to not qualify for fast_path (Tier 0, PM does it inline,
+# genuinely free) was reaching DONE with nobody but its own author having
+# looked at it.
+#
+# This is NOT the same call as D9-11's other efficiency work: those cut
+# LAUNCH COUNT (gate-group, role-aware turn budgets) without touching gate
+# COVERAGE. This restores coverage. The two are complementary, not in
+# tension — an untriggered task now gets one review, bundled into its plan's
+# shared gate_group like everything else, so the marginal launch cost is
+# small even though the review itself is real.
+#
+# qa/security stay risk-triggered only, not baseline — D10's reasoning still
+# holds for those: most untriggered work has no meaningful correctness
+# surface beyond "does it do what it says" (review covers that) and no
+# security surface at all. Only a trigger firing adds those two.
+baseline_gates: [review]
 
 # Fast path (D9, efficiency addendum v1): a request with zero risk-trigger
 # hits and a diff within these bounds is Tier 0 by default — the PM does it
