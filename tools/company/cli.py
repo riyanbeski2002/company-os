@@ -1270,9 +1270,30 @@ def cmd_lesson(args):
 
 
 def cmd_escalate(args):
-    """Ask the CEO for something the PM cannot do or decide."""
+    """Ask the CEO for something the PM cannot do or decide — or, with
+    --list, query what's already been raised instead of raising a new one."""
     import escalations
     root = company_root(args)
+
+    if args.list:
+        # Deliberately does not require --project — "what's still waiting on
+        # Riyan" is usually a cross-project question, and demanding a project
+        # just to read a list is the same needless friction flagged
+        # elsewhere (finos-5a: `company event` requiring --project with only
+        # one project in cwd).
+        events = EventLog(root).read()
+        everything = escalations.all_escalations(events)
+        items = list(everything.values())
+        if args.list != "all":
+            items = [e for e in items if e.get("status") == args.list]
+        if args.project:
+            items = [e for e in items if e.get("project") == args.project]
+        items.sort(key=lambda e: (not e.get("blocking"), e.get("id", "")))
+        emit({"ok": True, "filter": args.list, "count": len(items), "escalations": items})
+
+    if not args.kind or not args.need:
+        die("--kind and --need are required to raise an escalation "
+           "(use --list to query existing ones instead)", 1)
     project = load_project(root, args.project)
     try:
         esc = escalations.raise_escalation(
@@ -1586,10 +1607,10 @@ def build_parser():
     ls.set_defaults(fn=cmd_lesson)
 
     es = sub.add_parser("escalate", help="ask the CEO for something the PM cannot do")
-    es.add_argument("--kind", required=True,
+    es.add_argument("--kind",
                     choices=sorted(["human_action", "decision", "approval",
                                     "information", "risk"]))
-    es.add_argument("--need", required=True, help="plainly, what you want")
+    es.add_argument("--need", help="plainly, what you want")
     es.add_argument("--detail", help="context the CEO needs to answer")
     es.add_argument("--option", action="append", help="repeatable; for --kind decision")
     es.add_argument("--command", action="append",
@@ -1598,6 +1619,10 @@ def build_parser():
     es.add_argument("--project")
     es.add_argument("--actor")
     es.add_argument("--non-blocking", action="store_true")
+    es.add_argument("--list", choices=["open", "resolved", "all"],
+                    help="query instead of raising — 'what's still waiting on "
+                         "Riyan' without reading every .md file by hand "
+                         "(finos-52, cost audit 2026-09-14)")
     es.set_defaults(fn=cmd_escalate)
 
     rs = sub.add_parser("resolve", help="CEO: answer an escalation")
