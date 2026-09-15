@@ -14,6 +14,7 @@ recorded reason a gate addition needs.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -119,6 +120,60 @@ def reconcile(proposed_gates, mandatory_gates, reason: str | None = None) -> tup
     return final, additions
 
 
+# --- default grouped gating (cost audit, 2026-09-14) -------------------------
+#
+# `gategroup.py` already lets several tasks share one gate launch instead of
+# one each, but it only ever fired when a PM remembered to set `gate_group`
+# on every task by hand — measured the same day: gate roles were 66 of 99
+# launches and 64% of the day's cache_creation tokens, almost entirely because
+# grouping stayed opt-in. This makes it the default instead: tasks planned
+# together in one `company plan` call are gated together in one call too,
+# the same way `reconcile()` above already makes every OTHER staffing
+# decision the table's by default, not the PM's to remember.
+#
+# A task only stays solo if it explicitly says so, with a reason — the same
+# "an override without a recorded reason is dropped" rule `reconcile()` uses,
+# just pointed at opting OUT instead of in.
+
+def default_gate_group(planned_tasks: list[dict], project: str) -> tuple[str | None, list[str]]:
+    """Assign one shared `gate_group` to every eligible task in a plan batch.
+
+    Eligible: Tier 2, carries at least one mandatory gate, didn't already
+    arrive with its own `gate_group` (a PM's explicit grouping is never
+    overridden), and isn't opted out via `solo_gate: true` with a
+    `solo_gate_reason` (opting out without a reason is ignored, same as
+    `reconcile()` ignores an ungated addition without one).
+
+    Returns (group_id, task_ids_assigned). group_id is None when fewer than
+    2 tasks are eligible — grouping 1 task has nothing to batch, and
+    `cmd_gate_group` already refuses a group that small; that task stays on
+    the solo `company run` path, which is correct, not a fallback failure.
+
+    The id is deterministic (project + sorted task ids), not random: running
+    `company plan` again over the same task set reproduces the same group
+    instead of minting a new one every time.
+    """
+    eligible = [
+        t for t in planned_tasks
+        if int(t.get("tier") or 0) == 2
+        and t.get("gates")
+        and not t.get("gate_group")
+        and not (t.get("solo_gate") and t.get("solo_gate_reason"))
+    ]
+    if len(eligible) < 2:
+        return None, []
+
+    digest = hashlib.sha1(
+        "|".join(sorted(t["id"] for t in eligible)).encode("utf-8")
+    ).hexdigest()[:8]
+    group_id = f"{project}-plan-{digest}"
+    task_ids = []
+    for t in eligible:
+        t["gate_group"] = group_id
+        task_ids.append(t["id"])
+    return group_id, task_ids
+
+
 # --- model/effort policy (D11) -----------------------------------------------
 
 def model_policy(config: dict, tier: int, gated: bool, role: str | None = None) -> dict:
@@ -153,6 +208,63 @@ def model_policy(config: dict, tier: int, gated: bool, role: str | None = None) 
     if role and role in overrides:
         base.update(overrides[role])
     return base
+
+
+# --- duplicate staffing detection (cost audit, 2026-09-14) ------------------
+#
+# finos-5a, real incident: the same admin-self-attach fix was staffed three
+# separate times across three waves under three different task ids — one
+# gated and merged, two produced nothing. `company plan`/`staff` had no
+# cross-wave check for "this title already exists somewhere, check status
+# before staffing" — the only reason it surfaced was a worker refusing to
+# fabricate a pass on an empty branch and writing an honest handoff instead.
+# That's the system working by luck of a conscientious worker, not by
+# tooling — this is the tooling.
+
+RESOLVED_STATUSES = {"DONE", "MERGED", "ABANDONED", "FAILED"}
+DUPLICATE_TITLE_THRESHOLD = 0.6
+
+
+def _title_tokens(title: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", (title or "").lower()) if len(w) > 2}
+
+
+def _title_similarity(a: str, b: str) -> float:
+    """Jaccard similarity over normalized title tokens. Deliberately crude —
+    this is a check-before-staffing nudge, not a semantic dedup system, so a
+    cheap deterministic measure that's easy to reason about beats a fancier
+    one that isn't."""
+    ta, tb = _title_tokens(a), _title_tokens(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
+
+
+def find_duplicate_staffing(planned_tasks: list[dict], existing_tasks: list[dict],
+                             threshold: float = DUPLICATE_TITLE_THRESHOLD) -> list[dict]:
+    """Newly planned tasks whose title closely matches a still-live existing
+    task's title. Not a hard block by itself — `cmd_plan` decides whether to
+    refuse or just warn — this only finds the candidates, deterministically,
+    same inputs same output, like every other check in this file.
+    """
+    live = [t for t in existing_tasks if t.get("status") not in RESOLVED_STATUSES]
+    hits = []
+    for new_task in planned_tasks:
+        new_title = new_task.get("title", "")
+        if not new_title:
+            continue
+        for existing in live:
+            if existing.get("id") == new_task.get("id"):
+                continue  # replanning the same task id is not a duplicate
+            sim = _title_similarity(new_title, existing.get("title", ""))
+            if sim >= threshold:
+                hits.append({
+                    "new_task": new_task["id"], "new_title": new_title,
+                    "existing_task": existing["id"], "existing_title": existing.get("title"),
+                    "existing_status": existing.get("status"),
+                    "similarity": round(sim, 2),
+                })
+    return hits
 
 
 # --- overlap prediction -----------------------------------------------------

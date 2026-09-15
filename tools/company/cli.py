@@ -426,12 +426,25 @@ def cmd_plan(args):
     collisions = staffing.predict_overlap(parallel)
     band = staffing.size_band(len(tier2))
 
+    default_group_id, default_grouped_tasks = staffing.default_gate_group(planned, project)
+
+    # Cross-wave duplicate check (finos-5a, 2026-09-14): compare against
+    # this project's still-live tasks from EARLIER plans, not just this
+    # batch — the incident that motivated this was three separate `company
+    # plan` calls across three waves, not one batch staffing itself twice.
+    existing = [t for t in taskstate.fold(EventLog(root).read()).values()
+               if t.get("project") == project]
+    duplicates = staffing.find_duplicate_staffing(planned, existing)
+
     plan = {
         "project": project, "request": request, "tasks": planned,
         "staffing": band, "tier2_workers": len(tier2),
         "gates_forced_by_risk_table": forced,
         "predicted_file_overlap": collisions,
         "tier_escalations_without_reason": unreasoned_escalations,
+        "default_gate_group": default_group_id,
+        "default_gate_group_tasks": default_grouped_tasks,
+        "possible_duplicate_staffing": duplicates,
     }
 
     if collisions and not args.allow_overlap:
@@ -448,6 +461,16 @@ def cmd_plan(args):
             "fast_path recommends Tier 0 for one or more tasks (no risk trigger, "
             "diff in-bounds) but they're staffed above it with no recorded reason — "
             "set 'tier_reason' on the task, or pass --allow-tier-escalation"
+        )
+        emit(plan, 3)
+
+    if duplicates and not args.allow_duplicate:
+        plan["ok"] = False
+        plan["refusal"] = (
+            "one or more planned tasks closely match the title of a still-live "
+            "task already in this project — check its status before staffing the "
+            "same fix twice under a different id, or pass --allow-duplicate if "
+            "this genuinely is separate work"
         )
         emit(plan, 3)
 
@@ -1439,6 +1462,9 @@ def build_parser():
                     help="plan anyway despite predicted file collisions")
     pl.add_argument("--allow-tier-escalation", action="store_true",
                     help="plan anyway despite an unreasoned Tier 0 -> staffed escalation (D9)")
+    pl.add_argument("--allow-duplicate", action="store_true",
+                    help="plan anyway despite a title closely matching a still-live "
+                         "task already in this project (finos-5a, cost audit)")
     pl.set_defaults(fn=cmd_plan)
 
     sf = sub.add_parser("staff", help="apply a plan: tasks, branches, worktrees")
