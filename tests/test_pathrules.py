@@ -120,5 +120,50 @@ class TestRepoRelative(unittest.TestCase):
         self.assertIsNone(pathrules.relative_to_repo("/etc/passwd", "/tmp/repo"))
 
 
+class DynamicRouteBracketsTest(unittest.TestCase):
+    """A framework dynamic-route path (`app/[id]/page.tsx`) must be ownable.
+
+    Read only as a character class, `[sheetId]` made such a path fail to match
+    even itself, so no glob could own it — observed live on a Next.js repo,
+    where it drove workers to bypass the ownership guard entirely.
+    """
+
+    ROUTE = "ta-tracker/src/app/api/role/[sheetId]/cell/route.ts"
+
+    def test_a_path_always_matches_itself(self):
+        self.assertTrue(pathrules.matches(self.ROUTE, self.ROUTE))
+
+    def test_owned_via_bracketed_directory_glob(self):
+        self.assertTrue(
+            pathrules.matches(self.ROUTE, "ta-tracker/src/app/api/role/[sheetId]/**")
+        )
+
+    def test_owned_via_wildcard_above_the_bracketed_segment(self):
+        self.assertTrue(pathrules.matches(self.ROUTE, "ta-tracker/src/app/**"))
+
+    def test_bracketed_segment_matches_a_single_star(self):
+        self.assertTrue(pathrules.matches("app/[id]/page.tsx", "app/*/page.tsx"))
+
+    def test_check_permits_the_route_under_its_own_glob(self):
+        ok, _ = pathrules.check(self.ROUTE, ["ta-tracker/src/app/api/role/**"], [])
+        self.assertTrue(ok)
+
+    def test_forbidden_still_wins_over_a_bracketed_owned_glob(self):
+        ok, reason = pathrules.check(self.ROUTE, [self.ROUTE], [self.ROUTE])
+        self.assertFalse(ok)
+        self.assertIn("forbidden", reason)
+
+    def test_character_class_semantics_are_not_lost(self):
+        # The literal reading is additive only: real classes still work, and
+        # still refuse a non-member and still refuse to span a separator.
+        self.assertTrue(pathrules.matches("config/opt1.yaml", "config/opt[12].yaml"))
+        self.assertFalse(pathrules.matches("config/opt3.yaml", "config/opt[12].yaml"))
+        self.assertFalse(pathrules.matches("a/b.py", "a[/]b.py"))
+        self.assertFalse(pathrules.matches("services/X/y.py", "services/[a-z]/y.py"))
+
+    def test_literal_reading_does_not_match_an_unbracketed_path(self):
+        self.assertFalse(pathrules.matches("app/id/page.tsx", "app/[id]/page.tsx"))
+
+
 if __name__ == "__main__":
     unittest.main()
