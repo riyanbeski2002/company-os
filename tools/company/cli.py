@@ -527,6 +527,24 @@ def cmd_staff(args):
 
 GATE_ROLES = {"code-reviewer", "qa-engineer", "security-reviewer"}
 
+# Turn budgets (2026-09-14, cost audit): `_diff_summary_for_gate` already hands
+# a gate role the actual patch specifically so it doesn't have to rediscover it
+# via its own Read/Grep/Bash — so it needs far fewer turns than an implementer
+# building something from scratch. Measured 2026-09-14: gate roles were the
+# majority of a day's launches (66 of 99) and 64% of its cache_creation tokens,
+# all riding the same 60-turn ceiling as an implementer. This is a starting
+# number, not a settled one — treat it the way packet.py's TOKEN_BUDGET is
+# treated: raise it only against measured GATE_NO_VERDICT/timeout evidence,
+# never on suspicion.
+GATE_MAX_TURNS = 15
+IMPLEMENTER_MAX_TURNS = 60
+
+
+def _resolve_max_turns(explicit: int | None, role: str) -> int:
+    if explicit is not None:
+        return explicit
+    return GATE_MAX_TURNS if role in GATE_ROLES else IMPLEMENTER_MAX_TURNS
+
 
 def _diff_summary_for_gate(repo, root, task, role, worker_mod):
     """Hand a gate role the actual patch, not just a pointer to go find it
@@ -567,22 +585,36 @@ def cmd_run(args):
         emit({"ok": False, "task": task["id"], "waiting_on": unmet,
               "hint": "let the dependency publish a CONTRACT_PUBLISHED event, or pass --force"}, 3)
 
+    # ESC-026 (Riyan, 2026-09-11: "go with A"). Computed before render() —
+    # not after, where it used to live — because find_handoff needs the
+    # actor this launch will actually use, not a placeholder. A relaunch
+    # addressed to the actor by name ("backend-engineer-231") only matches
+    # if that name exists before the lookup runs.
+    actor = args.actor or f"{args.role}-{task['id'].split('-')[-1]}"
+
+    # find_handoff/handoff_text (packet.py) already had the mechanism to
+    # embed a handoff's actual content into the packet — nothing here ever
+    # called it, so `company handoff` wrote a file every worker was blind
+    # to. See packet.py's own ESC-026 comment for the fuller cost.
+    handoff_path = packet_mod.find_handoff(root, task["id"], actor, args.role)
+    handoff_text = handoff_path.read_text() if handoff_path else None
+
     try:
         body = packet_mod.render(
             task, why=args.why or "Requested by the CEO.",
             diff_summary=_diff_summary_for_gate(repo, root, task, args.role, worker_mod),
             contracts=contracts, handoff_target=args.handoff_to,
-            max_turns=args.max_turns, timeout_s=args.timeout,
+            max_turns=_resolve_max_turns(args.max_turns, args.role), timeout_s=args.timeout,
             verify=verify_command(root, args.verify),
-            baseline=_baseline(root, task.get("project")))
+            baseline=_baseline(root, task.get("project")),
+            handoff_text=handoff_text)
     except (packet_mod.PacketTooLarge, ValueError) as exc:
         die(str(exc), 1)
 
     if args.dry_run:
         emit({"ok": True, "task": task["id"], "dry_run": True,
-              "packet_tokens": packet_mod.estimate_tokens(body), "packet": body})
-
-    actor = args.actor or f"{args.role}-{task['id'].split('-')[-1]}"
+              "packet_tokens": packet_mod.estimate_tokens(body), "packet": body,
+              "handoff_used": str(handoff_path) if handoff_path else None})
 
     if args.detach:
         # A PM running as `claude -p` cannot outlive its own turn: Claude Code
@@ -725,7 +757,8 @@ def cmd_gate_group(args):
         group_tasks, group_id=args.group,
         why=args.why or "Requested by the CEO.",
         diff_summary=diff_summary, verify=verify_command(root, args.verify),
-        baseline=baseline, max_turns=args.max_turns, timeout_s=args.timeout)
+        baseline=baseline, max_turns=_resolve_max_turns(args.max_turns, args.role),
+        timeout_s=args.timeout)
 
     if args.dry_run:
         emit({"ok": True, "group": args.group, "dry_run": True,
@@ -1498,7 +1531,9 @@ def build_parser():
     rn.add_argument("--actor", help="worker id (default: <role>-<task number>)")
     rn.add_argument("--why", help="one line: why this matters, in business terms")
     rn.add_argument("--handoff-to", default="pm")
-    rn.add_argument("--max-turns", type=int, default=60)
+    rn.add_argument("--max-turns", type=int, default=None,
+                    help="default: 60 for implementers, 15 for gate roles "
+                         "(role already has the diff, doesn't need to rediscover it)")
     rn.add_argument("--timeout", type=int, default=1800, help="wall-clock seconds")
     rn.add_argument("--max-concurrent", type=int,
                     help="override the concurrency cap from budgets.yaml")
@@ -1521,7 +1556,8 @@ def build_parser():
                     help="explicit task id order (default: task-creation order)")
     gg.add_argument("--actor", help="default: <role>-group-<group>")
     gg.add_argument("--why", help="one line: why this matters, in business terms")
-    gg.add_argument("--max-turns", type=int, default=60)
+    gg.add_argument("--max-turns", type=int, default=None,
+                    help="default: 15 (gate roles already have the combined diff)")
     gg.add_argument("--timeout", type=int, default=1800, help="wall-clock seconds")
     gg.add_argument("--verify", help="override the configured verify command")
     gg.add_argument("--detach", action="store_true",
