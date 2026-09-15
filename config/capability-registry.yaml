@@ -527,3 +527,30 @@ entries:
     approved_by: riyan
     approved_at: "2026-08-17"
     checked_at: "2026-08-17"
+  - id: laith0003-ux-skill
+    type: skill
+    purpose: "Deterministic anti-slop design linter for frontend-engineer — a genuine successor/superset to pbakaus-impeccable (152 rules + 160 brand specs vs impeccable's 59 rules), same no-LLM-call philosophy, adds an MCP server (18 tools) and 25 commands across 17 IDEs. Use alongside impeccable, not as a replacement — different rule coverage."
+    trust_tier: T2
+    source: "https://github.com/Laith0003/ux-skill"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-27"
+    checked_at: "2026-08-27"
+  - id: community-access-accessibility-agents
+    type: skill
+    purpose: "Eleven specialist agents enforcing WCAG 2.2 AA compliance for frontend-engineer/product-designer — closes a real gap, Company OS had zero accessibility coverage before this. Picked over smaller alternatives (masuP9/a11y-specialist-skills at 56★, airowe/claude-a11y-skill at 14★ with no license) on star count, activity, and license clarity."
+    trust_tier: T2
+    source: "https://github.com/Community-Access/accessibility-agents"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-27"
+    checked_at: "2026-08-27"
+  - id: content-designer-ux-writing-skill
+    type: skill
+    purpose: "Systematic UX microcopy/interface-text quality for product-designer/frontend-engineer — complements blader-humanizer (scoped to finance-analyst's investor-facing prose only) with product-copy specifically: button labels, empty states, error messages, confirmation flows."
+    trust_tier: T2
+    source: "https://github.com/content-designer/ux-writing-skill"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-08-27"
+    checked_at: "2026-08-27"
