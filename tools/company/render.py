@@ -141,6 +141,37 @@ def detect_stalls(company_root, tasks: list[dict], events=None) -> dict[str, str
     return stalls
 
 
+STALE_TASK_AGE_S = 48 * 3600  # 2 days with no event at all while "active".
+# Complements detect_stalls() above, which only fires when this checkout
+# still has a pid file to check against — cost audit, 2026-09-14: finos-52
+# found 7 of 10 IN_PROGRESS tasks hadn't been touched in 3 weeks, and none
+# of them were caught, because by the time anyone looks, whatever process
+# trail they left is long gone (or never existed here — a different machine,
+# a since-cleaned state dir). This needs no process check: staleness is just
+# how long nothing happened, read straight off the task's own updated_at.
+def detect_stale_tasks(tasks: list[dict], max_age_s: int = STALE_TASK_AGE_S) -> dict[str, str]:
+    from datetime import datetime, timezone
+
+    out = {}
+    now = datetime.now(timezone.utc)
+    for task in tasks:
+        if task.get("status") not in ("IN_PROGRESS", "REVIEW", "QA", "SECURITY_REVIEW"):
+            continue
+        ts = task.get("updated_at")
+        try:
+            then = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+        age_s = (now - then).total_seconds()
+        if age_s > max_age_s:
+            out[task["id"]] = (
+                f"no event in {_age(ts)} while status is {task['status']!r} — "
+                f"almost certainly a dead worker whose process trail is already "
+                f"gone. Resume or reassign."
+            )
+    return out
+
+
 def _mark(task: dict) -> str:
     status = task.get("status")
     if status in DONE_ISH:
