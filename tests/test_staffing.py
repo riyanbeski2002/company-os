@@ -334,6 +334,81 @@ class TestDefaultGateGroup(unittest.TestCase):
         self.assertEqual(group_a, group_b)
 
 
+class TestJoinExistingGateGroups(unittest.TestCase):
+    """resolve-os, 2026-09-16/17: 18 tasks staffed across 6 separate `company
+    plan` calls in ~29h produced 6 gate_groups (and PRs) — default_gate_group
+    only ever sees its own batch. This is the cross-plan-call half."""
+
+    def test_joins_a_still_open_group_sharing_owned_files(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(len(joins), 1)
+        self.assertEqual(planned[0]["gate_group"], "wave-1-group")
+
+    def test_does_not_join_a_group_that_already_reached_review(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "REVIEW",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+        self.assertNotIn("gate_group", planned[0])
+
+    def test_does_not_join_across_projects(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p2",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p1", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+
+    def test_does_not_join_without_overlapping_files(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "owned_globs": ["src/unrelated.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+
+    def test_never_overrides_an_explicit_gate_group(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "gate_group": "manual-choice",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+        self.assertEqual(planned[0]["gate_group"], "manual-choice")
+
+    def test_joining_makes_the_task_ineligible_for_a_fresh_batch_group(self):
+        """The composition with default_gate_group(): a task that joins an
+        existing group here is no longer eligible there, since it already
+        carries a gate_group."""
+        planned = [
+            {"id": "NEW-1", "tier": 2, "project": "p", "gates": ["review"],
+             "owned_globs": ["src/ticket/move-ticket.ts"]},
+            {"id": "NEW-2", "tier": 2, "project": "p", "gates": ["review"]},
+        ]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        staffing.join_existing_gate_groups(planned, existing)
+        group_id, assigned = staffing.default_gate_group(planned, "p")
+        self.assertEqual(planned[0]["gate_group"], "wave-1-group")
+        # NEW-2 is the only one left eligible for a new batch group, and one
+        # task alone can't form one.
+        self.assertIsNone(group_id)
+        self.assertEqual(assigned, [])
+
+
 class TestFindDuplicateStaffing(unittest.TestCase):
     """finos-5a, 2026-09-14: the same admin-self-attach fix was staffed
     three times across three waves under three different task ids — two of

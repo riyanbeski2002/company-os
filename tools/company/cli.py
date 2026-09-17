@@ -426,14 +426,15 @@ def cmd_plan(args):
     collisions = staffing.predict_overlap(parallel)
     band = staffing.size_band(len(tier2))
 
-    default_group_id, default_grouped_tasks = staffing.default_gate_group(planned, project)
-
-    # Cross-wave duplicate check (finos-5a, 2026-09-14): compare against
-    # this project's still-live tasks from EARLIER plans, not just this
-    # batch — the incident that motivated this was three separate `company
-    # plan` calls across three waves, not one batch staffing itself twice.
+    # This project's still-live tasks from EARLIER plans, not just this
+    # batch — both checks below exist because a batch-local view already
+    # missed real incidents (finos-5a: same fix staffed 3x across 3 waves;
+    # resolve-os: 18 tasks across 6 waves in ~29h, each wave its own PR).
     existing = [t for t in taskstate.fold(EventLog(root).read()).values()
                if t.get("project") == project]
+
+    cross_plan_joins = staffing.join_existing_gate_groups(planned, existing)
+    default_group_id, default_grouped_tasks = staffing.default_gate_group(planned, project)
     duplicates = staffing.find_duplicate_staffing(planned, existing)
 
     plan = {
@@ -442,6 +443,7 @@ def cmd_plan(args):
         "gates_forced_by_risk_table": forced,
         "predicted_file_overlap": collisions,
         "tier_escalations_without_reason": unreasoned_escalations,
+        "cross_plan_gate_joins": cross_plan_joins,
         "default_gate_group": default_group_id,
         "default_gate_group_tasks": default_grouped_tasks,
         "possible_duplicate_staffing": duplicates,

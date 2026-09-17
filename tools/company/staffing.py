@@ -174,6 +174,62 @@ def default_gate_group(planned_tasks: list[dict], project: str) -> tuple[str | N
     return group_id, task_ids
 
 
+# --- cross-plan-call gate joining --------------------------------------------
+#
+# default_gate_group() above only merges tasks staffed in the SAME `company
+# plan` call — resolve-os, 2026-09-16/17 (wecare/vendor-payment-automation):
+# 18 tasks staffed across 6 separate plan calls in ~29 hours produced 6
+# gate_groups, each its own PR, because every call only ever looked at its
+# own batch. Two pairs overlapped the exact same owned files across calls
+# (IAM-7 vs. an earlier wave's move-ticket.ts; a later VP-11 vs. an earlier
+# vp-document-classification's slack.ts/cards.ts/ticket-actions.ts) and still
+# got separate PRs — one pair only avoided it because a human noticed and
+# hand-merged two branches after the fact.
+
+JOINABLE_STATUSES = {"DRAFT", "PLANNED", "READY", "IN_PROGRESS", "IMPLEMENTATION_READY"}
+
+
+def join_existing_gate_groups(planned_tasks: list[dict],
+                              existing_tasks: list[dict]) -> list[dict]:
+    """Attach a newly planned task to an existing task's still-open gate_group
+    when they share owned files, instead of minting a new group for it.
+
+    A candidate group must still be OPEN: none of its member tasks may have
+    reached REVIEW or beyond. A PASSED verdict is bound to the exact commit
+    it reviewed (see eventlog._rejects_stale_gate_verdict) — joining a new
+    diff into an already-gated group would invalidate that verdict, not
+    extend it, so this only ever reaches into work that hasn't been gated
+    yet.
+
+    Runs before default_gate_group(), which already skips any task that
+    already carries a gate_group — so a task that joins here is simply no
+    longer eligible for a fresh batch group of its own. Only the first
+    matching candidate is used per task, ties broken by task id so this is
+    deterministic across reruns like everything else in this file.
+    """
+    joined = []
+    for new_task in planned_tasks:
+        if (new_task.get("gate_group")
+                or int(new_task.get("tier") or 0) != 2
+                or not new_task.get("owned_globs")):
+            continue
+        candidates = sorted(
+            (t for t in existing_tasks
+             if t.get("project") == new_task.get("project")
+             and t.get("gate_group")
+             and t.get("status") in JOINABLE_STATUSES
+             and t.get("id") != new_task.get("id")),
+            key=lambda t: t["id"],
+        )
+        for existing in candidates:
+            if _glob_intersections(new_task.get("owned_globs"), existing.get("owned_globs")):
+                new_task["gate_group"] = existing["gate_group"]
+                joined.append({"task": new_task["id"], "matched_task": existing["id"],
+                               "joined_group": existing["gate_group"]})
+                break
+    return joined
+
+
 # --- model/effort policy (D11) -----------------------------------------------
 
 def model_policy(config: dict, tier: int, gated: bool, role: str | None = None) -> dict:
