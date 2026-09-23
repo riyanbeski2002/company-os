@@ -1,0 +1,252 @@
+---
+name: pen_test
+description: Full local exploitation capability for the pen_test agent — original, owned methodology and native tooling for SQLi, SSRF/XXE/injection, JWT/auth, IDOR/business-logic, and secrets, plus continuously-updated engines (sqlmap, nuclei, trivy, semgrep) for the classes where a live feed is the actual value. Triggers on - run a pentest, exploit this endpoint, SQL injection test, full exploitation, penetration test.
+---
+
+# Pen Test
+
+The capability behind the `pen_test` agent, built on one principle: **own
+what's stable, depend on what has to stay current — never freeze a copy of
+either.** Two different things were being conflated in earlier iterations
+of this skill, and they need different treatment:
+
+1. **Technique knowledge that doesn't meaningfully change** (how boolean-blind
+   SQLi detection works, how JWT `alg:none` forgery works, how IDOR
+   cross-account diffing works) — this is genuinely ours to own. Written
+   directly into `knowledge/*.md`, executed by `native/*.py`. No external
+   repo, no re-fetching, no staleness risk because the underlying technique
+   is stable, published, well-understood security knowledge.
+2. **Engines whose entire value IS a continuously-updated feed** (nuclei's
+   template library, Trivy's CVE database, semgrep's rule registry,
+   sqlmap's evolving tamper/technique scripts) — reimplementing these from
+   scratch would produce something stale the day it's written and unable
+   to track new CVEs. These are kept as real dependencies, refreshed on a
+   schedule, not frozen snapshots and not badly-cloned reimplementations.
+
+**Authorization is not optional.** Everything below does real, active
+exploitation or automated attack technique execution. Never run any of it
+against a target you don't own or don't have explicit written authorization
+to test.
+
+---
+
+## Engagement lifecycle (how a run actually goes)
+
+Don't jump straight to a class-specific probe. Work the surface in order — each
+stage feeds the next, and skipping recon wastes the whole engagement:
+
+1. **Recon & map** — `http_recon.py` (+ `port_scan.py` for non-web).
+   Fingerprint the stack, list exposed artifacts, enumerate params/endpoints
+   (swagger/openapi/GraphQL introspection). Output = the attack surface.
+2. **Triage per class** — for each candidate point, run the matching native
+   probe *after* reading its `knowledge/*.md`. Parallelize independent classes
+   as Tier-1 subagents when a target has several angles.
+3. **Confirm** — a probe hit is a *candidate*. Reproduce it independently (the
+   per-class validation bar in each knowledge file), ruling out jitter/parser
+   quirks/shared pages.
+4. **Exploit / prove** — escalate a confirmed point to the depth the engagement
+   authorizes: `sqlmap` for extraction, `claude-in-chrome` for XSS/auth-flow
+   execution, an OOB callback for blind SSRF. Weaponize past a benign proof
+   (`7*7`, `alert(document.domain)`, a DNS hit) ONLY under explicit exploitation authz.
+5. **Report** — severity-first, every finding tied to a concrete PoC. See the
+   report section below and `agents/pen_test.md`.
+
+### Decision matrix — native vs. engine vs. browser
+
+| Situation | Reach for |
+|---|---|
+| First contact with any web target | `http_recon.py` |
+| Detect a vuln class (any injection point) | the matching `native/*.py` probe |
+| Find hidden params before class-probing | `param_probe.py` (then `arjun` for breadth) |
+| CORS / open-redirect / CSRF detection | `cors_probe.py` / `redirect_probe.py` / `csrf_probe.py` |
+| Confirmed SQLi, need data extraction | `engines/sqlmap/sqlmap.py` |
+| Request smuggling / SSTI / CORS breadth | `engines/` — `smuggler` / `SSTImap` / `Corsy` (see `engines/CATALOG.md`) |
+| Known framework/version, want CVE breadth | `nuclei -tags <tech>` (refresh feed first) |
+| Dependency / container / IaC CVEs | `trivy` / `grype` / `checkov` |
+| Cloud posture / subdomain takeover | `prowler`/`scoutsuite` / `subzy` (scope-gated) |
+| Code-level pattern review | `semgrep --config=auto` + `Read`/`Grep` |
+| XSS/CSRF/auth-flow/clickjacking execution proof | `claude-in-chrome` (real browser) |
+| Blind SSRF/OOB confirmation | `ssrf_probe.py --callback` + a collaborator |
+
+### Field-learning capture loop
+
+The whole point of "own what's stable, depend on what's current" is that the
+owned side improves from real engagements. When a run teaches something durable
+— a new CVE for a stack we test, a bypass a probe missed, a new secret format —
+capture it back into the skill so the next run has it:
+- named CVE → add to `knowledge/cve_playbook.md` **and** a trigger in
+  `http_recon.py`'s `cve_hints()`.
+- new technique/payload class → the matching `knowledge/*.md` + probe.
+- new secret format → `secret_scan.py`'s `PATTERNS`.
+
+The `pen_test` **agent** can't do this itself (it has no Write tool, by design —
+see `agents/pen_test.md`); it reports the learning back to the PM/Riyan, who
+updates the skill. That keeps the capability improving without giving the
+exploitation runner write access to its own tooling.
+
+---
+
+## 1. Owned — knowledge/ + native/ (default path, use this first)
+
+**Start at `knowledge/vulnerability_taxonomy.md`** — the coverage map over every
+vulnerability domain the skill knows about (the full 94-domain taxonomy), each
+row pointing at the knowledge file / native probe / engine that handles it and a
+one-line test. Use it to pick the right methodology for a candidate, and to see
+what is owned tooling vs. manual vs. an external engine.
+
+`knowledge/*.md` — original methodology write-ups, written for this skill,
+not copied from any external source. Each opens with a "Run it" block wiring
+it to the native tool above, a decision tree, and a per-class validation bar:
+- `recon_and_fingerprinting.md` — the recon pass that precedes everything; turns a fingerprint into a targeted plan
+- `sql_injection.md` — boolean-blind, time-blind, error-based, UNION-based detection and extraction
+- `xss.md` — reflected/stored/DOM XSS, context→breakout table, browser-proven execution bar
+- `ssrf_and_injection.md` — SSRF (incl. cloud metadata endpoints, filter bypass), XXE, command injection, argument injection, SSTI
+- `authn_jwt_session.md` — JWT forgery classes (`alg:none`, RS256→HS256, `kid`/`jku`, weak-secret), session management
+- `oauth_oidc_sso.md` — OAuth/OIDC/SSO flow flaws: redirect_uri, state/nonce, PKCE, code handling, scope/consent, account linking, SSO logout
+- `idor_and_authz.md` — IDOR/BOLA cross-account diffing, broken function-level authorization, business-logic abuse (races, price/state manipulation)
+- `web_infra.md` — CSRF, CORS, open redirect, host-header injection, HTTP request smuggling, web cache poisoning, clickjacking, security headers/CSP
+- `api_and_protocols.md` — BOPLA/mass assignment, verb tampering/HPP, API/shadow discovery, rate-limiting/resource abuse, WebSockets, webhooks, gRPC, realtime, background jobs
+- `modern_stack.md` — GraphQL, NoSQL injection, insecure deserialization, prototype pollution, SSTI
+- `multitenancy_and_baas.md` — Supabase/Firebase RLS gaps, service-role key exposure, tenant isolation, vibe-coded apps, account lifecycle, deletion/privacy, search ACL
+- `cloud_and_infra.md` — cloud storage/IAM, containers/K8s, serverless, CI/CD, DNS/subdomain takeover, email domain, TLS/crypto, network/MITM, signed URLs
+- `ai_llm.md` — prompt injection (direct + indirect), tool/agent authorization, data exfil, RAG/vector-store ACL and tenant isolation
+- `data_handling.md` — file upload, path traversal/Zip Slip, CSV formula injection, PDF/image processing, input normalization, ReDoS
+- `client_and_mobile.md` — browser storage/service workers, mobile (storage, exported components, deep links, WebView), desktop/Electron
+- `cve_playbook.md` — specific high-value CVEs the fingerprint should trigger (incl. Next.js CVE-2025-29927); the field-learning capture point
+- `secrets_and_supply_chain.md` — secret detection patterns and when to escalate to a real CVE-feed tool instead of native
+
+`native/*.py` — original scripts implementing the above directly (stdlib +
+`requests`/`pyjwt`, see `native/requirements.txt` — normal library
+dependencies, not vendored tool source). All the HTTP probes share
+`native/_httpcore.py`, so every one of them supports a real authenticated
+session, proxy passthrough (`--proxy` into Burp/ZAP), injection into ANY
+location (`--location query|form|json|header|cookie|path`), concurrency and
+rate-limiting — pass `-H`, `-b`, `--bearer`, `-k`, `--rate` to any of them:
+
+- `http_recon.py` — **run first.** Security-header audit, tech/version
+  fingerprint, exposed-artifact discovery (`.git`/`.env`/actuator/source maps),
+  CORS misconfig, and a CVE-hint mapper. Points every other probe at the right target.
+- `sqli_probe.py` — error-based + boolean-blind + time-blind + UNION column
+  discovery, any injection location. Detector; hands confirmed points to sqlmap.
+- `xss_probe.py` — reflection detection + context classifier (html/attr/script/
+  href) + unencoded-char survival; emits the context's breakout payload.
+- `idor_probe.py` — `diff` (true two-account cross-object) and `enum` modes; read+write.
+- `ssrf_probe.py` — cloud-metadata (AWS/GCP/Azure/DO/Alibaba), filter-bypass
+  encodings, and out-of-band callback for blind SSRF.
+- `jwt_tool.py` — decode/triage, `alg:none` (case variants), RS256→HS256
+  confusion, `kid` injection, `jku`/`x5u` JWKS spoofing, weak-secret crack, claim tamper.
+- `graphql_probe.py` — introspection dump, field-suggestion leak, dangerous-mutation
+  + batching detection.
+- `cors_probe.py` — deep CORS: reflected/null/prefix/suffix/subdomain Origin variants
+  **plus credentials** — the combination that makes an authenticated cross-origin read.
+- `redirect_probe.py` — open redirect: filter-bypass payload battery (`//`, `\\`, `@`,
+  whitelist-prefix), off-host `Location` detection; chains into OAuth (`oauth_oidc_sso.md`).
+- `csrf_probe.py` — CSRF posture (token/SameSite/Origin enforcement, replayed) + auto-generated
+  PoC HTML to prove execution in `claude-in-chrome`.
+- `param_probe.py` — Arjun-style hidden-parameter discovery (reflection + response-diff over
+  baseline noise); feeds discovered params to the other probes.
+- `port_scan.py` — concurrent TCP connect scan, service map + weak-default flags.
+- `secret_scan.py` — 20+ named formats + Shannon-entropy detection, severity-ranked
+  (working tree + git history).
+
+**Workflow:** read the matching `knowledge/*.md` file for the suspected
+vulnerability class before testing it — this is the actual discipline, not
+optional context. Run the matching `native/*.py` script (or the equivalent
+manual requests, `Bash`/`curl`) to execute. For anything browser-driven
+(XSS, CSRF, auth-bypass flows, clickjacking), use `claude-in-chrome` — real
+browser control, not a simulation. For code-level review, `Read`/`Grep`/`Glob`
+plus `semgrep` (below) for rule-driven static analysis beyond plain grep.
+Parallelize independent vulnerability classes as Tier-1 subagents (`Agent`
+tool) when a target has several angles worth investigating at once.
+
+**Validate with a real PoC** before reporting anything — every
+`knowledge/*.md` file states its own validation bar. A pattern match or a
+"this looks vulnerable" is not a finding.
+
+## 2. Installed, not cloned — static utility binaries
+
+Single CLI tools with no meaningfully "updating" internal database — a
+normal package-manager install, refreshed by their own maintainers'
+release cycle like any other software dependency, not something to clone
+or reimplement:
+
+```bash
+bash skills/pen_test/scripts/install_extra_tools.sh
+```
+
+| Tool | License | What it's for |
+|---|---|---|
+| `gitleaks` | MIT | Secret scanning — broader pattern coverage than `native/secret_scan.py` |
+| `zaproxy` (OWASP ZAP) | Apache-2.0 | Dedicated web-app scanner (spider/fuzzer/active-scan), headless via `zaproxy/zap-stable` Docker image |
+| `checkov` | Apache-2.0 | IaC misconfiguration (Terraform/K8s/CloudFormation) |
+| `grype` | Apache-2.0 | Dependency/container vulnerability scanning (SCA) |
+| `syft` | Apache-2.0 | SBOM generation (SPDX/CycloneDX) |
+| `jwt-cli` | MIT | JWT CLI, if you want it alongside `native/jwt_tool.py` |
+| `prowler` | Apache-2.0 | Cloud security posture auditing (AWS/Azure/GCP) |
+
+**Flagged, not installed by default:** `trufflehog` (AGPL-3.0, live
+credential verification `gitleaks`/`native/secret_scan.py` lack) — real
+capability, real copyleft consideration, needs a fresh `company escalate`
+before adoption (same treatment as `caveman`/`daytona` elsewhere in the
+registry).
+
+## 3. Cloned and kept updated — living engines
+
+The one legitimate case for cloning: tools whose real value is a
+continuously-refreshed feed, not static logic. Freezing a copy of these
+would be actively misleading (a stale CVE database says "clean" about a
+vulnerability disclosed last week). Refresh before any real engagement:
+
+```bash
+bash skills/pen_test/scripts/update_engines.sh           # clone/refresh engines + feeds
+bash skills/pen_test/scripts/update_engines.sh --check    # read-only: what's actually present/reachable
+```
+
+`--check` installs nothing — it reports which engines, feed tools, companion
+utilities, and GitHub egress are actually available on this machine, so an
+engagement plans around what it can rely on (installs are best-effort and no-op
+in a locked-down environment). Run it at the start of every engagement.
+
+- **`sqlmap`** (GPL-2.0) — cloned to `skills/pen_test/engines/sqlmap`
+  (gitignored, `git pull`-refreshed, not a static snapshot) because its
+  tamper/technique scripts genuinely improve over time and it has no clean
+  single-binary package on most platforms. Use once `native/sqli_probe.py`
+  confirms a candidate injection point and you need full extraction depth
+  (DBMS-specific dumping, `--os-shell`) — that depth is a real, continuously
+  maintained engineering effort, not worth badly re-cloning from scratch.
+  ```bash
+  python3 skills/pen_test/engines/sqlmap/sqlmap.py -u "<authorized-url>?id=1" --batch --level=2 --risk=1
+  python3 .../sqlmap.py -u "<url>" --dbs   # then -D <db> --tables, -D <db> -T <table> --dump
+  ```
+  Only escalate to `--os-shell`/`--os-pwn` when authorization explicitly
+  covers OS-level access, not just data read. Run `--help`/`-hh` for the
+  full, current flag set — the surface is large and versioned.
+- **`nuclei`** (MIT, binary installed via brew) — the templates are the
+  actual product: thousands of community/vendor CVE templates, updated
+  constantly. `update_engines.sh` runs `nuclei -update-templates`.
+- **`trivy`** (Apache-2.0, binary installed via brew) — vulnerability DB is
+  the product. `update_engines.sh` runs `trivy image --download-db-only`.
+- **`semgrep`** (LGPL-2.1 core, used arm's-length — doesn't extend
+  copyleft here) — rule registry self-updates per invocation
+  (`--config=auto` or `--config=p/<ruleset>`); nothing to pre-fetch, listed
+  here so it's not mistaken for an oversight.
+- **`smuggler`** (HTTP request smuggling), **`Corsy`** (CORS breadth),
+  **`SSTImap`** (SSTI detect+exploit) — maintained single-technique engines
+  cloned into `engines/` for the classes the native probes don't own. These pair
+  with `native/csrf_probe.py`/`cors_probe.py`/`redirect_probe.py`/`param_probe.py`
+  and the recon/cloud tools in `scripts/install_extra_tools.sh`.
+
+**The full external-tool map is `engines/CATALOG.md`** — every wired engine and
+single-purpose tool, the taxonomy domain it serves, its knowledge doc, and its
+companion native probe. Read it to decide native-probe-vs-engine for a class.
+
+---
+
+## How this feeds `pen_test`'s report
+
+Every finding should be traceable to a real, demonstrated PoC: a
+`native/*.py` script's output, a `sqlmap`/`nuclei`/`trivy` confirmed
+result, or a `claude-in-chrome`-captured browser exploit — never a
+`knowledge/*.md` citation alone (that's methodology, not evidence). See
+`agents/pen_test.md` for the actual reporting format
+(`SECURITY_REVIEW_PASSED`/`FAILED` with concrete evidence).
