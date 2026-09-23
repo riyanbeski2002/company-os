@@ -68,3 +68,24 @@ that returned another user's/tenant's restricted document — reproduced, with t
 exact input and the observed action/data. "The model said something it shouldn't"
 with no action or data impact is a quality issue, not a security finding, unless
 it leaked real restricted data.
+
+## Agentic system security (LLM agents with tools)
+
+Beyond prompt injection: when the LLM can *take actions* (call tools, browse, run code,
+hit internal APIs), the blast radius is the union of its tools' authority.
+- **Tool-invocation authorization** — can attacker-influenced input make the agent call a
+  tool it shouldn't, or with arguments it shouldn't? (delete, transfer, escalate). Test each
+  tool as its own authz boundary — the model is not a trust boundary.
+- **Indirect injection → tool abuse** — a poisoned document/web page/email the agent reads
+  instructs it to invoke a privileged tool or exfiltrate via a tool (the real-world chain).
+- **Excessive agency / confused deputy** — the agent runs with more privilege than the user
+  driving it; attacker rides the agent's authority (classic BFLA at the tool layer — see
+  `idor_and_authz.md`).
+- **Data exfiltration channels** — tools that fetch URLs / send messages / write files become
+  exfil paths for context the attacker shouldn't read (system prompt, other users' data, RAG docs).
+- **Memory / state poisoning** — persistent agent memory or shared context poisoned in one
+  session influencing another (multi-tenant → `multitenancy_and_baas.md`).
+- **RAG/vector-store authz** — retrieval that ignores the caller's ACL returns other tenants'
+  documents (already in this doc's RAG section — the agentic angle is the tool that acts on them).
+Validation: a demonstrated unauthorized tool call, an exfil via a tool with a benign marker,
+or cross-tenant data reached through retrieval — reproduced, per `finding_validation.md`.

@@ -102,3 +102,46 @@ Verified: all 14 native scripts compile + --help; jwt crack/forge fixes proven w
 FLAG (Riyan's call): skills/pen_test/agents/pen_test.md is a nested duplicate of the
 canonical root agents/pen_test.md (identical now). The zip ships the skill self-contained;
 in-repo it's a drift hazard. Decide: keep the bundle copy, or make root the single source.
+
+---
+
+## Native gap-closing (Strix comparison) — 2026-09-23
+
+Route chosen: close the gap inside Claude Code, no new deps (do NOT wrap/run Strix).
+- [x] (1) Mine Strix (Apache-2.0) OSS knowledge/technique coverage → enrich our KB/probes
+      (read-only; adapt methodology into our own docs with attribution; no dependency added)
+- [x] (2) Build owned HTTP repeater/replay on _httpcore (intercept-lite: send/modify/replay/diff)
+- [x] (3) Package workflow skills — named one-shot runners (owasp-top-10, api-security, web-app)
+      chaining existing probes + knowledge
+- [x] Wire into SKILL.md / agent / vulnerability_taxonomy; verify compile + --help
+
+### Native gap-closing — done (2026-09-23)
+- (1) Mined Strix (Apache-2.0) analysis/ meta-methodology -> new knowledge/finding_validation.md
+  (counter-evidence + severity calibration + fix verification, adapted+attributed); enriched
+  secrets_and_supply_chain.md with npx/package-runner confusion. Rest of Strix's vuln coverage
+  we already had.
+- (2) native/repeater.py — send/raw/race/diff on _httpcore; validated (diff caught privilege
+  differential, race surfaced rare success, raw replayed captured request).
+- (3) scripts/workflow.sh (recon|webapp|api|owasp × quick|standard|deep) + knowledge/workflows.md
+  (OWASP Top 10 map). Chains existing probes; validated live.
+- Wired into SKILL.md, agents/pen_test.md (lifecycle steps 2-3), vulnerability_taxonomy.md.
+- Verify: 15 native files compile, 14 probes --help, 3 scripts bash -n. No new deps.
+
+---
+
+## Full Strix parity — close ALL real gaps (2026-09-23)
+New knowledge docs:
+- [x] source_aware_review.md  (white-box source->sink discovery + SAST)
+- [x] frameworks.md           (django, fastapi, nestjs, nextjs)
+- [x] technologies.md         (active_directory, auth0, grafana_prometheus)
+- [x] rce.md                  (dedicated RCE: cmd/deser/SSTI/upload -> RCE chains)
+- [x] semantic_confusion.md   (parser/normalization/unicode + request-semantics confusion)
+- [x] tooling.md              (per-tool usage cookbook: nmap/ffuf/httpx/katana/naabu/subfinder/
+                               nuclei/semgrep/sqlmap/hurl/hypothesis/python/agent_browser)
+Enrichments:
+- [ ] authn_jwt_session.md  += weak_password_detection
+- [x] ai_llm.md             += agentic_system_security
+- [x] client_and_mobile.md  += browser_security
+- [x] recon_and_fingerprinting.md += asset_discovery + infrastructure_lifecycle
+- [x] cloud_and_infra.md    += per-provider aws/azure/gcp/k8s depth
+- [x] wire all into SKILL.md + vulnerability_taxonomy.md; verify

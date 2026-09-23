@@ -108,3 +108,22 @@ policy JSON showing the excessive grant (from `prowler`/API), the anonymously
 reachable dashboard, the claimed dangling host serving your marker. Scope
 discipline is part of the bar — an out-of-scope host is not a finding, it's an
 incident.
+
+## Per-provider quick-hits (AWS / Azure / GCP / Kubernetes)
+
+`cloud_and_infra.md`'s general classes, made concrete per provider. Posture tools:
+`prowler`/`scoutsuite` (see `tooling.md`); scope-gated, authorized accounts only.
+- **AWS** — public S3 buckets/objects & bucket-policy misconfig; **IMDS** reached via SSRF
+  (`ssrf_probe.py`; IMDSv1 = creds, push for IMDSv2); over-broad IAM (`iam:PassRole`,
+  wildcard `*` actions, `sts:AssumeRole` chains); exposed access keys (`secret_scan.py`);
+  public RDS/ES; Lambda env-var secrets; `prowler aws`.
+- **Azure** — public blob containers; over-scoped SAS tokens; Managed Identity abuse via
+  SSRF to IMDS (`169.254.169.254` with `Metadata:true`); AAD app misconfig (overbroad
+  Graph perms, see Auth0/`technologies.md` for the IdP angle); Key Vault access policies.
+- **GCP** — public GCS buckets; GCE metadata SSRF (`metadata.google.internal`,
+  `Metadata-Flavor:Google` → service-account token); over-broad service-account roles &
+  `actAs`/impersonation; firewall `0.0.0.0/0`; `scout gcp`.
+- **Kubernetes** — exposed API server / kubelet (10250) / etcd (2379); the SA token at
+  `/var/run/secrets/kubernetes.io/...` (reachable via SSRF/RCE in a pod) → cluster API;
+  privileged/hostPath pods, missing NetworkPolicies, secrets in env/ConfigMaps; dashboards
+  (`technologies.md` Grafana). Validate with the reached resource/token, not just exposure.

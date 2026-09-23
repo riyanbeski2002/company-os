@@ -63,3 +63,22 @@ key, the decompiled string, the exported component + the call that reaches it).
 For anything that "the client blocks", the real finding is on the server: show
 the API call succeeding with the client removed from the loop — otherwise it's a
 hardening note, not an exploit.
+
+## Browser security surface
+
+Client-side trust boundaries the server-focused docs don't cover (many overlap `xss.md`/`web_infra.md`):
+- **postMessage** — handlers that don't validate `event.origin`, or send sensitive data to
+  `targetOrigin:"*"`; a classic XSS/data-theft bridge across frames.
+- **CSP** — presence AND strength: `unsafe-inline`/`unsafe-eval`, wildcard/`data:` sources,
+  missing `frame-ancestors` (clickjacking), reflected/injectable CSP. A CSP with `unsafe-inline`
+  is not a mitigation for XSS.
+- **CORS vs SOP** — see `web_infra.md`/`cors_probe.py`; the browser-side angle is credentialed
+  cross-origin reads enabled by a reflected `Origin`.
+- **Client-side storage** — secrets/tokens in `localStorage`/`sessionStorage`/IndexedDB
+  (readable by any XSS; not a secure store); sensitive data cached by service workers.
+- **Service workers / PWA** — an XSS that registers a malicious SW = persistent, cache-poisoning
+  foothold surviving the original injection.
+- **DOM sinks** — `innerHTML`, `document.write`, `location`, `eval`, `dangerouslySetInnerHTML`
+  fed by `location.hash`/`search`/`postMessage`/`referrer` → DOM XSS (`xss.md`).
+- **Sensitive data in the bundle** — API keys, internal URLs, source maps (`recon_and_fingerprinting.md`).
+Prove browser-context bugs by execution in `claude-in-chrome` (see `tooling.md`), not by static reflection alone.

@@ -83,3 +83,20 @@ A forged/tampered token that the server actually accepts as valid,
 demonstrated end-to-end (the forged token used against a real protected
 endpoint, showing the unauthorized response) — not "the JWT library used
 looks old" or "the algorithm choice looks weak" without a working forgery.
+
+## Weak password / credential testing
+
+Distinct from JWT/session mechanics: the strength and handling of the credentials themselves.
+- **Default & weak creds** — try vendor defaults (`admin/admin`, documented service accounts)
+  and a small high-signal list; never a noisy brute-force without explicit authz + rate agreement.
+- **Password policy** — register/reset flows accepting `123456`, `password`, the username, or
+  a 1-char password = a finding on its own.
+- **Credential stuffing surface** — no lockout / no rate limit / no CAPTCHA on login; confirm
+  with a *small* controlled burst (see `native/repeater.py race`), not a real stuffing run.
+- **User enumeration** — login/reset/registration responses (or timing) that distinguish
+  "no such user" from "wrong password" — feeds the above.
+- **Reset-token weakness** — predictable/sequential/short-lived-but-reusable reset tokens,
+  or reset links that don't invalidate on use. Overlaps `finding_validation.md` severity calibration.
+- **MFA** — bypass/downgrade (fallback to SMS/no-MFA), OTP reuse, missing rate limit on OTP.
+Validation: an actual accepted weak credential, a confirmed missing lockout under a controlled
+burst, or a reproduced enumeration oracle — not "the policy looks weak."

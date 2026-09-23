@@ -65,3 +65,22 @@ Recon findings are candidates and information, not confirmed exploits: a missing
 header is confirmed by observation; an "exposed" path is a finding only when it
 actually returns the sensitive content (the probe checks a body signature, not
 just a 200). A fingerprint is a lead — the CVE it implies still has to be tested.
+
+## Asset discovery & infrastructure lifecycle (breadth before depth)
+
+Recon isn't just one host — it's finding *all* the in-scope surface, then the weakest
+instance across it. **Scope discipline first:** an authorized URL does not authorize its
+whole domain (see the agent's authorization gate); enumerate only what you're cleared for.
+
+- **Asset discovery** — subdomains (`subfinder`), live-host + fingerprint (`httpx`), ports
+  (`naabu`/`port_scan.py`), endpoints/params (`katana`, `param_probe.py`). Pipe them:
+  `subfinder -d t -silent | httpx -silent -title -tech-detect`. Cross-reference cert
+  transparency, ASN/IP ranges, and cloud buckets. → `tooling.md`.
+- **Infrastructure lifecycle** — the weak asset is usually the *forgotten* one: staging/dev
+  hosts (`dev.`, `staging.`, `*.vercel.app`/`*.netlify.app` previews), deprecated APIs
+  (`/v1` after `/v2` shipped), dangling DNS → **subdomain takeover** (`subzy`,
+  `cloud_and_infra.md`), expired certs, and re-provisioned cloud resources. A prod app can
+  be locked down while its staging twin leaks source maps and debug routes.
+- **Turn breadth into a target list** — rank discovered assets by exposure (auth surface,
+  tech with known CVEs, exposed artifacts) and hand the ranked list back for per-target
+  dispatch (the agent fans these out; don't serially scan a big list in one session).
