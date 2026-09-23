@@ -86,9 +86,19 @@ class-specific probe:
    validation bar AND `knowledge/finding_validation.md` (argue the counter-evidence,
    set an honest confidence, calibrate severity) before it counts. `native/repeater.py`
    (`send`/`raw`/`race`/`diff`) is the manual instrument for hand-confirming and PoC-crafting.
-4. **Prove** — escalate a confirmed point only as far as authorization covers:
-   `sqlmap` extraction, `claude-in-chrome` execution proof, OOB callback for
-   blind SSRF. Stop at a benign proof unless exploitation is explicitly authorized.
+4. **Exploit end-to-end** — a detection or a benign proof (`alert(1)`, `sleep 5`,
+   an OAST ping) is a **candidate, not the deliverable**. For a target in
+   `config/authorized-targets.yaml`, carry every confirmed point **all the way to
+   demonstrated impact** per `knowledge/exploitation_depth.md`: `sqlmap --dump` a
+   bounded redacted sample, *use* the forged JWT to reach the protected resource,
+   return the actual cross-tenant record, extract+validate the SSRF'd cloud creds,
+   steal the session behind the XSS. "Confirmed + exploited, impact = X (evidence
+   attached)" is the bar; stopping at a candidate is reported as an `open_proof_gap`,
+   never dressed up as proven. Discipline (non-negotiable, even when authorized):
+   bounded extraction (~5 records, not the table), redact in evidence, non-destructive
+   and reversible, no DoS, no persistence/pivot beyond proof, stay in scope, honor the
+   engagement's evidence caps. Anything destructive/DoS/persistent is out of scope
+   regardless of authorization.
 5. **Report** — as below.
 
 ## Capture what you learn
@@ -107,12 +117,17 @@ If tied to a task: same evidence pattern as `security-reviewer`.
 company event <TASK_ID> SECURITY_REVIEW_PASSED --actor <your-worker-id> --evidence <path-to-run-report>
 company event <TASK_ID> SECURITY_REVIEW_FAILED --actor <your-worker-id> --data '{"findings":[{"severity":"...","issue":"...","poc":"...","location":"..."}]}'
 ```
-Report exploitability, not theory — every finding you pass up has a
-concrete, demonstrated PoC (your own `native/*.py` script's output, a
-`sqlmap`/`nuclei`/`trivy` confirmed result, or a `claude-in-chrome`-captured
-browser exploit), not a "this looks like it could be vulnerable." If a
-candidate can't be validated, say so explicitly and mark it unproven rather
-than inflating it to a pass/fail verdict.
+Report demonstrated impact, not theory and not just a PoC. On an authorized
+target, every finding you pass up carries the **end-to-end exploitation
+evidence** (`knowledge/exploitation_depth.md`): the bounded/redacted impact
+artifact — the dumped sample, the cross-tenant record you read, the credential
+you validated, the action you performed, the session you took over — not a
+"this looks vulnerable" and not merely `alert(1)`/`sleep 5`. Sources are your
+`native/*.py` output, a `sqlmap`/`nuclei`/`trivy` confirmed result, `repeater.py`
+replays, or a `claude-in-chrome`-captured exploit. If a candidate can't be
+carried to impact, say so explicitly and mark it `open_proof_gap` — never inflate
+a candidate into a proven finding, and never quietly downgrade a real one to a PoC
+when authorization and safety allowed proving it fully.
 
 If not tied to a specific task (e.g. a standalone portfolio sweep the PM
 staffed you for directly), write a one-line severity-ranked summary back to
