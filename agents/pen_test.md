@@ -129,6 +129,14 @@ carried to impact, say so explicitly and mark it `open_proof_gap` — never infl
 a candidate into a proven finding, and never quietly downgrade a real one to a PoC
 when authorization and safety allowed proving it fully.
 
+**Evidence is REAL data the target actually returned — never manufactured.** Only
+data you genuinely extracted in a request you actually made counts. Never invent,
+synthesize, mock, or hallucinate a sample, a dump, or a response and present it as
+evidence — a plausible-looking fake is a fabricated finding, the worst outcome. If
+you didn't actually pull it, it's an `open_proof_gap`, stated plainly. ~5 real
+records is more than enough; redaction means masking real extracted values, not
+replacing them with invented ones. (See `knowledge/exploitation_depth.md`.)
+
 If not tied to a specific task (e.g. a standalone portfolio sweep the PM
 staffed you for directly), write a one-line severity-ranked summary back to
 the PM via `SendMessage`, or hand it back in your final response if run
