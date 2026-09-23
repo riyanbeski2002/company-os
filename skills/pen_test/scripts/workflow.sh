@@ -58,6 +58,8 @@ manual() { echo "  [ ] $*"; }
 recon_stage() {
   run recon http_recon.py "$TARGET"
   [ "$DEPTH" != "quick" ] && run params param_probe.py -u "$TARGET"
+  echo "  [i] if the backend is hidden (SPA/TanStack/BFF): recover real endpoints via bundle/"
+  echo "      source maps/live capture — see knowledge/backend_discovery.md"
 }
 
 case "$PRESET" in
@@ -74,7 +76,9 @@ case "$PRESET" in
     manual "SQLi:  $PY native/sqli_probe.py -u '$TARGET' --param <p>   (knowledge/sql_injection.md)"
     manual "XSS:   $PY native/xss_probe.py  -u '$TARGET' --param <p>   (knowledge/xss.md)"
     manual "IDOR:  $PY native/idor_probe.py diff --url '<obj>/{id}' --a-bearer .. --b-bearer ..  (idor_and_authz.md)"
-    manual "Auth:  $PY native/jwt_tool.py decode <token>              (authn_jwt_session.md)"
+    manual "Auth wall: $PY native/auth_probe.py bypass -u '<login>' --location form|json  (auth_bypass.md)"
+    manual "Creds: $PY native/auth_probe.py spray/brute/enum -u '<login>' ...  (credential_attacks.md)"
+    manual "Token: $PY native/jwt_tool.py decode <token>              (authn_jwt_session.md)"
     manual "Biz-logic race: $PY native/repeater.py race -u '<state-change>' -X POST -n 30  (idor_and_authz.md)"
     ;;
   api)
@@ -100,7 +104,7 @@ case "$PRESET" in
     manual "A04 Insecure Design -> business-logic via repeater.py race/diff (idor_and_authz.md)"
     manual "A05 Security Misconfig -> http_recon.py (done above: headers/exposed artifacts)"
     manual "A06 Vulnerable Components -> trivy/grype (secrets_and_supply_chain.md); npx confusion"
-    manual "A07 Auth Failures -> jwt_tool.py; login/session (authn_jwt_session.md, oauth_oidc_sso.md)"
+    manual "A07 Auth Failures -> auth_probe.py bypass/spray/brute/enum + jwt_tool.py (auth_bypass.md, credential_attacks.md)"
     manual "A08 Integrity Failures -> deserialization/supply-chain (modern_stack.md, secrets_and_supply_chain.md)"
     manual "A09 Logging/Monitoring -> review-only (out of active-probe scope)"
     manual "A10 SSRF -> ssrf_probe.py (done partially if url params found)"

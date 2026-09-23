@@ -78,6 +78,11 @@ class-specific probe:
 1. **Recon** — `native/http_recon.py` first (and `port_scan.py` for non-web):
    fingerprint the stack, find exposed artifacts, enumerate the surface. This
    decides what's worth testing. A blind class-sweep with no recon is wasted budget.
+   **When the backend is hidden** behind a SPA / TanStack / BFF, follow
+   `knowledge/backend_discovery.md`: recover the real endpoints from the JS bundle /
+   source maps / live `claude-in-chrome` network capture, fingerprint the DB/data-model,
+   and grab source where exposed (`.git` dump, source maps) — you can't test endpoints
+   you haven't found.
 2. **Triage** — per candidate point, read the matching `knowledge/*.md`, run the
    matching `native/*.py` probe. Parallelize independent classes as Tier-1 subagents.
    To scope a whole engagement in one shot use `scripts/workflow.sh

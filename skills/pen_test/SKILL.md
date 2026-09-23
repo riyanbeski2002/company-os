@@ -107,6 +107,9 @@ it to the native tool above, a decision tree, and a per-class validation bar:
 - `xss.md` — reflected/stored/DOM XSS, context→breakout table, browser-proven execution bar
 - `ssrf_and_injection.md` — SSRF (incl. cloud metadata endpoints, filter bypass), XXE, command injection, argument injection, SSTI
 - `authn_jwt_session.md` — JWT forgery classes (`alg:none`, RS256→HS256, `kid`/`jku`, weak-secret), session management
+- `auth_bypass.md` — consolidated auth-wall bypass: SQLi/NoSQL login bypass, default creds, forced-browse/BFLA, response/status manipulation, 2FA/MFA bypass, session/reset abuse, param tampering (`auth_probe.py`)
+- `credential_attacks.md` — brute/spray/stuffing + offline cracking (hashcat/john modes, hydra/ffuf for scale) with controlled-testing discipline
+- `backend_discovery.md` — finding the hidden backend: DB/engine fingerprint, data-model inference, real APIs behind a SPA / **TanStack** / **BFF**, and source acquisition (.git dump, source maps, bundle/decompile)
 - `oauth_oidc_sso.md` — OAuth/OIDC/SSO flow flaws: redirect_uri, state/nonce, PKCE, code handling, scope/consent, account linking, SSO logout
 - `idor_and_authz.md` — IDOR/BOLA cross-account diffing, broken function-level authorization, business-logic abuse (races, price/state manipulation)
 - `web_infra.md` — CSRF, CORS, open redirect, host-header injection, HTTP request smuggling, web cache poisoning, clickjacking, security headers/CSP
@@ -165,6 +168,9 @@ rate-limiting — pass `-H`, `-b`, `--bearer`, `-k`, `--rate` to any of them:
 - `repeater.py` — Burp-Repeater-lite: `send` / `raw` (replay a captured request) /
   `race` (concurrent N× for business-logic races) / `diff` (two variants, diff
   responses). The manual instrument for hand-confirming a candidate and crafting the PoC.
+- `auth_probe.py` — login/auth-wall attack: `bypass` (SQLi/NoSQL/default-cred battery +
+  success detection) / `spray` / `brute` / `enum` (user-enum oracle). Bounded, rate-limited,
+  lockout-aware, authorized-only.
 
 Named **workflows** package these into how engagements are scoped —
 `scripts/workflow.sh <recon|webapp|api|owasp> <url> [--depth quick|standard|deep]`

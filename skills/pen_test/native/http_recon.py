@@ -117,6 +117,12 @@ def cve_hints(tech: list[str]) -> list[str]:
                      "middleware-protected path adding header `x-middleware-subrequest: middleware` "
                      "(or `src/middleware`), and see if the auth/redirect is skipped. Also enumerate "
                      "/_next/static/ for source maps and leaked build/env vars.")
+        hints.append("Next.js App Router -> ALSO test the .rsc/segment-prefetch middleware bypass "
+                     "(request the protected path with `RSC: 1` + `Next-Router-State-Tree` or a `.rsc` "
+                     "suffix), Server Actions (POST a page route with `Next-Action: <id>`), and — if in "
+                     "the affected version range — CVE-2025-55182 (RSC RCE via crafted multipart) / "
+                     "CVE-2025-66478 (Server Actions). Benign proof only. See knowledge/cve_playbook.md "
+                     "and backend_discovery.md (edge-middleware breakthrough).")
     if "nginx" in joined:
         hints.append("nginx -> check for path-traversal via mis-set alias, and off-by-slash location merges.")
     if "apache" in joined:

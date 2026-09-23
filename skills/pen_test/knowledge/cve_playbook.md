@@ -45,6 +45,30 @@ sets it, middleware (including auth/redirect gates) is skipped entirely.
 curl -sI "https://target/protected" -H "x-middleware-subrequest: middleware"
 ```
 
+## Next.js — `.rsc` / segment-prefetch middleware auth bypass (2025)
+
+A **second** middleware-bypass class, distinct from 29927: in App-Router apps, specially
+crafted **`.rsc`** and **segment-prefetch** URLs resolve to protected pages *without*
+matching the intended middleware `matcher` rule — so auth/redirect middleware never runs.
+- **Detect:** take a middleware-protected path and request its RSC/prefetch forms —
+  append `.rsc`, or request with `RSC: 1` + `Next-Router-Prefetch: 1` + `Next-Router-State-Tree`,
+  or the `__next_data__`/segment-prefetch variant. If the protected content/flight payload
+  comes back where the normal path redirected, the matcher was bypassed.
+- Pairs with `backend_discovery.md` (RSC channel) — this is often *the* way past an edge
+  middleware that "returns the app shell for everything."
+
+## Next.js / React Server Components — CVE-2025-55182 (RSC RCE) & CVE-2025-66478 (Server Actions)
+
+- **CVE-2025-55182** — RCE in apps using RSC, triggered with **no prior access** by a
+  specially crafted **multipart HTTP request** to an RSC endpoint. Critical; public
+  exploit tooling exists (do not run destructive payloads — benign proof only, `rce.md`).
+- **CVE-2025-66478** — Server Actions flaw in the same family (auth-bypass / SSRF / DoS
+  reported across the 12+ RSC-flaw cluster).
+- **Detect (non-destructive):** fingerprint Next.js version (`http_recon.py`, bundle);
+  if in the affected range, probe an RSC/Server-Action endpoint with a benign malformed
+  multipart and watch for the abnormal handling that signals the sink — do **not** fire a
+  weaponized RCE payload without explicit execution authz.
+
 ## Apache httpd — CVE-2021-41773 / CVE-2021-42013 (path traversal → RCE)
 
 - **Applies:** Apache 2.4.49 / 2.4.50 with a mis-`Require`'d filesystem root.
