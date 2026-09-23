@@ -89,7 +89,7 @@ exploitation runner write access to its own tooling.
 ## 1. Owned — knowledge/ + native/ (default path, use this first)
 
 **Start at `knowledge/vulnerability_taxonomy.md`** — the coverage map over every
-vulnerability domain the skill knows about (the full 94-domain taxonomy), each
+vulnerability domain the skill knows about (the full domain taxonomy), each
 row pointing at the knowledge file / native probe / engine that handles it and a
 one-line test. Use it to pick the right methodology for a candidate, and to see
 what is owned tooling vs. manual vs. an external engine.
@@ -113,6 +113,14 @@ it to the native tool above, a decision tree, and a per-class validation bar:
 - `data_handling.md` — file upload, path traversal/Zip Slip, CSV formula injection, PDF/image processing, input normalization, ReDoS
 - `client_and_mobile.md` — browser storage/service workers, mobile (storage, exported components, deep links, WebView), desktop/Electron
 - `cve_playbook.md` — specific high-value CVEs the fingerprint should trigger (incl. Next.js CVE-2025-29927); the field-learning capture point
+- `finding_validation.md` — the meta-skill: counter-evidence (disprove your own finding), honest severity calibration, fix verification — what makes a finding defensible vs. a scanner dump
+- `source_aware_review.md` — white-box source→sink discovery + SAST: instance discipline, control-centric reading, family sweeps
+- `rce.md` — the roads to remote code execution (cmd/deser/SSTI/upload/resolution/SQLi→RCE) + safe benign-proof bar
+- `semantic_confusion.md` — parser differentials, normalization drift, field overloading, lifecycle carryover, boundary translation, resolution fallback
+- `frameworks.md` — Django, FastAPI, NestJS, Next.js — per-framework defaults, misconfig, and sinks
+- `technologies.md` — Active Directory, Auth0, Grafana/Prometheus (+ pointers to Firebase/Supabase/LLM/Electron)
+- `tooling.md` — usage cookbook for every wired external tool (nmap/ffuf/httpx/katana/naabu/subfinder/nuclei/trivy/semgrep/sqlmap/hurl/hypothesis/python/browser)
+- `workflows.md` — named packaged workflows (recon/webapp/api/owasp) + quick/standard/deep depth, driven by `scripts/workflow.sh`
 - `secrets_and_supply_chain.md` — secret detection patterns and when to escalate to a real CVE-feed tool instead of native
 
 `native/*.py` — original scripts implementing the above directly (stdlib +
@@ -148,6 +156,13 @@ rate-limiting — pass `-H`, `-b`, `--bearer`, `-k`, `--rate` to any of them:
 - `port_scan.py` — concurrent TCP connect scan, service map + weak-default flags.
 - `secret_scan.py` — 20+ named formats + Shannon-entropy detection, severity-ranked
   (working tree + git history).
+- `repeater.py` — Burp-Repeater-lite: `send` / `raw` (replay a captured request) /
+  `race` (concurrent N× for business-logic races) / `diff` (two variants, diff
+  responses). The manual instrument for hand-confirming a candidate and crafting the PoC.
+
+Named **workflows** package these into how engagements are scoped —
+`scripts/workflow.sh <recon|webapp|api|owasp> <url> [--depth quick|standard|deep]`
+runs the automatable steps and prints the targeted ones (see `knowledge/workflows.md`).
 
 **Workflow:** read the matching `knowledge/*.md` file for the suspected
 vulnerability class before testing it — this is the actual discipline, not

@@ -80,8 +80,12 @@ class-specific probe:
    decides what's worth testing. A blind class-sweep with no recon is wasted budget.
 2. **Triage** — per candidate point, read the matching `knowledge/*.md`, run the
    matching `native/*.py` probe. Parallelize independent classes as Tier-1 subagents.
-3. **Confirm** — a probe hit is a candidate; reproduce it against the per-class
-   validation bar before it counts.
+   To scope a whole engagement in one shot use `scripts/workflow.sh
+   <recon|webapp|api|owasp> <url> [--depth quick|standard|deep]` (see `knowledge/workflows.md`).
+3. **Confirm** — a probe hit is a candidate. Reproduce it against the per-class
+   validation bar AND `knowledge/finding_validation.md` (argue the counter-evidence,
+   set an honest confidence, calibrate severity) before it counts. `native/repeater.py`
+   (`send`/`raw`/`race`/`diff`) is the manual instrument for hand-confirming and PoC-crafting.
 4. **Prove** — escalate a confirmed point only as far as authorization covers:
    `sqlmap` extraction, `claude-in-chrome` execution proof, OOB callback for
    blind SSRF. Stop at a benign proof unless exploitation is explicitly authorized.

@@ -60,6 +60,31 @@ knowledge is genuinely stable and worth owning directly; CVE/dependency
 scanning is the opposite case — the value is entirely in the up-to-date
 database, not the scanning logic.
 
+## Dependency confusion & package-runner (npx) confusion
+
+A stable *technique* class worth owning (distinct from CVE scanning above):
+getting a build/CI/agent workflow to execute an attacker-controlled package.
+
+- **Classic dependency confusion:** an internal package name also resolvable on a
+  public registry; the resolver prefers (or falls back to) the public one. Detect:
+  internal `@scope/` or bare package names in `package.json`/`requirements.txt`/etc.
+  that are unclaimed on the public registry.
+- **Package-runner (npx) confusion** — resolver *fallback* semantics, not registry
+  priority: `npx`, `npm exec`, `bunx`, `pnpm dlx`, `yarn dlx`, `deno run npm:` will
+  fetch and execute a *remote* package when a **bare command** doesn't resolve
+  locally. Vulnerable when all hold: (1) the executable isn't in `node_modules/.bin`,
+  global bin, workspace, or cache for that runner; (2) the runner falls back to the
+  registry for the bare token; (3) the intended package name ≠ the executable name
+  (or a typo picks the wrong one); (4) the workflow has real authority (CI creds,
+  release perms, agent capabilities).
+  - **Detect:** grep `.mcp.json`, `turbo.json`, `package.json` scripts, CI workflows,
+    composite actions, devcontainer config for `npx -y <bare>`, `bunx <bare>`,
+    `pnpm dlx <bare>`, etc. Confirm the binary does **not** resolve locally *in that
+    workflow's actual context* (not repo-root), and that the intended package is
+    absent/differs on the registry.
+  - **Impact = the workflow's authority** (RCE in CI, release pipeline, or an agent
+    launcher). This is why it belongs here, not in "secrets."
+
 ## Validation bar
 
 A secret finding needs the actual matched string (redacted appropriately
