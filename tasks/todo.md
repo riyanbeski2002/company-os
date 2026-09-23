@@ -1,62 +1,104 @@
-# Efficiency Addendum (v1) — implementation plan
+# pen_test skill + agent hardening
 
-Source: pasted addendum, "COMPANY OS — EFFICIENCY ADDENDUM (v1)". Mapped onto
-the actual repo (README's prose principles ≈ the addendum's D1–D8; there is no
-literal D-numbered doc in this repo).
+Scope: harden the artifacts only (no live testing). Make capabilities, methods,
+and engine depth genuinely stronger across native scripts, coverage, operational
+knowledge, and agent workflow.
 
-## Resolved: D10 overrides the existing `baseline_gates: [review]` rule
+## Phase 0 — Shared HTTP core (force-multiplier)
+- [x] `native/_httpcore.py` — session (cookies/auth headers), proxy passthrough
+      (Burp/ZAP), configurable injection point (query/form/json/header/cookie/path),
+      concurrency + rate-limit, retries/timeouts, consistent Response/Result objects.
+      Every probe adopts it.
 
-Riyan confirmed the addendum overrides existing rules where they conflict.
-`baseline_gates: [review]` (unconditional review on every staffed task) is
-removed; review becomes risk-based, the same as qa/security. Adding it back
-on an untriggered task is a scope addition and needs a recorded reason —
-which `reconcile()` already enforces structurally for *any* gate addition
-beyond the table's mandate, so this needs a config change, not new logic.
+## Phase 1 — Deepen the 5 existing probes
+- [x] `sqli_probe.py` — add error-based (DBMS error-signature DB) + UNION column
+      discovery; all injection points; session/auth; concurrency. Stays a detector
+      that hands confirmed points to sqlmap.
+- [x] `idor_probe.py` — true two-identity diff (User A vs User B tokens), read+write
+      directions, sequential + UUID enumeration, placeholder in url/body/header.
+- [x] `jwt_tool.py` — add `kid` injection, `jku`/`x5u` header abuse, JWKS confusion
+      checks on top of existing alg:none / RS256->HS256 / crack / tamper.
+- [x] `secret_scan.py` — expand pattern DB, add Shannon-entropy detection, per-finding
+      severity, JWT/PEM detection.
+- [x] `port_scan.py` — top-ports service map + modest banner/version heuristics.
 
-## What I'll actually build
+## Phase 2 — New engines (close field-coverage gaps)
+- [x] `http_recon.py` — security headers, tech/version fingerprint, exposed artifacts
+      (.git/.env/source maps/backups), CORS misconfig, CVE-hint mapper. (Directly
+      closes the Next.js CVE-2025-29927 gap seen in the field.)
+- [x] `xss_probe.py` — reflection detection + context classification (HTML/attr/JS/URL);
+      hands off to claude-in-chrome for execution proof.
+- [x] `ssrf_probe.py` — SSRF candidate detection, cloud-metadata + filter-bypass
+      payloads, out-of-band/callback support.
+- [x] `graphql_probe.py` — introspection dump + field/type mapping + batching/alias hints.
 
-1. **`fast_path` (D9)** — add to `config/risk-triggers.yaml` +
-   `.company/config/risk-triggers.yaml`. Extend `staffing.evaluate()` to take
-   optional `files_touched`/`diff_lines`; when in-bounds and no trigger
-   fires, return `{"tier": 0, "gates": [], "fast_path": true}`. Backward
-   compatible — existing callers that don't pass diff stats are unaffected
-   (all current tests keep passing unmodified).
-2. **Model/effort table (§2)** — new `config/staffing.yaml` +
-   `.company/config/staffing.yaml`: tier → model/effort/thinking. Wire into
-   `worker.py: build_command()` and `launch_readonly()` via `--model`
-   `--effort`, and `MAX_THINKING_TOKENS=0` in `build_env()` for the
-   mechanical/no-thinking case (no CLI flag for thinking exists — verified
-   via `claude -p --help`).
-3. **`cmd_gates` CLI surface** — add `--files-touched`/`--diff-lines` so the
-   PM can actually call the fast-path check before staffing.
-4. **§5 native-features mapping + §9/§10 policy** — document in README under
-   a new `## Efficiency` section. Doc-only, no behavior claims not already true.
-5. **PM hygiene checklist (§6) + D9 framing** — fold into
-   `agents/company-pm.md`'s existing "Pick the cheapest tier" section.
-6. **Tests** — extend `tests/test_staffing.py` for fast-path; run full suite.
+## Phase 3 — Operational knowledge
+- [x] Rewrite existing 5 knowledge/*.md into operator playbooks: candidate ID ->
+      technique/payload ref -> decision tree -> validation bar -> escalation.
+- [x] New: `recon_and_fingerprinting.md`, `xss.md`, `modern_stack.md`
+      (GraphQL/NoSQLi/deserialization/prototype-pollution/SSTI), `cve_playbook.md`
+      (capture field CVEs incl. Next.js 29927 w/ detection method).
 
-## Review
+## Phase 4 — Methods / engine depth (SKILL.md)
+- [x] Add engagement lifecycle (recon -> surface map -> per-class triage -> exploit ->
+      PoC -> report), native-vs-sqlmap-vs-nuclei-vs-browser decision matrix, expanded
+      tooling index, field-learning capture loop, nuclei/trivy/semgrep command recipes.
 
-Done. `python3 -m unittest discover -q tests` → 301 passed, 0 failed
-(includes 12 new tests: fast-path bounds/trigger-suppression/unset-without-stats,
-model-policy per tier, review-needs-a-reason). `company doctor` still green.
-Manually verified `company gates` for all three cases (fast path hit, over
-bounds, trigger fires) — output above matches design.
+## Phase 5 — Agent workflow (agents/pen_test.md)
+- [x] Add the engagement lifecycle, evidence discipline, and field-learning capture
+      loop (report-back, since agent has no Write tool). Align to new capabilities.
 
-Also fixed in passing: `.company/config/risk-triggers.yaml` (this repo's own
-onboarded config) had drifted from `config/risk-triggers.yaml` — missing the
-`governance-mechanism` and `untrusted-content` triggers added in a later
-session. Synced it while touching the file anyway, since a stale copy of the
-exact table this addendum tightens would undercut the point.
+## Phase 6 — Verify
+- [x] `python3 -m py_compile` every native script; run each `--help`; offline
+      self-checks (arg parsing / import) with no live-target traffic.
+- [x] `requirements.txt` updated for any new deps (keep minimal).
+- [x] Record review notes here.
 
-`agents/security-reviewer.md` shows modified in `git status` but I did not
-touch it — pre-existing uncommitted change from before this session.
+---
 
-## Explicitly not doing
-- D10 as literally written (see conflict above).
-- `verify-ungated.sh` hook (§4) — `worker.py` already runs the verify command
-  and emits a real exit code for every task regardless of gates; a duplicate
-  hook would be redundant machinery, not a fix.
-- Hard-enforcing "reason required to escalate past Tier 0" in code — there's
-  no task object yet at that decision point (it's pre-staffing), so this
-  stays a documented PM discipline (§6), same as today's other judgment calls.
+## Review (2026-09-23)
+
+Delivered, artifacts only, no live testing (per scope):
+- **_httpcore.py** — new shared engine: session/auth, Burp/ZAP proxy, injection into
+  query/form/json/header/cookie/path, concurrency + rate-limit. Every probe adopts it.
+- **5 probes deepened**: sqli (error-based+UNION+all locations), idor (true two-account
+  diff + enum), jwt (kid/jku/x5u/alg-none variants), secret_scan (20+ formats + entropy +
+  severity; fixed single-file bug), port_scan (service map + weak-default flags).
+- **4 new engines**: http_recon (fingerprint/exposed-artifacts/CORS/CVE-hints —
+  closes the Next.js CVE-2025-29927 field gap), xss_probe (context classifier),
+  ssrf_probe (metadata + bypass + OOB), graphql_probe (introspection/batching).
+- **Knowledge**: 5 files wired to tooling (Run-it + decision tree); 4 new
+  (recon, xss, modern_stack, cve_playbook).
+- **SKILL.md**: engagement lifecycle + decision matrix + field-learning loop + tool index.
+- **agent**: lifecycle + learning-capture (report-back, no Write tool).
+
+Verification: all 9 native scripts `py_compile` + `--help` clean; pure functions unit-tested;
+end-to-end integration vs a localhost mock confirmed real detection (SQLi error+boolean,
+XSS context+char-survival, recon headers/fingerprint). Import resolves from any cwd.
+
+Open items flagged to Riyan (NOT changed — his call):
+1. `agents/pen_test.md` runs on `model: haiku` — underpowered for exploit-chaining /
+   business-logic reasoning; biggest remaining capability limiter. Cost vs. capability tradeoff.
+2. `skills/pen_test.zip` (23MB, git-tracked) is a stale Sep-18 snapshot that bundles a
+   `.venv`; nothing loads from it. Either regenerate on release or drop it from git.
+3. `cryptography` not in the venv — jwt_tool `jku-forge` degrades to manual instructions
+   until `pip install -r native/requirements.txt`.
+
+---
+
+## Sync from ~/Downloads/pen_test.zip (2026-09-23)
+
+Adopted the externally-produced superset version (it critically reviewed and fixed
+this session's work). Overlaid onto skills/pen_test/ (rsync, no --delete) so .venv
+and engines/sqlmap clone were preserved; synced agents/pen_test.md to repo root;
+deleted the stale git-tracked 23MB skills/pen_test.zip.
+
+Added: 4 probes (cors/csrf/param/redirect), 9 knowledge domains + vulnerability_taxonomy.md,
+engines/CATALOG.md, skills/pen_test/.gitignore. Fixed ~6 real bugs from this session
+(rate-limiter lock serialization, Session thread-safety, sqli UNION false-positive,
+jwt forge-hs256 broken + crack false-negative on exp tokens, idor false-positive).
+Verified: all 14 native scripts compile + --help; jwt crack/forge fixes proven with fixtures.
+
+FLAG (Riyan's call): skills/pen_test/agents/pen_test.md is a nested duplicate of the
+canonical root agents/pen_test.md (identical now). The zip ships the skill self-contained;
+in-repo it's a drift hazard. Decide: keep the bundle copy, or make root the single source.

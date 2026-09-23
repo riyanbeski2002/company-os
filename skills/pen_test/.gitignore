@@ -1,0 +1,14 @@
+# Local Python env — never ship
+.venv/
+__pycache__/
+*.pyc
+
+# Continuously-updated engines are cloned/installed by scripts/update_engines.sh,
+# never frozen into the skill (a stale CVE/technique feed is actively misleading).
+engines/sqlmap/
+engines/*/
+!engines/README.md
+!engines/CATALOG.md
+
+# OS cruft
+.DS_Store

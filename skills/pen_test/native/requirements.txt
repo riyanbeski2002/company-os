@@ -1,0 +1,7 @@
+# Minimal, standard dependencies — normal Python library usage, not vendored
+# tool source. Install with: pip install -r requirements.txt
+requests>=2.31
+pyjwt>=2.8
+# Optional: enables jwt_tool.py `jku-forge` RSA keypair + JWKS generation.
+# Everything else works without it (the command degrades to manual instructions).
+cryptography>=42.0
