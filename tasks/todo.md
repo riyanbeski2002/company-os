@@ -145,3 +145,20 @@ Enrichments:
 - [x] recon_and_fingerprinting.md += asset_discovery + infrastructure_lifecycle
 - [x] cloud_and_infra.md    += per-provider aws/azure/gcp/k8s depth
 - [x] wire all into SKILL.md + vulnerability_taxonomy.md; verify
+
+---
+
+## Auth / credential / backend-discovery gaps (2026-09-23)
+Feedback: weak at auth bypass, bruteforce, cracking the auth wall, figuring out DB/backend/APIs/source.
+- [x] native/auth_probe.py — the missing login-attack tool: `bypass` (SQLi/NoSQL/default-cred
+      battery + success detection), `spray`, `brute`, `enum` (user-enum oracle). Bounded,
+      rate-limited, lockout-aware, authorized-only. On _httpcore.
+- [x] knowledge/auth_bypass.md — consolidated: SQLi/NoSQLi login bypass, default/weak creds,
+      logic flaws, forced-browse/BFLA, response/status manipulation, 2FA/MFA bypass, OAuth/SSO
+      abuse, JWT, session fixation, reset abuse, param tampering
+- [x] knowledge/credential_attacks.md — brute/spray/stuffing methodology + cracking
+      (hashcat/john modes, hydra/ffuf for scale, wordlist strategy) + discipline
+- [x] knowledge/backend_discovery.md — DB/engine fingerprint, data-model inference, ORM,
+      internal API/endpoint discovery, SOURCE acquisition (.git dump, source maps, JS bundle,
+      decompile) -> feeds source_aware_review.md
+- [x] wire into SKILL.md, agent, taxonomy, workflow.sh; verify + commit + push
