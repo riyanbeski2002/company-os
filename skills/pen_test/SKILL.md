@@ -44,12 +44,17 @@ stage feeds the next, and skipping recon wastes the whole engagement:
 3. **Confirm** — a probe hit is a *candidate*. Reproduce it independently (the
    per-class validation bar in each knowledge file), ruling out jitter/parser
    quirks/shared pages.
-4. **Exploit / prove** — escalate a confirmed point to the depth the engagement
-   authorizes: `sqlmap` for extraction, `claude-in-chrome` for XSS/auth-flow
-   execution, an OOB callback for blind SSRF. Weaponize past a benign proof
-   (`7*7`, `alert(document.domain)`, a DNS hit) ONLY under explicit exploitation authz.
-5. **Report** — severity-first, every finding tied to a concrete PoC. See the
-   report section below and `agents/pen_test.md`.
+4. **Exploit end-to-end** — a benign proof (`7*7`, `alert(document.domain)`, a DNS
+   hit) is a *candidate, not the deliverable*. For an authorized target, carry it to
+   **demonstrated impact** per `knowledge/exploitation_depth.md`: `sqlmap --dump` a
+   bounded redacted sample, use the forged token to reach the protected resource,
+   return the actual cross-tenant record, extract+validate the SSRF'd cloud creds,
+   steal the session behind the XSS. Discipline is non-negotiable even when authorized:
+   bounded/redacted evidence, non-destructive, reversible, no DoS, no persistence/pivot
+   beyond proof, in-scope only, honor evidence caps. Destructive/DoS/persistent steps
+   are out of scope regardless of authorization.
+5. **Report** — severity-first, every finding tied to its end-to-end impact artifact
+   (not just a PoC). See the report section below and `agents/pen_test.md`.
 
 ### Decision matrix — native vs. engine vs. browser
 
@@ -113,6 +118,7 @@ it to the native tool above, a decision tree, and a per-class validation bar:
 - `data_handling.md` — file upload, path traversal/Zip Slip, CSV formula injection, PDF/image processing, input normalization, ReDoS
 - `client_and_mobile.md` — browser storage/service workers, mobile (storage, exported components, deep links, WebView), desktop/Electron
 - `cve_playbook.md` — specific high-value CVEs the fingerprint should trigger (incl. Next.js CVE-2025-29927); the field-learning capture point
+- `exploitation_depth.md` — **the evidence standard**: carry every confirmed vuln end-to-end to demonstrated (bounded, redacted) impact, not a detection/PoC; per-class "candidate vs. full exploitation"
 - `finding_validation.md` — the meta-skill: counter-evidence (disprove your own finding), honest severity calibration, fix verification — what makes a finding defensible vs. a scanner dump
 - `source_aware_review.md` — white-box source→sink discovery + SAST: instance discipline, control-centric reading, family sweeps
 - `rce.md` — the roads to remote code execution (cmd/deser/SSTI/upload/resolution/SQLi→RCE) + safe benign-proof bar
@@ -259,9 +265,13 @@ companion native probe. Read it to decide native-probe-vs-engine for a class.
 
 ## How this feeds `pen_test`'s report
 
-Every finding should be traceable to a real, demonstrated PoC: a
-`native/*.py` script's output, a `sqlmap`/`nuclei`/`trivy` confirmed
-result, or a `claude-in-chrome`-captured browser exploit — never a
-`knowledge/*.md` citation alone (that's methodology, not evidence). See
-`agents/pen_test.md` for the actual reporting format
-(`SECURITY_REVIEW_PASSED`/`FAILED` with concrete evidence).
+Every finding should carry its **end-to-end impact artifact**, not just a
+detection or a benign PoC (`knowledge/exploitation_depth.md`): the bounded,
+redacted evidence that the chain actually worked — the dumped sample, the
+cross-tenant record read, the credential validated, the action performed, the
+session taken over. Sources: `native/*.py` output, a `sqlmap`/`nuclei`/`trivy`
+confirmed result, `repeater.py` replays, or a `claude-in-chrome`-captured
+exploit — never a `knowledge/*.md` citation alone (methodology, not evidence),
+and never a candidate inflated to "proven." A point that couldn't be carried to
+impact is reported as an explicit `open_proof_gap`. See `agents/pen_test.md` for
+the reporting format (`SECURITY_REVIEW_PASSED`/`FAILED` with concrete evidence).
