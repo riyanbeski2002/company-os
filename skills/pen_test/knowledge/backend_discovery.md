@@ -42,6 +42,44 @@ endpoints.** Recover them:
   authenticated. Then replay/tamper with `repeater.py`. `katana` (JS-aware crawl) does this
   headless at scale (`tooling.md`).
 
+## Breaking through: edge middleware that "returns the app shell for everything"
+
+The recurring hard case (Vercel + Next.js edge middleware + 100%-client-side auth + a
+tenant param that changes the response). **"Backend unreachable" is almost always false.**
+The data is either already in your hand, behind a bypassable middleware, or in a BaaS you
+can hit directly. Work it in this order:
+
+1. **The data is probably already in the 36k shell.** Client-side auth + SSR/RSC means the
+   server rendered the real data and JS just *hides* it. Parse the HTML for `__NEXT_DATA__`
+   and the App-Router flight chunks `self.__next_f.push([...])`; **diff the shell across
+   tenants** — the per-tenant byte/hash delta you see IS tenant data leaking. Extract it.
+2. **Find the real backend — very likely a BaaS.** 100%-client-side auth is the signature
+   of a **Supabase / Firebase / Hasura** app: the login form is cosmetic and real authz is
+   (supposed to be) RLS/rules on the BaaS, which the client hits **directly**. Grep the
+   bundle/source maps for `*.supabase.co` / `firebaseio` / `hasura` URLs + the **anon key**,
+   then hit the BaaS API directly (bypassing Vercel entirely) and test RLS/rules cross-tenant
+   → `multitenancy_and_baas.md`. This is usually where the critical finding is.
+3. **Bypass the middleware — it's the only gate.** CVE-2025-29927 (`x-middleware-subrequest`)
+   and the `.rsc`/segment-prefetch matcher bypass (both in `cve_playbook.md`); RSC requests
+   (`RSC: 1` + `Next-Router-State-Tree`, `?_rsc=1`) that pass flight data through;
+   **Server Actions** (POST a page route with `Next-Action: <id>` from the bundle — often
+   un-gated); and matcher path-normalization gaps (trailing slash, `//`, `%2e`, `.json`/`.rsc`
+   suffix, `/index`, case — `semantic_confusion.md`).
+4. **Weaponize the tenant oracle.** The per-tenant response delta enumerates valid tenants
+   (real vs fake distinguishable) and extracts the tenant-specific content reflected in the
+   shell (`repeater.py diff`, `auth_probe.py enum` mechanics).
+5. **Bypass the client-side gate.** If JS gates the UI (`if(authed) showData()`), flip the
+   `localStorage`/cookie/JS state it checks in `claude-in-chrome` and let the app render the
+   "protected" data itself.
+6. **Recover source, then aim precisely.** Source maps (`/_next/static/**/*.js.map`) →
+   reconstruct the TS, see exactly how the tenant param + data flow work, target the real fetches.
+
+**Mental model:** an edge middleware returning an app shell is a *filter, not an air gap* —
+the backend is reachable via a channel it doesn't gate (RSC / Server Actions / CVE-29927 /
+`.rsc` bypass), the data is in the SSR payload, or the real backend is a BaaS the client
+reaches directly. Client-side auth means there is no server auth boundary to break — you
+just reach where the data actually lives.
+
 ## DB & backend fingerprinting
 
 - **Engine** — from SQLi error strings (`sqli_probe.py` names MySQL/Postgres/MSSQL/Oracle/

@@ -47,6 +47,23 @@ boundary**. Test it directly against the REST (PostgREST) or client SDK:
 - **Storage policies** — the storage bucket has its own policies; an RLS-tight DB
   with an open bucket still leaks files (see storage below and `cloud_and_infra.md`).
 
+**Systematic method (do this, in order):** identify the PostgREST / Auth / Storage
+endpoints (from the bundle + the `*.supabase.co` base); **enumerate the schema** via
+PostgREST (`/rest/v1/` + `?select=*&limit=1` per guessed/known table, OpenAPI at the root)
+to map tables/columns; then **exercise every CRUD verb across both roles — anon vs
+authenticated** — and diff. `RLS enabled but no policy = deny-all` (safe); `RLS disabled`
+or a permissive policy = the bug.
+- **"Ghost Auth" bypass** — many apps allow **self-signup of unconfirmed users**; an
+  unconfirmed-but-authenticated session escapes the `anon` RLS rules and lands in the
+  `authenticated` policies (often far more permissive). Register, don't confirm, retest.
+- **`SECURITY DEFINER` RPCs** — audit every one: a function taking a `user_id`/`tenant_id`
+  arg and reading a table **without checking `auth.uid()` against it** is a *complete* RLS
+  bypass. Call them directly with another tenant's id.
+- **PostgREST parameterization abuse** — embedded resource expansion (`?select=*,other(*)`),
+  operator filters, and `Prefer` headers can pull related rows a naive policy didn't scope.
+- **Edge Functions** — separate Deno functions with their own (often missing) authz; enumerate
+  and test them directly, and check whether they use the **service-role key** (bypasses RLS).
+
 ## Firebase
 
 - **Firestore/RTDB security rules** — `allow read, write: if true;` or overly
