@@ -12,6 +12,9 @@ ok() { command -v "$1" >/dev/null 2>&1 && echo "  [present] $1" || echo "  [MISS
 echo "=== Installing via Homebrew (macOS) ==="
 if command -v brew >/dev/null 2>&1; then
   brew install gitleaks trivy grype syft semgrep || true
+  # network/infra VA depth engines: nmap (service/version + NSE vuln scripts) and
+  # sslscan (companion to native/tls_probe.py). See knowledge/network_va.md.
+  brew install nmap sslscan || true
 else
   echo "  brew not found — install these manually, see https://brew.sh"
 fi
@@ -60,7 +63,8 @@ echo "  Then: docker run -v \$(pwd):/zap/wrk/:rw zaproxy/zap-stable zap-baseline
 echo
 echo "=== Verification ==="
 for t in gitleaks trivy grype syft semgrep checkov prowler jwt cargo docker \
-         arjun xsrfprobe scout graphw00f subfinder httpx katana naabu ffuf feroxbuster subzy nuclei; do ok "$t"; done
+         arjun xsrfprobe scout graphw00f subfinder httpx katana naabu ffuf feroxbuster subzy nuclei \
+         nmap sslscan; do ok "$t"; done
 echo
 echo "Anything MISSING above needs manual install — see each tool's registry"
 echo "entry (config/capability-registry.yaml) for its source repo."

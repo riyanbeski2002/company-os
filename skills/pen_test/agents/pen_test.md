@@ -72,6 +72,10 @@ class-specific probe:
 1. **Recon** — `native/http_recon.py` first (and `port_scan.py` for non-web):
    fingerprint the stack, find exposed artifacts, enumerate the surface. This
    decides what's worth testing. A blind class-sweep with no recon is wasted budget.
+   For a host/infrastructure target (not just a web app), run the network/infra VA:
+   `scripts/workflow.sh infra <host>` chains `port_scan.py` → `service_probe.py`
+   (unauth/misconfig services) → `tls_probe.py` (crypto) → nmap/nuclei (version→CVE).
+   See `knowledge/network_va.md`.
 2. **Triage** — per candidate point, read the matching `knowledge/*.md`, run the
    matching `native/*.py` probe. Parallelize independent classes as Tier-1 subagents.
 3. **Confirm** — a probe hit is a candidate; reproduce it against the per-class
@@ -79,7 +83,11 @@ class-specific probe:
 4. **Prove** — escalate a confirmed point only as far as authorization covers:
    `sqlmap` extraction, `claude-in-chrome` execution proof, OOB callback for
    blind SSRF. Stop at a benign proof unless exploitation is explicitly authorized.
-5. **Report** — as below.
+   **Run every probe with `--evidence-dir <DIR>`** so each proof is captured as a
+   structured `Finding` — a result you didn't persist is a result you can't report.
+5. **Report** — as below, and it is **not optional**: `python3 native/report.py <DIR>`
+   produces the `report.md`/`report.json` deliverable. A finding whose proof is empty
+   is quarantined by the tool and does not count.
 
 ## Capture what you learn
 
@@ -91,6 +99,15 @@ tool, by design). Instead, call it out explicitly in your report/handoff as a
 don't let a hard-won learning die in a scratch file.
 
 ## How you report
+
+**The evidence bundle is the deliverable and it is mandatory.** Every engagement
+runs its probes with `--evidence-dir <DIR>` and ends with
+`python3 native/report.py <DIR>`, producing `report.md` + `report.json`. That
+generated report — not prose, not a probe's raw stdout — is the `--evidence`
+artifact you attach below. The tool quarantines any proof-less candidate, so what
+you report is exactly what you proved with real, benign, source-extracted evidence
+(`knowledge/exploitation_depth.md`). Never hand-write a findings list that the
+tool didn't produce from captured findings.
 
 If tied to a task: same evidence pattern as `security-reviewer`.
 ```

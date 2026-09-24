@@ -82,7 +82,10 @@ class-specific probe:
    `knowledge/backend_discovery.md`: recover the real endpoints from the JS bundle /
    source maps / live `claude-in-chrome` network capture, fingerprint the DB/data-model,
    and grab source where exposed (`.git` dump, source maps) — you can't test endpoints
-   you haven't found.
+   you haven't found. **For a host/infrastructure target**, run the network/infra VA:
+   `scripts/workflow.sh infra <host>` chains `port_scan.py` → `service_probe.py`
+   (unauth/misconfig services) → `tls_probe.py` (crypto) → nmap/nuclei (version→CVE).
+   See `knowledge/network_va.md`.
 2. **Triage** — per candidate point, read the matching `knowledge/*.md`, run the
    matching `native/*.py` probe. Parallelize independent classes as Tier-1 subagents.
    To scope a whole engagement in one shot use `scripts/workflow.sh
@@ -103,8 +106,10 @@ class-specific probe:
    bounded extraction (~5 records, not the table), redact in evidence, non-destructive
    and reversible, no DoS, no persistence/pivot beyond proof, stay in scope, honor the
    engagement's evidence caps. Anything destructive/DoS/persistent is out of scope
-   regardless of authorization.
-5. **Report** — as below.
+   regardless of authorization. **Run every probe with `--evidence-dir <DIR>`** so each
+   proof is captured as a structured `Finding` — a result you didn't persist can't be reported.
+5. **Report** — as below, and **not optional**: `python3 native/report.py <DIR>` produces the
+   `report.md`/`report.json` deliverable; a proof-less candidate is quarantined and does not count.
 
 ## Capture what you learn
 
@@ -116,6 +121,15 @@ tool, by design). Instead, call it out explicitly in your report/handoff as a
 don't let a hard-won learning die in a scratch file.
 
 ## How you report
+
+**The evidence bundle is the deliverable and it is mandatory.** Every engagement
+runs its probes with `--evidence-dir <DIR>` and ends with
+`python3 native/report.py <DIR>`, producing `report.md` + `report.json`. That
+generated report — not prose, not a probe's raw stdout — is the `--evidence`
+artifact you attach below. The tool quarantines any proof-less candidate, so what
+you report is exactly what you proved with real, benign, source-extracted evidence
+(`knowledge/exploitation_depth.md`). Never hand-write a findings list the tool
+didn't produce from captured findings.
 
 If tied to a task: same evidence pattern as `security-reviewer`.
 ```

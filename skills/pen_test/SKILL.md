@@ -54,18 +54,27 @@ stage feeds the next, and skipping recon wastes the whole engagement:
    beyond proof, in-scope only, honor evidence caps. Destructive/DoS/persistent steps
    are out of scope regardless of authorization.
 5. **Report** — severity-first, every finding tied to its end-to-end impact artifact
-   (not just a PoC). See the report section below and `agents/pen_test.md`.
+   (not just a PoC). This is **mandatory and tool-produced**: run every probe with
+   `--evidence-dir <DIR>`, then `python3 native/report.py <DIR>` for the `report.md`/
+   `report.json` deliverable. Proof-less candidates are quarantined, never counted. See
+   the report section below and `agents/pen_test.md`.
 
 ### Decision matrix — native vs. engine vs. browser
 
 | Situation | Reach for |
 |---|---|
 | First contact with any web target | `http_recon.py` |
+| Network/infra VA (host + services) | `workflow.sh infra <host>` → `port_scan.py` + `service_probe.py` + `tls_probe.py` + nmap/nuclei |
+| TLS/SSL crypto assessment | `tls_probe.py <host> [--starttls smtp\|imap\|pop3\|ftp]` |
+| Exposed unauth service (redis/mongo/ES/docker/k8s/...) | `service_probe.py <host> [--snmp]` |
+| Service-version → CVE depth | `nmap -sV --script vuln` + `nuclei -tags network` (refresh feed first) |
 | Detect a vuln class (any injection point) | the matching `native/*.py` probe |
 | Find hidden params before class-probing | `param_probe.py` (then `arjun` for breadth) |
 | CORS / open-redirect / CSRF detection | `cors_probe.py` / `redirect_probe.py` / `csrf_probe.py` |
+| SSTI / cmd-injection / traversal-LFI / XXE / file-upload | `ssti_probe.py` / `cmdi_probe.py` / `traversal_probe.py` / `xxe_probe.py` / `upload_probe.py` |
+| Assemble the engagement deliverable | `report.py <evidence-dir>` (every probe run with `--evidence-dir`) |
 | Confirmed SQLi, need data extraction | `engines/sqlmap/sqlmap.py` |
-| Request smuggling / SSTI / CORS breadth | `engines/` — `smuggler` / `SSTImap` / `Corsy` (see `engines/CATALOG.md`) |
+| Request smuggling / CORS breadth | `engines/` — `smuggler` / `Corsy` (see `engines/CATALOG.md`); SSTI is now native (`ssti_probe.py`) |
 | Known framework/version, want CVE breadth | `nuclei -tags <tech>` (refresh feed first) |
 | Dependency / container / IaC CVEs | `trivy` / `grype` / `checkov` |
 | Cloud posture / subdomain takeover | `prowler`/`scoutsuite` / `subzy` (scope-gated) |
@@ -163,6 +172,14 @@ rate-limiting — pass `-H`, `-b`, `--bearer`, `-k`, `--rate` to any of them:
 - `param_probe.py` — Arjun-style hidden-parameter discovery (reflection + response-diff over
   baseline noise); feeds discovered params to the other probes.
 - `port_scan.py` — concurrent TCP connect scan, service map + weak-default flags.
+- `tls_probe.py` — TLS/SSL VA (network/infra): accepted-protocol test (SSLv3/1.0/1.1),
+  weak-cipher offer-tests + forward-secrecy, certificate (expiry/self-signed/host-mismatch/
+  weak-key/weak-sig/untrusted-chain), STARTTLS, HSTS. Connect-only; prints its own honest
+  limits (Heartbleed/ROBOT/DH-modulus need testssl/nmap). See `network_va.md`.
+- `service_probe.py` — exposed-service VA: benign unauth/misconfig checks for redis, mongodb,
+  elasticsearch, kibana, memcached, ftp-anon, vnc, docker/k8s/kubelet, snmp, rabbitmq(guest),
+  mysql/postgres, smb/rdp negotiate — each verdict requires a positive real-resource payload,
+  captured as evidence. Delegates SMB/Oracle/CVE depth to nmap+nuclei. See `network_va.md`.
 - `secret_scan.py` — 20+ named formats + Shannon-entropy detection, severity-ranked
   (working tree + git history).
 - `repeater.py` — Burp-Repeater-lite: `send` / `raw` (replay a captured request) /
@@ -171,6 +188,30 @@ rate-limiting — pass `-H`, `-b`, `--bearer`, `-k`, `--rate` to any of them:
 - `auth_probe.py` — login/auth-wall attack: `bypass` (SQLi/NoSQL/default-cred battery +
   success detection) / `spray` / `brute` / `enum` (user-enum oracle). Bounded, rate-limited,
   lockout-aware, authorized-only.
+- `ssti_probe.py` — Server-Side Template Injection: evaluation-vs-reflection differential
+  (randomized-operand arithmetic, inert-sibling + numeric controls), engine fingerprint
+  (Jinja2/Twig/Freemarker/Velocity/ERB/Mako/Thymeleaf/Razor), and ONE benign read-only
+  context proof. Detector — RCE escalation is out of scope (`rce.md`).
+- `cmdi_probe.py` — OS command injection: three benign signals — time-based **with scaling
+  confirmation** (rules out WAF tarpit/jitter), split/computed echo marker (reflection can't
+  fake it), and OOB (`--oob-host`). Unix+Windows separators, quote-breakout, `${IFS}`.
+- `traversal_probe.py` — path traversal / LFI: `../` depth-ladder × every bypass encoding
+  (URL/double-URL/overlong-UTF8/`....//`/backslash) against content-signature targets, with a
+  bogus-path baseline; PHP `php://filter` base64 source disclosure; `--prefix`/`--suffix` tuning.
+- `xxe_probe.py` — XXE / XML injection: in-band external-entity file read, inert-canary parser
+  control, XInclude, **JSON→XML content-type flip** (dormant XML parsers), blind OOB with the
+  external-DTD exfil skeleton. Single-level benign entities only — no billion-laughs/DoS.
+- `upload_probe.py` — malicious file upload: accepted-vs-control differential, locate + fetch-
+  back, and the **executed** (computed marker) / **dangerously-served** (SVG/HTML stored-XSS)
+  proof. Benign inert markers only; records URLs for cleanup. Never drops a working webshell.
+
+**Evidence is the deliverable, and it is mandatory.** Run every probe with
+`--evidence-dir <DIR>`; each appends a structured, proof-bearing `Finding` to
+`<DIR>/findings.jsonl`. End the engagement with `python3 native/report.py <DIR>`
+to produce the severity-ranked `report.md` + `report.json`. A finding whose proof
+is empty is **quarantined, not counted** — a bare signal or benign PoC is a
+candidate; only real, source-extracted, benign evidence is a finding
+(`knowledge/exploitation_depth.md`).
 
 Named **workflows** package these into how engagements are scoped —
 `scripts/workflow.sh <recon|webapp|api|owasp> <url> [--depth quick|standard|deep]`

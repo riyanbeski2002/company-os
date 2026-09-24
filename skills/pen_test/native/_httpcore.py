@@ -143,6 +143,7 @@ class Client:
         json: Any = None,
         headers: dict | None = None,
         cookies: dict | None = None,
+        files: Any = None,
         allow_redirects: bool = False,
     ) -> Result:
         last_err = ""
@@ -153,7 +154,7 @@ class Client:
                 resp = self._session().request(
                     method.upper(), url,
                     params=params, data=data, json=json,
-                    headers=headers, cookies=cookies,
+                    headers=headers, cookies=cookies, files=files,
                     timeout=self.timeout, allow_redirects=allow_redirects,
                 )
             except requests.exceptions.Timeout:
@@ -320,3 +321,113 @@ def client_from_args(args: argparse.Namespace) -> Client:
 def require_scheme(url: str) -> None:
     if "://" not in url:
         raise SystemExit("URL must include a scheme (http:// or https://)")
+
+
+# ============================================================================
+# Evidence layer — the mandatory deliverable.
+# ----------------------------------------------------------------------------
+# A pentest is only worth what it can PROVE. Every probe emits structured
+# Findings into a shared evidence directory; `report.py` aggregates them into
+# the severity-ranked deliverable. A finding with no captured proof is a
+# candidate, never a reportable finding (see knowledge/exploitation_depth.md
+# and finding_validation.md). This is enforced downstream by report.py.
+# ============================================================================
+
+import json as _json
+import os as _os
+import hashlib as _hashlib
+from datetime import datetime, timezone
+
+SEVERITIES = ("critical", "high", "medium", "low", "info")
+_SEV_ORDER = {s: i for i, s in enumerate(SEVERITIES)}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+@dataclass
+class Finding:
+    """One structured, evidence-bearing result from a probe.
+
+    `status`:
+      * "candidate"  — a signal fired; not yet independently confirmed.
+      * "confirmed"  — reproduced, counter-evidence ruled out.
+    `proof` is the concrete, benign, REAL evidence (an extracted record, an
+    evaluated marker like 733*733 -> 537289, an OOB callback id). A finding
+    whose proof is empty is not reportable — report.py quarantines it.
+    """
+
+    vuln_class: str
+    title: str
+    severity: str                 # one of SEVERITIES
+    target: str
+    status: str = "candidate"     # candidate | confirmed
+    param: str = ""
+    location: str = ""
+    proof: str = ""               # the real, benign evidence string
+    request: str = ""             # how to reproduce the exact request
+    response_excerpt: str = ""    # bounded, redacted snippet
+    reproduce: str = ""           # exact CLI command to reproduce
+    notes: str = ""
+    tool: str = ""
+
+    def __post_init__(self) -> None:
+        if self.severity not in SEVERITIES:
+            raise ValueError(f"severity must be one of {SEVERITIES}, got {self.severity!r}")
+        if self.status not in ("candidate", "confirmed"):
+            raise ValueError("status must be 'candidate' or 'confirmed'")
+
+    def to_dict(self) -> dict:
+        d = {k: getattr(self, k) for k in (
+            "vuln_class", "title", "severity", "target", "status", "param",
+            "location", "proof", "request", "response_excerpt", "reproduce",
+            "notes", "tool")}
+        return d
+
+
+class EvidenceLog:
+    """Append-only sink: findings.jsonl + saved raw artifacts, under one dir.
+
+    Probes get one via `evidence_from_args(args)`; None when --evidence-dir was
+    not passed (interactive/manual runs still print, they just don't persist).
+    """
+
+    def __init__(self, evidence_dir: str):
+        self.dir = evidence_dir
+        self.artifacts_dir = _os.path.join(evidence_dir, "artifacts")
+        _os.makedirs(self.artifacts_dir, exist_ok=True)
+        self.findings_path = _os.path.join(evidence_dir, "findings.jsonl")
+
+    def _save_artifact(self, vuln_class: str, name: str, content: str) -> str:
+        digest = _hashlib.sha1(content.encode("utf-8", "replace")).hexdigest()[:10]
+        safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in name)[:40]
+        fname = f"{vuln_class}-{safe}-{digest}.txt"
+        path = _os.path.join(self.artifacts_dir, fname)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        return _os.path.relpath(path, self.dir)
+
+    def add(self, finding: "Finding", artifacts: dict[str, str] | None = None) -> dict:
+        rec = finding.to_dict()
+        rec["ts"] = _now_iso()
+        if artifacts:
+            rec["artifacts"] = {
+                name: self._save_artifact(finding.vuln_class, name, content)
+                for name, content in artifacts.items() if content
+            }
+        with open(self.findings_path, "a", encoding="utf-8") as fh:
+            fh.write(_json.dumps(rec, ensure_ascii=False) + "\n")
+        return rec
+
+
+def add_evidence_args(parser: argparse.ArgumentParser) -> None:
+    g = parser.add_argument_group("evidence (shared)")
+    g.add_argument("--evidence-dir", metavar="DIR",
+                   help="persist structured findings + artifacts here for report.py "
+                        "(the mandatory engagement deliverable)")
+
+
+def evidence_from_args(args: argparse.Namespace) -> Optional["EvidenceLog"]:
+    d = getattr(args, "evidence_dir", None)
+    return EvidenceLog(d) if d else None
