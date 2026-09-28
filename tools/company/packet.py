@@ -54,6 +54,22 @@ from pathlib import Path
 # a task doing too many DIFFERENT things, but a mechanical sweep across N files
 # is one thing done N times. 3500 admits that case and still refuses genuinely
 # fat ones.
+#
+# RAISED 3500 -> 3800 on 23 Sep 2026, another explicit loan — Riyan: "raise
+# and bring it back later" — to unblock CI-ROLE-ATTRIBUTION's gate packet
+# (~3733 tokens: a small, tightly-scoped diff routing one already-identified
+# identity-ambiguity case to the review queue, but with 3 accumulated review
+# rounds' worth of gates_failed history baked in). REPAID 24 Sep 2026:
+# CI-ROLE-ATTRIBUTION merged (PR #321, commit 02a0883), loan restored to 3500.
+#
+# RAISED 3500 -> 3800 -> 5100 on 28 Sep 2026, same loan terms — Riyan
+# (ESC-033, resolve-os): "raise and once done bring it back". resolve-os's
+# TASK-255 measured ~4929-4956 tokens even with a near-empty --why (the
+# packet's diff + accumulated gates_failed history dominates, not the
+# brief), and TASK-259 ~3997-4036. REPAID 28 Sep 2026: both tasks passed
+# review+qa+security and were merged via `company integrate`
+# (TASK-255 -> 5a5236c, TASK-259 -> 1d4d41e, both into the `integration`
+# branch), so the loan's purpose is done. Restored to 3500.
 TOKEN_BUDGET = 3500
 CHARS_PER_TOKEN = 4  # rough, deliberately conservative
 
