@@ -70,6 +70,15 @@ from pathlib import Path
 # review+qa+security and were merged via `company integrate`
 # (TASK-255 -> 5a5236c, TASK-259 -> 1d4d41e, both into the `integration`
 # branch), so the loan's purpose is done. Restored to 3500.
+#
+# RAISED again to 5100 later the same day (28 Sep 2026), same loan terms —
+# Riyan, direct and explicit: "raise for 243 and then bring it back again
+# once done" — for resolve-os's TASK-243 (~5029-5099 tokens, same shape:
+# several accumulated review rounds since 7-9 Sept, not fresh scoping).
+# REPAID 28 Sep 2026: TASK-243 passed review+qa+security (security re-run
+# fresh against the actual credential-safety fix, not the stale pre-fix
+# pass) and merged via `company integrate` (commit 89ca9e2, into the
+# `integration` branch). Restored to 3500.
 TOKEN_BUDGET = 3500
 CHARS_PER_TOKEN = 4  # rough, deliberately conservative
 
