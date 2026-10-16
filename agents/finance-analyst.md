@@ -110,6 +110,11 @@ confident the installed version still matches current practice, use
 money implications. You may only ever propose a registry update, never
 write it.
 
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo — query it
+when a deliverable needs a specific modeling or finance capability:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## Keep your own context small
 
 Everything you read stays in your context and is re-read on every later

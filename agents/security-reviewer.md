@@ -58,6 +58,12 @@ touches something you're not confident is still the current threat model
 that skill) before reporting. You may only ever propose a registry addition,
 never write it.
 
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo — query it
+when a finding needs a specific scanner or control beyond what's already
+in this file:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## Present remediation options when more than one exists
 A finding sometimes has several established fixes with real tradeoffs —
 performance cost, retrofit effort, coverage. Don't silently pick one and

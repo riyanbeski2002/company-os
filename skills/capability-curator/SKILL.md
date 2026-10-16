@@ -136,10 +136,21 @@ That is not a proposal, it is homework handed back.
 
 ## How a skill actually gets loaded, once approved
 
-Most external skill repos in `capability-registry.yaml` are installed the
-same way, via `vercel-labs/skills` (T2, MIT, itself registered) — the CLI
-behind the `npx skills add <owner>/<repo>` command referenced elsewhere in
-this repo:
+**Check `local_path` on the registry entry first.** Most entries now carry
+one (2026-10-16 sweep) — it means the repo is already shallow-cloned under
+`$CLAUDE_PLUGIN_ROOT/external/<id>/`, no install step needed: read, run, or
+build on top of it directly. `tools/sync_external_capabilities.py` keeps
+these current (`--check` to report staleness without changing anything);
+`tools/repoint_to_fork.py --all` switches a clone's remote to its fork once
+`forked_to` lands (fork creation can lag behind the clone — see
+`external/README.md`). An entry without `local_path` yet just hasn't been
+synced — run `tools/sync_external_capabilities.py <id>` rather than treating
+its absence as "not available."
+
+For an entry with no `local_path` and no `forked_to` either, or for one-off
+use outside this repo, the older mechanism still works: via
+`vercel-labs/skills` (T2, MIT, itself registered) — the CLI behind the
+`npx skills add <owner>/<repo>` command referenced elsewhere in this repo:
 
 ```
 npx skills add <owner>/<repo>              # installs it

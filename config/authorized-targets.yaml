@@ -1,0 +1,23 @@
+# Authorized VAPT targets
+# Each entry is explicitly approved by the stakeholder listed
+
+- target: "*.hyperverge.space"
+  subdomain_wildcard: true
+  depth: standard
+  scope:
+    - frontend
+    - backend
+    - auth
+    - api
+    - database
+    - storage
+    - infrastructure
+  approved_by: riyan.b@hyperverge.co
+  date: 2026-09-24
+  constraints:
+    - read_only_impact_proof_only
+    - bounded_extraction_with_redaction
+    - no_persistence_or_pivoting
+    - no_dos
+    - reversible_changes_only
+  engagement_type: comprehensive_e2e_vapt

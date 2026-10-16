@@ -108,6 +108,12 @@ generator worth reaching for when the task is establishing a new design
 system from scratch — not for a flow you're specifying inside a product
 that already has one.
 
+That's not the whole catalog —
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo. Query it
+when a flow needs a specific design capability beyond the one named above:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## Keep your own context small
 
 Everything you read stays in your context and is re-read on every later turn,

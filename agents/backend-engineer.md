@@ -72,6 +72,12 @@ update), fall back immediately: `company session ping --target <tmux-target>
   Not a tool to install, a standard to hold yourself to — it's the same
   spirit as "no temporary fixes, find the root cause" above, just concrete
   enough to check your own diff against.
+- `multica-ai/andrej-karpathy-skills` (T3 — no owner-declared license, real
+  flagged-stars caveat noted in its registry entry — the content itself is a
+  short, concrete CLAUDE.md on LLM-coding pitfalls) adds: state assumptions
+  instead of guessing, touch only what the request requires, and define a
+  verifiable success criterion before looping on a fix. Same treatment as
+  `ponytail` — a standard, not an install.
 - Do not claim something works without having run it. Your `TEST_RUN` exit code
   is checked by the state machine; a task cannot reach DONE without a green one
   and an independent review.

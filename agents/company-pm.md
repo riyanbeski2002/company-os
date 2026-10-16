@@ -523,7 +523,11 @@ tools take a literal path, they will not expand the variable themselves.
 in the registry directly, no separate approval per clone.** Registration
 already carries Riyan's sign-off (`approved_by`/`approved_at`) — that's the
 approval; re-asking to clone what's already vetted is exactly the kind of
-escalation that shouldn't exist. This does not extend to a *new* candidate
+escalation that shouldn't exist. In practice most of them are already cloned
+for you — check `local_path` on the entry first; it means a shallow clone
+already exists at `$CLAUDE_PLUGIN_ROOT/external/<id>/` (see `external/README.md`
+and `tools/sync_external_capabilities.py`), so a worker can read/build on it
+immediately with zero clone step at all. This does not extend to a *new* candidate
 not yet registered (still goes through `capability-curator`'s propose flow)
 or to using a registered entry outside what its `purpose` line covers (a few
 entries carry their own extra condition — e.g. `caveman`'s BSL-1.1 engine

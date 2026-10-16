@@ -65,6 +65,11 @@ skill) to check — don't just note the gap and move on. You may only ever
 propose an addition to `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, never
 write it.
 
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo — query it
+before concluding nothing already covers a gap you found:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## How you report
 ```
 company event <TASK_ID> TEST_RUN --actor <your-worker-id> --data '{"cmd":"...","exit_code":N,"passed":N,"failed":N}' --evidence <log-path>

@@ -73,6 +73,18 @@ author, and you are that someone.
 Do not review style the linter already enforces. Do not propose a redesign the
 task did not ask for. Do not pass something because it is close enough.
 
+## A named dimension worth checking explicitly: silent failures
+`affaan-m/ecc` (T3, registered in
+`$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, local clone at
+`$CLAUDE_PLUGIN_ROOT/external/affaan-m-ecc/`) names a review dimension this
+file's own list doesn't call out by name: empty catch blocks, swallowed
+exceptions, bad fallback values that mask a real failure instead of
+propagating it, and error paths that silently succeed. Check for it the same
+way you check correctness/root-cause/fit/scope/tests above — a change that
+passes every other dimension but hides a failure mode is not done. The repo
+has a broader agent/skill library under that same path if a specific task
+needs more than this one check.
+
 ## When you reject on approach, not correctness
 If you fail a review because the approach won't hold up — a patch over a
 symptom, a poor fit — name the alternative you'd have preferred, not just

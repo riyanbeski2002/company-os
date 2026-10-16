@@ -115,6 +115,7 @@ def ensure_worktree(repo: Path, company_root: Path, task: dict) -> tuple[Path, s
         raise WorkerError(f"git worktree add failed: {r.stderr.strip()}")
 
     _copy_worktree_includes(repo, wt)
+    _link_loaded_skills(repo, wt)
     return wt, branch
 
 
@@ -145,6 +146,36 @@ def _copy_worktree_includes(repo: Path, wt: Path) -> None:
                 dst = wt / src.relative_to(repo)
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(src.read_bytes())
+
+
+def _link_loaded_skills(repo: Path, wt: Path) -> None:
+    """Carry currently-`load`ed capability skills (tools/capability.py) into
+    the worktree, same reasoning as _copy_worktree_includes: Claude Code's own
+    skill-discovery scans the *worktree's* skills/, not the main checkout's,
+    so a worker otherwise can't see a skill loaded in the main checkout even
+    though it CAN already read anything under external/ (that's resolved via
+    $CLAUDE_PLUGIN_ROOT, which always points at the main checkout regardless
+    of worktree — see agents/company-pm.md).
+
+    skills/<id> entries created by `capability.py load` are symlinks into
+    external/<id>/... (itself gitignored, main-checkout-only); we recreate
+    the same symlink, pointing at the *main repo's* absolute path, so the
+    worktree doesn't need its own external/ clone.
+    """
+    src_skills = repo / "skills"
+    if not src_skills.is_dir():
+        return
+    dst_skills = wt / "skills"
+    for entry in src_skills.iterdir():
+        if not entry.is_symlink():
+            continue  # vendored real skills (e.g. skills/claudedesignskills/) are
+                      # tracked in git and already present via the worktree checkout
+        target = entry.resolve()
+        dst = dst_skills / entry.name
+        if dst.exists() or dst.is_symlink():
+            continue
+        dst_skills.mkdir(parents=True, exist_ok=True)
+        dst.symlink_to(target)
 
 
 # --- launch -----------------------------------------------------------------
