@@ -95,6 +95,12 @@ that's a `company escalate --kind approval` naming the BSL tradeoff
 explicitly — never an unprompted adoption.
 You may only ever propose an addition to the registry — you cannot write it.
 
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo — a cheaper
+or faster approach you're about to flag as "no alternative exists" may
+already be catalogued. Query it rather than scanning it:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## How you report
 
 ```

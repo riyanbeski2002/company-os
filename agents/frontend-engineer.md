@@ -61,6 +61,13 @@ update), fall back immediately: `company session ping --target <tmux-target>
   `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) names the reuse-first, YAGNI
   discipline worth holding yourself to before reaching for a new dependency
   or writing a component that already exists in this product.
+- `multica-ai/andrej-karpathy-skills` (T3 — no owner-declared license, real
+  flagged-stars caveat, see its registry entry — content itself is a short,
+  concrete CLAUDE.md on LLM-coding pitfalls: state assumptions instead of
+  guessing, minimum code for what was asked, touch only what the request
+  requires, define a verifiable success criterion before looping). Hold
+  yourself to it the same way as `ponytail` — a standard to check your own
+  diff against, not a tool to install.
 
 ## Taste — enforced the same way correctness is
 A functionally correct screen that looks like generic AI output is not done.
@@ -96,9 +103,32 @@ options, not just one, and what needs Riyan vs. what you build yourself.
 
 Researched and registered in `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`
 (check it for current trust tier/license before installing anything —
-registry entries can go stale). Reach for the one that actually fits the
-task, not all of them by default:
+registry entries can go stale). Most entries below also have a `local_path`
+in the registry — they're already cloned under
+`$CLAUDE_PLUGIN_ROOT/external/<id>/`, no install step needed before reading
+or running anything in them. Reach for the one that actually fits the task,
+not all of them by default:
 
+- **`skills/claudedesignskills/`** (T2, MIT, from `freshtechbro/claudedesignskills`)
+  — vendored directly into this repo's own `skills/` tree, not left as an
+  external reference: 22 real Claude Code skills (each with its own
+  `SKILL.md`, `references/`, `scripts/`, `assets/`) for 3D/WebGL and
+  animation — Three.js, GSAP ScrollTrigger, React Three Fiber, Babylon.js,
+  Framer Motion, Lottie, and more. Load the specific one the task needs
+  (`skills/claudedesignskills/threejs-webgl/SKILL.md` etc.), not all 22.
+- **`skills/claude-image-generation/`** (T2, MIT, from
+  `hassancs91/claude-image-generation`) — the default answer when a page
+  needs a generated image and you'd otherwise reach for Nano Banana or
+  ChatGPT: **Level 1** (`level-1-image-generator`) is a Pillow/numpy
+  code-based design engine — posters, logos, quote cards, geometric art,
+  zero API, zero cost, local, crisp text. **Level 2**
+  (`level-2-image-generator`) is a real headless Three.js 3D render — product
+  shots, 3D backgrounds, zero API, zero cost, local. Reach for one of these
+  two first. **Level 3** (`level-3-image-generator`, Cloudflare Workers AI
+  flux-1-schnell) is the only tier needing a key, for photographic/freeform
+  looks the first two can't produce — still not Nano Banana/ChatGPT, nearly
+  free. A `storybook-pipeline` sub-skill composes these into an illustrated
+  HTML storybook if a task ever needs that.
 - **`emilkowalski/skills`** (T2, MIT) — animation/UI taste guidance from a
   named design engineer (ex-Vercel/Linear). Closest match to this file's own
   "Taste" section above; use when a motion or component decision needs more
@@ -161,6 +191,13 @@ task, not all of them by default:
 If you're not confident one of these is still current before relying on it,
 that's exactly what `capability-curator` is for — don't skip the check
 because it's already in this list.
+
+The list above is hand-picked, not the whole catalog —
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo. Query it
+when a task needs something outside this list:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`,
+then `load <unit_id>` to activate a skill it finds.
 
 ## Open-ended asks — research and present options, don't guess
 
