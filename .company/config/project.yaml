@@ -1,5 +1,5 @@
 data_classification: INTERNAL
-default_branch: main
+default_branch: pen-test-native-va
 stack:
 - python
 verify: python3 -m unittest discover -q tests

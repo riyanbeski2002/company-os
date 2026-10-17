@@ -101,13 +101,27 @@ options, not just one, and what needs Riyan vs. what you build yourself.
 
 ## External skills worth reaching for
 
+**Invoke `component-customization` before building any hero section, card
+grid, nav, pricing table, scroll effect, or other common UI pattern from
+scratch.** It has the full library-to-job table and the restyle discipline
+that keeps a reused component from shipping with its demo look — this repo
+has 15+ registered component/animation libraries that get cloned and then
+not actually reached for; that skill exists specifically to close that gap.
+If the task hands you a reference (a site, a screenshot, a competitor's
+section) to work from rather than a blank brief, invoke `capture-and-tailor`
+first instead — it routes to the right capture tool and enforces the
+grammar-only/no-photocopy discipline before you build anything.
+
 Researched and registered in `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`
 (check it for current trust tier/license before installing anything —
 registry entries can go stale). Most entries below also have a `local_path`
 in the registry — they're already cloned under
 `$CLAUDE_PLUGIN_ROOT/external/<id>/`, no install step needed before reading
 or running anything in them. Reach for the one that actually fits the task,
-not all of them by default:
+not all of them by default — and combine more than one within a single
+build when the task genuinely needs it (a component library for structure,
+`darkroomengineering/lenis` for scroll feel, GSAP ScrollTrigger for what
+happens as it scrolls, is a normal combination, not over-engineering):
 
 - **`skills/claudedesignskills/`** (T2, MIT, from `freshtechbro/claudedesignskills`)
   — vendored directly into this repo's own `skills/` tree, not left as an
@@ -187,6 +201,20 @@ not all of them by default:
   component code. Use Dribbble searches (if you use them at all) purely as
   visual inspiration in the options-research step above, the same way you'd
   look at any reference site — never scrape or copy an asset from it.
+- **`darkroomengineering/lenis`** (T1, MIT) — the industry-standard
+  smooth-scroll library, from a well-known agency, 4+ years maintained. Use
+  for the scroll-physics layer itself; pair with GSAP ScrollTrigger or
+  `scroll-animation` for what triggers as the page scrolls.
+- **`img2threejs/img2threejs`** (T2, Apache-2.0) — rebuilds an object from a
+  reference image as a code-only, procedural Three.js model (no mesh
+  downloads). Use when a task hands you a photo of an object and wants a
+  tailored 3D version of it, not a stock asset.
+- **`google-labs-code/stitch-sdk`** + **`stitch-skills`** (T2, Apache-2.0,
+  official Google Labs) — generates a UI screen from a text prompt and
+  extracts its real HTML + screenshot programmatically. Real dependency:
+  needs a billed `STITCH_API_KEY`, not free/local — reach for this when a
+  task specifically wants Stitch's generated screens, not as a default UI
+  generator.
 
 If you're not confident one of these is still current before relying on it,
 that's exactly what `capability-curator` is for — don't skip the check

@@ -634,6 +634,10 @@ def cmd_run(args):
             argv += ["--force"]
         if args.max_concurrent:
             argv += ["--max-concurrent", str(args.max_concurrent)]
+        if args.model:
+            argv += ["--model", args.model]
+        if args.effort:
+            argv += ["--effort", args.effort]
 
         state = root / "state" / "workers" / actor
         state.mkdir(parents=True, exist_ok=True)
@@ -663,7 +667,9 @@ def cmd_run(args):
 
     try:
         result = worker_mod.launch(repo, root, task, body, args.role, actor,
-                                   timeout=args.timeout)
+                                   timeout=args.timeout,
+                                   model_override=args.model, effort_override=args.effort,
+                                   override_reason=args.why)
     except worker_mod.WorkerError as exc:
         slots.release(slot)
         die(str(exc), 1)
@@ -1540,6 +1546,11 @@ def build_parser():
     rn.add_argument("--max-concurrent", type=int,
                     help="override the concurrency cap from budgets.yaml")
     rn.add_argument("--verify", help="override the configured verify command")
+    rn.add_argument("--model", help="override staffing.yaml's tier policy model for this "
+                                     "launch only (e.g. opus) -- requires --why, recorded "
+                                     "in WORKER_STARTED as a policy_override, D11")
+    rn.add_argument("--effort", help="override staffing.yaml's tier policy effort for this "
+                                      "launch only -- requires --why, recorded the same way")
     rn.add_argument("--detach", action="store_true",
                     help="return immediately; the worker survives the calling turn "
                          "(required when launching from a `claude -p` PM)")

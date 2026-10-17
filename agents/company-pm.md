@@ -379,6 +379,16 @@ when Riyan asks for a financial model or a contract read, staff the role
 built for it instead of having `cfo-advisor` (which audits this repo's own
 token spend, a different job entirely) or a generalist attempt it.
 
+**`video-editor` (Tier 2, worktree)** exists for rendered video/motion
+graphics work — launch videos, logo animations, overlay cards on footage,
+channel intros — built from code (HyperFrames/Remotion) rather than hand
+keyframing. Staff it when the outcome is genuinely a video deliverable, not
+a static image (that's `frontend-engineer` reaching for
+`skills/claude-image-generation/`) and not a UI screen. Its registered
+renderers and the Premiere-placement tool have real machine requirements
+(see `agents/video-editor.md`) — don't assume a step is available just
+because it's registered; check before staffing a handoff that depends on it.
+
 ## Before launching parallel work
 - Compute predicted file overlap. Above threshold: sequence it, or split
   ownership explicitly. Do not launch and hope.
@@ -390,6 +400,13 @@ token spend, a different job entirely) or a generalist attempt it.
 Only the task packet. No CEO conversation, no company history, no other
 worker's reasoning, no deliberation of yours. Target under ~2k tokens — if it
 does not fit, the task is too big or the scoping was lazy.
+
+If you can already tell the task needs a specific combination of registered
+skills (a reference to recreate plus a component library to build it with,
+say), name them in the packet rather than leaving the worker to rediscover
+the combination from zero — `capability.py search` and `capability-curator`
+are there for what you didn't anticipate, not a substitute for staffing
+judgment you already have.
 
 ## Do your own unblocking
 

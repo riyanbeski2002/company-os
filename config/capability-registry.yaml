@@ -89,6 +89,7 @@ entries:
     purpose: "Animation/UI taste guidance for frontend-engineer — named design engineer (ex-Vercel/Linear), directly matches the existing 'Taste' standard in that agent file."
     trust_tier: T2
     source: "https://github.com/emilkowalski/skills"
+    forked_to: "https://github.com/riyanbeski2002/test-fork-check"
     local_path: "external/emilkowalski-skills"
     license: MIT
     approved_by: riyan
@@ -185,6 +186,7 @@ entries:
     purpose: "Second video option kept alongside hyperframes on Riyan's explicit instruction ('doesn't kill to have 2 options') rather than dropped as redundant. React-composition-based (vs. hyperframes' plain HTML) — reach for this specifically when the video needs React component reuse; hyperframes otherwise. Weaker trust than hyperframes: no declared license at the skills-repo level (the underlying Remotion framework itself is MIT, but these skill files have no license field) — confirm license before relying on it for anything redistributed."
     trust_tier: T3
     source: "https://github.com/remotion-dev/skills"
+    forked_to: "https://github.com/riyanbeski2002/skills"
     local_path: "external/remotion-dev-skills"
     license: "none declared on this repo (Remotion framework itself is MIT)"
     approved_by: riyan
@@ -199,6 +201,7 @@ entries:
     purpose: "Anti-slop frontend guidance for frontend-engineer's existing Taste standard — more directly on-point than emilkowalski/skills for this specific standard. Real sponsors (Emil Kowalski/animations.dev, IMG.LY)."
     trust_tier: T2
     source: "https://github.com/Leonxlnx/taste-skill"
+    forked_to: "https://github.com/riyanbeski2002/taste-skill"
     local_path: "external/leonxlnx-taste-skill"
     license: MIT
     approved_by: riyan
@@ -218,6 +221,7 @@ entries:
     purpose: "Reuse-first/YAGNI discipline for backend-engineer and frontend-engineer — names precisely what 'no temporary fixes, find the root cause' already asks for. A standard to hold to, not a tool to install."
     trust_tier: T2
     source: "https://github.com/DietrichGebert/ponytail"
+    forked_to: "https://github.com/riyanbeski2002/ponytail"
     local_path: "external/dietrichgebert-ponytail"
     license: MIT
     approved_by: riyan
@@ -228,6 +232,7 @@ entries:
     purpose: "Real, engagement-weighted (not editorial) research signal for cto-advisor's 'research before you recommend' — use for genuine current-consensus questions, not routine technical facts."
     trust_tier: T2
     source: "https://github.com/mvanhorn/last30days-skill"
+    forked_to: "https://github.com/riyanbeski2002/last30days-skill"
     local_path: "external/mvanhorn-last30days-skill"
     license: MIT
     approved_by: riyan
@@ -238,6 +243,7 @@ entries:
     purpose: "Optional AI-writing-tell removal for finance-analyst's investor-facing prose (pitch deck narrative only, never the numbers). Explicitly excluded from legal-analyst — precision beats readability on a clause flag, and a rewrite risks shifting what a flag actually says."
     trust_tier: T2
     source: "https://github.com/blader/humanizer"
+    forked_to: "https://github.com/riyanbeski2002/humanizer"
     local_path: "external/blader-humanizer"
     license: MIT
     approved_by: riyan
@@ -248,6 +254,7 @@ entries:
     purpose: "Anthropic's own public reference repo for Agent Skills patterns. Reference source for writing a new company-os skill (pairs with superpowers:writing-skills), not something to fork or adopt wholesale — some contents (docx/pdf/pptx/xlsx generators) are source-available, not open source."
     trust_tier: T1
     source: "https://github.com/anthropics/skills"
+    forked_to: "https://github.com/riyanbeski2002/skills-1"
     local_path: "external/anthropics-skills"
     license: "Apache-2.0 (most); source-available for some doc-generation skills — check per-skill"
     approved_by: riyan
@@ -258,6 +265,7 @@ entries:
     purpose: "Copywriting/SEO/CRO/growth skills. No owning agent — Company OS has no marketing role today. Registered as known-available if that need arises, not force-fit onto an existing role."
     trust_tier: T2
     source: "https://github.com/coreyhaines31/marketingskills"
+    forked_to: "https://github.com/riyanbeski2002/marketingskills"
     local_path: "external/coreyhaines31-marketingskills"
     license: MIT
     approved_by: riyan
@@ -276,6 +284,7 @@ entries:
     purpose: "165+ animated React components for frontend-engineer, complementing shadcn/taste-skill for polished motion beyond base Tailwind."
     trust_tier: T2
     source: "https://github.com/DavidHDev/react-bits"
+    forked_to: "https://github.com/riyanbeski2002/react-bits"
     local_path: "external/davidhdev-react-bits"
     license: "MIT + Commons Clause (per repo's own claim — GitHub's detector shows NOASSERTION, could not independently confirm the LICENSE file; verify before any commercial redistribution of the component code itself)"
     approved_by: riyan
@@ -286,6 +295,7 @@ entries:
     purpose: "De facto standard accessible React component baseline for frontend-engineer. Not Anthropic — T2, corrected from the research pass's mistaken T1 claim."
     trust_tier: T2
     source: "https://github.com/shadcn-ui/ui"
+    forked_to: "https://github.com/riyanbeski2002/ui"
     local_path: "external/shadcn-ui-ui"
     license: MIT
     approved_by: riyan
@@ -296,6 +306,7 @@ entries:
     purpose: "Lightweight dependency-free product-tour/onboarding library for frontend-engineer. Confirmed legitimate: kamranahmedse/driver.js transparently redirects to this repo via the real GitHub API (ownership transfer, not an impostor fork)."
     trust_tier: T1
     source: "https://github.com/nilbuild/driver.js"
+    forked_to: "https://github.com/riyanbeski2002/driver.js"
     local_path: "external/nilbuild-driverjs"
     license: MIT
     approved_by: riyan
@@ -306,6 +317,7 @@ entries:
     purpose: "Composable React primitives for AI chat UIs (Thread, Message, Composer) for frontend-engineer, when a task specifically needs an LLM chat interface."
     trust_tier: T2
     source: "https://github.com/assistant-ui/assistant-ui"
+    forked_to: "https://github.com/riyanbeski2002/assistant-ui"
     local_path: "external/assistant-ui-assistant-ui"
     license: MIT
     approved_by: riyan
@@ -316,6 +328,7 @@ entries:
     purpose: "Pre-built marketing-page blocks (hero/pricing/CTA) for frontend-engineer/product-designer, built on shadcn. Marketing sites only — skip for internal tools/dashboards."
     trust_tier: T2
     source: "https://github.com/tailark/blocks"
+    forked_to: "https://github.com/riyanbeski2002/blocks"
     local_path: "external/tailark-blocks"
     license: MIT
     approved_by: riyan
@@ -335,6 +348,7 @@ entries:
     purpose: "Explicitly educational security-training reference (Omar Santos) for security-reviewer/ciso-advisor — training material, not an attack toolkit."
     trust_tier: T2
     source: "https://github.com/The-Art-of-Hacking/h4cker"
+    forked_to: "https://github.com/riyanbeski2002/h4cker"
     local_path: "external/theartofhacking-h4cker"
     license: MIT
     approved_by: riyan
@@ -345,6 +359,7 @@ entries:
     purpose: "Web-scraping framework with built-in bot-protection bypass (Cloudflare Turnstile, TLS fingerprint spoofing). Real dual-use concern — its stealth features are designed to evade a site's own anti-bot protections, not just scrape efficiently. Reference only: if it shows up in a diff, security-reviewer verifies target authorization/robots.txt/ToS before it's treated as legitimate, same as sqlmap."
     trust_tier: T3
     source: "https://github.com/D4Vinci/Scrapling"
+    forked_to: "https://github.com/riyanbeski2002/Scrapling"
     local_path: "external/d4vinci-scrapling"
     license: "BSD-3-Clause"
     approved_by: riyan
@@ -355,6 +370,7 @@ entries:
     purpose: "AI website-to-Next.js generator for frontend-engineer. Own-site migration/recovery ONLY — the project's own docs explicitly prohibit cloning a site you don't own or have written permission for (impersonation/phishing risk); require documented ownership/permission before use, same bar as any authorized-use tool here."
     trust_tier: T2
     source: "https://github.com/JCodesMore/ai-website-cloner-template"
+    forked_to: "https://github.com/riyanbeski2002/ai-website-cloner-template"
     local_path: "external/jcodesmore-ai-website-cloner-template"
     license: MIT
     approved_by: riyan
@@ -365,6 +381,7 @@ entries:
     purpose: "Unified multi-LLM-provider gateway (100+ providers, cost tracking, load balancing) for cto-advisor, when a project genuinely needs provider routing/redundancy — a real gap Company OS's own architecture doesn't cover."
     trust_tier: T2
     source: "https://github.com/BerriAI/litellm"
+    forked_to: "https://github.com/riyanbeski2002/litellm"
     local_path: "external/berriai-litellm"
     license: "MIT (core); enterprise/ subdirectory has a separate commercial license"
     approved_by: riyan
@@ -375,6 +392,7 @@ entries:
     purpose: "Five-phase (idea->PRD->tech design->code) pre-planning workflow for company-pm's 'Disambiguate a vague outcome' step — complementary to company-os's own staffing pipeline, not competing with it."
     trust_tier: T2
     source: "https://github.com/KhazP/vibe-coding-prompt-template"
+    forked_to: "https://github.com/riyanbeski2002/vibe-coding-prompt-template"
     local_path: "external/khazp-vibe-coding-prompt-template"
     license: MIT
     approved_by: riyan
@@ -729,3 +747,213 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-16"
     checked_at: "2026-10-16"
+  - id: hetpatel-11-adobe-premiere-pro-mcp
+    type: tool
+    purpose: "Local MCP bridge for Adobe Premiere Pro (283 tools behind search_tools/invoke_tool) — lets Claude place a rendered motion-graphics clip directly onto a real Premiere timeline (new sequence, never the user's existing edit) instead of a human doing it by hand. REAL REQUIREMENT, not smoothed over: needs Node.js 20+ AND a licensed local Adobe Premiere Pro 2020+ install on the SAME machine as the MCP client, plus the CEP bridge panel running inside Premiere — this is not installed or usable on this machine today (no Premiere found), so video-editor should treat it as available only on a machine that actually has Premiere, not assume it's wired up. UXP support is explicitly experimental per the project's own README; CEP is the supported path."
+    trust_tier: T2
+    source: "https://github.com/hetpatel-11/adobe_premiere_pro_mcp"
+    local_path: "external/hetpatel-11-adobe-premiere-pro-mcp"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: diffusionstudio-core
+    type: tool
+    purpose: "Browser-based video compositing engine powered by WebCodecs (declarative timeline, layering, captions, keyframing, transitions) — a real alternative render path to HyperFrames/Remotion for video-editor, from the official diffusionstudio org (1,249 stars, 145 forks, active). Use when a task wants in-browser/WebCodecs compositing specifically rather than an HTML+GSAP or React-component composition."
+    trust_tier: T2
+    source: "https://github.com/diffusionstudio/core"
+    local_path: "external/diffusionstudio-core"
+    license: MPL-2.0
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: diffusionstudio-editor
+    type: tool
+    purpose: "\"The VS Code of video editing, built for agents\" — TypeScript editor from the same official diffusionstudio org as diffusionstudio-core, pairs with it. 3,330 stars/305 forks and actively pushed (checked same day) — real traction, not inflated (official org with an established prior release, unlike the fake-star repos flagged elsewhere in this registry). diffusionstudio/agent (a separate, stale Python agentic-editing framework from the same org, last pushed Feb 2025) was evaluated and deliberately not added — lower priority, no recent maintenance."
+    trust_tier: T2
+    source: "https://github.com/diffusionstudio/editor"
+    local_path: "external/diffusionstudio-editor"
+    license: MPL-2.0
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: fishaudio-fish-audio-plugin
+    type: tool
+    purpose: "Official Fish Audio plugin (confirmed real: the fishaudio GitHub org's own blog link resolves to fish.audio) bundling the remote Fish Audio MCP connector (speech generation, voice cloning, transcription) plus skills teaching the workflow. REAL CAVEAT: this is a remote OAuth-authenticated cloud service, not a local/self-hosted model — audio generation requests leave the machine. Per the video that surfaced this (2026-10), Fish Audio's S2.1 Pro tier was free with no usage cap only through November 2026 — verify current pricing/terms before relying on it for anything beyond evaluation. Genuinely a different capability (voice/TTS for a video's narration) than the image-generation independence goal elsewhere in this registry, not a vendor-swap of it."
+    trust_tier: T2
+    source: "https://github.com/fishaudio/fish-audio-plugin"
+    local_path: "external/fishaudio-fish-audio-plugin"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: magicpathai-agent-skills
+    type: reference
+    purpose: "Agent Skills for MagicPath (an infinite-canvas UI design tool) from the official MagicPathAI org. REAL CAVEAT: no license file declared (treat as all-rights-reserved until confirmed otherwise) AND the underlying MagicPath canvas itself is a paid remote SaaS, not self-hosted — the skill connects an agent to that cloud service, it doesn't replace it. Useful for pulling a project's real brand/UI assets into a video-editor build when the project actually uses MagicPath; not something to adopt as infrastructure. Reference-only, no owning agent."
+    trust_tier: T3
+    source: "https://github.com/magicpathai/agent-skills"
+    local_path: "external/magicpathai-agent-skills"
+    license: "none declared — treat as all-rights-reserved until confirmed otherwise"
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: sunwood-ai-labs-hyperframes-motion-reel-skill
+    type: skill
+    purpose: "Claude Code skill for showreel-grade, beat-synced motion graphics built specifically on HyperFrames (HTML+GSAP+SVG+Canvas, 120 BPM/60 FPS to MP4) — directly complements the already-registered heygen-com-hyperframes and the motion-graphics-video skill. 136 stars/20 forks, real traction for a skill-sized repo."
+    trust_tier: T2
+    source: "https://github.com/Sunwood-ai-labs/hyperframes-motion-reel-skill"
+    local_path: "external/sunwood-ai-labs-hyperframes-motion-reel-skill"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: abubakrchan-product-launch-motion
+    type: skill
+    purpose: "Claude Code skill for product-launch motion videos from code: one shape that never cuts, springs, a cursor that drives every change, beat-synced SFX measured from real audio (numpy), 60fps motion blur. Explicitly built for/with Opus 5.5. Strongest-traction pick among several near-duplicate 'beat-synced motion graphics Claude skill' repos found in the same search sweep (292 stars/46 forks, actively maintained — pushed within the last day) — the ~5 other near-identical 0-5-star repos from the same sweep were deliberately not added (noise, not independent value)."
+    trust_tier: T2
+    source: "https://github.com/AbubakrChan/product-launch-motion"
+    local_path: "external/abubakrchan-product-launch-motion"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: higgsfield-ai-cli
+    type: tool
+    purpose: "Official Higgsfield CLI (higgsfield-ai org, 661 stars/141 forks, actively maintained) for generating images/video (Soul, Seedance, and other models) from Claude Code/Codex — the recommended integration path per Higgsfield's own docs for code-agent clients, vs. the MCP connector for Claude Desktop. Real dependency: needs a Higgsfield account and credits; generation is billed, not free."
+    trust_tier: T2
+    source: "https://github.com/higgsfield-ai/cli"
+    local_path: "external/higgsfield-ai-cli"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: samuelgursky-davinci-resolve-mcp
+    type: tool
+    purpose: "The broadest DaVinci Resolve MCP (3,566 stars/417 forks, actively maintained, covers the full DaVinci Resolve 21 Scripting API) for placing/editing clips in a real Resolve project from Claude. REAL REQUIREMENT, not smoothed over: needs DaVinci Resolve STUDIO (the paid tier) — the DaVinci Resolve installed on this machine is confirmed the FREE edition (bundle id com.blackmagic-design.DaVinciResolve, no '...Studio' suffix), so this tool is NOT usable here today. Registered for if/when Resolve Studio is installed; use hiteshk03-davinci-resolve-mcp for the free edition in the meantime."
+    trust_tier: T2
+    source: "https://github.com/samuelgursky/davinci-resolve-mcp"
+    local_path: "external/samuelgursky-davinci-resolve-mcp"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: hiteshk03-davinci-resolve-mcp
+    type: tool
+    purpose: "DaVinci Resolve MCP targeting the FREE edition specifically (44 tools, local Whisper transcription) — the realistic placement/editing option on this machine, since the installed DaVinci Resolve is confirmed Free, not Studio (see samuelgursky-davinci-resolve-mcp's entry). 137 stars/14 forks."
+    trust_tier: T2
+    source: "https://github.com/hiteshK03/davinci-resolve-mcp"
+    local_path: "external/hiteshk03-davinci-resolve-mcp"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: higgsfield-motion
+    type: skill
+    purpose: "Motion-design key-frame and code-rendered-film skill (HTML/CSS/SVG/WebGL -> PNG stills, MP4 with music/SFX, any brand identity via a token system) for video-editor. Published by @adilinthewildtempo as a free download on their Higgsfield.ai blog, explicitly for readers to use -- not a GitHub repo, no formal license, but unambiguous public-distribution intent (see skills/higgsfield-motion/README.md for the full provenance note, including a stray precompiled binary that was removed before vendoring)."
+    trust_tier: T3
+    source: "https://higgsfield.ai/@adilinthewildtempo/blogs/i-tested-claude-motion-at-3-difficulty-levels-can-it-make-a-higgsfield-style-launch-video"
+    local_path: "skills/higgsfield-motion"
+    license: "none declared -- author distributes directly from their own blog with explicit public reuse intent, not a licensed OSS repo"
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: higgsfield-motion-saas
+    type: skill
+    purpose: "SaaS/app launch-motion skill (code-based headless-Chromium render path, or After Effects ExtendScript) with a transition library tuned to hide cuts at peak motion speed. Same source/author/distribution-intent as higgsfield-motion. REAL DISCLOSURE (the skill's own SKILL.md states this openly): its AE technique numbers were derived by frame-by-frame study of a named third party's ('MahdiEdits') SaaS tutorials -- see skills/higgsfield-motion-saas/README.md."
+    trust_tier: T3
+    source: "https://higgsfield.ai/@adilinthewildtempo/blogs/i-tested-claude-motion-at-3-difficulty-levels-can-it-make-a-higgsfield-style-launch-video"
+    local_path: "skills/higgsfield-motion-saas"
+    license: "none declared -- author distributes directly from their own blog with explicit public reuse intent, not a licensed OSS repo"
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: 0xsline-openchatcut
+    type: tool
+    purpose: "Open-source, local-first, agent-native video editor (Electron + React + Remotion) with a real multi-track timeline, Agent Skills, and MCP integration -- Codex/Claude Code can read, edit, and export a real project that stays fully editable afterward. 2,410 stars/358 forks, active development, Product Hunt featured. Real alternative placement/editing target for video-editor alongside the DaVinci/Premiere MCPs -- this one IS the editor (a real local app to install), not a bridge to a commercial NLE. REAL LICENSE CAVEAT: AGPL-3.0 -- fine to run standalone as a local tool, but modifying it and distributing that modified copy, or offering it as a network service, triggers AGPL's source-disclosure requirement. Don't vendor its code into another project without accounting for that."
+    trust_tier: T2
+    source: "https://github.com/0xsline/OpenChatCut"
+    local_path: "external/0xsline-openchatcut"
+    license: AGPL-3.0
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: gztchan-awesome-design
+    type: reference
+    purpose: "Large, long-standing curated list of design resources (tools, articles, inspiration sites) across disciplines -- 17,641 stars/1,240 forks, genuinely popular (not inflated; a well-known 'awesome list' genre), though stale (no commits since July 2024). No owning agent -- a reference starting point for product-designer or frontend-engineer's open-ended research step, not a tool to install. No license declared on the list itself."
+    trust_tier: T3
+    source: "https://github.com/gztchan/awesome-design"
+    local_path: "external/gztchan-awesome-design"
+    license: "none declared"
+    approved_by: riyan
+    approved_at: "2026-10-16"
+    checked_at: "2026-10-16"
+  - id: edenfunf-reelmimic
+    type: tool
+    purpose: "Full local app: show it a reference video (file/phone recording/YouTube link) and a one-line brief, it breaks down the reference's editing rhythm/shot lengths/BPM/transitions/colors/camera moves, proposes a plan for approval, then produces a NEW video in that style via up to 6 parallel Claude Code/Codex agents with independent before/after-screenshot review per shot (nobody grades their own work). Explicitly does NOT carry over the original footage, characters, or assets -- style/grammar only, the same own-content-only principle already enforced elsewhere in this registry (JCodesMore/ai-website-cloner-template). 2D animation only, 7 drawing engines (built on the already-registered heygen-com-hyperframes for vector/motion-graphics, and tuzhechen2005-painted-animation for watercolor). 3,387 stars/319 forks, 20 contributors, active (pushed same day), MIT. REAL CAVEATS: tested mostly on Windows (this machine is macOS -- less tested path); a 30-60s video takes 1-3.5 hours after plan approval; runs against your own Claude Code/Codex usage/limits, not a separate billed API; explicitly makes animation only, never live-action footage of real people; secrets live in ~/.reelmimic/secrets.json outside the repo (never committed)."
+    trust_tier: T2
+    source: "https://github.com/edenfunf/reelmimic"
+    local_path: "external/edenfunf-reelmimic"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-17"
+    checked_at: "2026-10-17"
+  - id: tuzhechen2005-painted-animation
+    type: reference
+    purpose: "Hand-painted watercolor animation engine -- a sub-dependency edenfunf-reelmimic builds its watercolor drawing engine on. 212 stars/13 forks. REAL CAVEAT: license shows as NOASSERTION (a LICENSE file exists but isn't a standard SPDX-recognized license) -- check the actual file before relying on terms rather than assuming MIT-equivalent. Reference-only; reelmimic is the owning integration, this isn't used standalone."
+    trust_tier: T3
+    source: "https://github.com/tuzhechen2005/painted-animation"
+    local_path: "external/tuzhechen2005-painted-animation"
+    license: "NOASSERTION -- check LICENSE file directly, do not assume terms"
+    approved_by: riyan
+    approved_at: "2026-10-17"
+    checked_at: "2026-10-17"
+  - id: google-labs-code-stitch-skills
+    type: skill
+    purpose: "Official Google Labs Agent Skills library for the Stitch MCP server (UI design/generation), Apache-2.0, 8,530 stars/1,115 forks. Three plugins: stitch-build, stitch-design, stitch-utilities. Pairs with google-labs-code-stitch-sdk. Real dependency: the skills drive Stitch's hosted service, not a local model."
+    trust_tier: T2
+    source: "https://github.com/google-labs-code/stitch-skills"
+    local_path: "external/google-labs-code-stitch-skills"
+    license: Apache-2.0
+    approved_by: riyan
+    approved_at: "2026-10-17"
+    checked_at: "2026-10-17"
+  - id: google-labs-code-stitch-sdk
+    type: tool
+    purpose: "Official Google Labs SDK: generate UI screens from text prompts and extract their HTML + screenshot programmatically (@google/stitch-sdk on npm). Real dependency: needs a STITCH_API_KEY (Google's hosted, billed service) -- not free/local. Useful for frontend-engineer/product-designer when a task wants a generated UI screen's real HTML extracted, not just a picture of one."
+    trust_tier: T2
+    source: "https://github.com/google-labs-code/stitch-sdk"
+    local_path: "external/google-labs-code-stitch-sdk"
+    license: Apache-2.0
+    approved_by: riyan
+    approved_at: "2026-10-17"
+    checked_at: "2026-10-17"
+  - id: yihui-dev-awesome-opus5-5-videos
+    type: reference
+    purpose: "Growing curated collection of viral Claude Opus 5.5 motion-graphics videos paired with the actual prompts behind them, each with a live remake on Skillry for comparison. 5,582 stars/583 forks, updated regularly. Reference-only prompt/pattern bank for video-editor -- read for real-world brief examples, not something to install."
+    trust_tier: T3
+    source: "https://github.com/yihui-dev/awesome-opus5-5-videos"
+    local_path: "external/yihui-dev-awesome-opus5-5-videos"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-17"
+    checked_at: "2026-10-17"
+  - id: img2threejs-img2threejs
+    type: tool
+    purpose: "Rebuilds the object in a reference image as a code-only, procedural, quality-gated, animation-ready Three.js model -- reconstruction by code, not mesh extraction/photogrammetry/downloaded art. Local, free, Python 3.10+ stdlib tooling, no API needed. 18,270 stars/1,603 forks, Trendshift-featured, actively maintained (pushed same day), Apache-2.0. Directly useful for the 'point to an image, get a tailored 3D version, not a photocopy' capability -- pairs with skills/claude-image-generation and the claudedesignskills Three.js skills for video-editor and frontend-engineer builds."
+    trust_tier: T2
+    source: "https://github.com/img2threejs/img2threejs"
+    local_path: "external/img2threejs-img2threejs"
+    license: Apache-2.0
+    approved_by: riyan
+    approved_at: "2026-10-17"
+    checked_at: "2026-10-17"
+  - id: darkroomengineering-lenis
+    type: tool
+    purpose: "The industry-standard smooth-scroll library -- 16,612 stars/731 forks, 4+ years old, actively maintained, from a well-known agency (darkroom.engineering). Not a hype repo; genuinely the default choice when a task needs smooth/inertial scroll. Complements scroll-animation (this repo's own skill) and greensock-gsap-skills' ScrollTrigger -- use lenis for the scroll-physics layer, GSAP/ScrollTrigger for what happens as it scrolls."
+    trust_tier: T1
+    source: "https://github.com/darkroomengineering/lenis"
+    local_path: "external/darkroomengineering-lenis"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-17"
+    checked_at: "2026-10-17"

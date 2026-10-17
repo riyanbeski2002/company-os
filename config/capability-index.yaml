@@ -3,12 +3,353 @@
 # `pairs_with` is hand-curated in the script itself, not auto-derived.
 
 units:
+- unit_id: 0xsline-openchatcut:explainer-video
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/explainer-video
+  name: explainer-video
+  description: Create finished explainer videos from a topic, script, outline, voiceover, product logic,
+    data, technical concept, course material, or reference assets. Use when the user wants narration,
+    motion graphics, stock footage, generated visuals, or mixed visuals to explain an idea.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:music
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/music
+  name: music
+  description: 'Music generation via Mureka, MiniMax, Atlas Cloud, and Sonilo. Use for instrumentals,
+    songs, soundtracks, track/stem generation, covers, or video-conditioned scoring of the finished cut
+    through `submit_music`.
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:talking-head-guide
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/talking-head-guide
+  name: talking-head-guide
+  description: 'Guide for editing videos where the primary content is people talking — talking-head /
+    口播, interview / 访谈, lecture, tutorial, podcast, course content, and similar talking-driven formats.
+    Use when the user wants speech editing on a talking video (剪口播 / 口播剪辑 / 去口癖 / clean up fillers / smooth
+    speech), motion graphics layered onto talking video (口播加 MG / 加动画), or B-roll on a talking video (加
+    B-roll / add B-roll). For motion graphics specifically, use this together with the active Motion Graphics
+    skill/workflow available in the current OpenChatCut environment — this skill adds talking-specific
+    guidance (speech-rhythm timing, frame-aware placement, subject/caption protection, placement verification).
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:image-gen
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/image-gen
+  name: image-gen
+  description: 'AI image generation via Fal.ai, gpt-image-2, nano-banana, MiniMax image-01, and xAI Grok
+    Imagine. Use when the user wants to generate or create an image / picture / still.
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:livestream-to-clips
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/livestream-to-clips
+  name: livestream-to-clips
+  description: Cut an imported livestream recording of any genre into evidence-backed, platform-ready
+    clips by combining transcript, visual, audio, interaction, and domain-specific signals. Use for commerce,
+    gaming, talk, interview, education, entertainment, sports, music, IRL, creative, news, or mixed livestream
+    recordings.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:transcription
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/transcription
+  name: transcription
+  description: Use when a video/audio task needs OpenChatCut transcription, captions, subtitles, subtitle
+    styling, transcript search, transcript readiness checks, or enabling captions, including local or
+    attached videos where the user asks to add captions/subtitles, transcribe, create bilingual subtitles,
+    clean talking-head speech, remove filler words, or trim pauses.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:product-ad-video-script
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/product-ad-video-script
+  name: product-ad-video-script
+  description: Turn a product into ad angles, hooks, scenes, and CTA.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:video-gen
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/video-gen
+  name: video-gen
+  description: 'AI video generation via Fal.ai, Seedance 2.0, Kling, MiniMax Hailuo, xAI Grok Imagine,
+    and OFox. Use when the user wants to generate a video clip — text-to-video, image-to-video, first/last-frame
+    transitions, reference-guided generation, multi-shot, or generatively editing / extending an existing
+    clip.
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:shader-gen
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/shader-gen
+  name: shader-gen
+  description: 'AI shader generator for WebGL video effects, transitions, masks, and color grading (LUT
+    / 调色 / 电影感 / film look). Use when the user wants a video effect (滤镜 / 特效), a transition (转场 / crossfade
+    / wipe / cube / 3d), a mask (蒙版 / 遮罩 / reveal), a zoom / push-in (推近 / 推镜头), or a color grade — try
+    the built-in effects (zoom, builtin LUTs) before generating a new shader.
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:known-errors
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/known-errors
+  name: known-errors
+  description: Use when a OpenChatCut tool call fails or returns an unexpected shape.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:openchatcut-plugin-basics
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/openchatcut-plugin-basics
+  name: openchatcut-plugin-basics
+  description: Use for video editing or video creation work that should be editable in OpenChatCut, even
+    when the user does not explicitly mention OpenChatCut. Covers local/attached video editing, captions/subtitles,
+    transcription, trimming, talking-head cleanup, highlights, B-roll, overlays, generation, export, project/editor
+    opening, importing, targeting, verifying, watching, and identifying the active OpenChatCut project/editor
+    URL.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:long-video-to-shorts
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/long-video-to-shorts
+  name: long-video-to-shorts
+  description: Cut one long podcast, interview, course, livestream, or other source video into social-ready
+    shorts, reels, highlights, or clip timelines from existing project media. Use when the user asks to
+    cut a long video into Shorts, Reels, TikToks, Xiaohongshu posts, best moments, highlights, or multiple
+    clips.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:beat-sync-montage
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/beat-sync-montage
+  name: beat-sync-montage
+  description: 'Plan and build a finished beat-synced montage where cut placement serves the content,
+    not just the metronome.
+
+    Use for 卡点混剪, 卡点剪辑, 踩点视频, beat-sync montage, rhythm edit, 节奏剪辑, 音乐驱动剪辑, or when the user wants cuts
+    that land on the beat.'
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:verification
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/verification
+  name: verification
+  description: Use when checking whether agent edits are reflected in the OpenChatCut project and editor.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:skill-creator
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/skill-creator
+  name: skill-creator
+  description: 'Open-source, local-first, agent-native video editor (Electron + React + Remotion) with
+    a real multi-track timeline, Agent Skills, and MCP integration -- Codex/Claude Code can read, edit,
+    and export a '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:motion-graphic-placement
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/motion-graphic-placement
+  name: motion-graphic-placement
+  description: Add motion graphics at the right moments without blocking the story. Use when the user
+    wants to enhance talking-head, lecture, tutorial, interview, podcast, or creator videos with motion
+    graphics.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:ai-cinematic-short-film
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/ai-cinematic-short-film
+  name: ai-cinematic-short-film
+  description: Plan AI short films with story, shots, prompts, and continuity.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:news-rough-cut
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/news-rough-cut
+  name: news-rough-cut
+  description: 新闻素材智能粗剪——把新闻素材粗剪为一条内容完整、逻辑清晰、节奏紧凑的新闻短视频。Use when the user asks to 粗剪新闻、新闻剪辑、把新闻素材剪成短视频、智能粗剪、news
+    rough cut、编辑新闻视频, or provides news footage (发布会/采访/现场/监控素材) to be cut into a factual news short. Never
+    add music, voiceover, or sound effects.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:voice
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/voice
+  name: voice
+  description: 'Text-to-Speech (TTS), voiceover, narration placement/sync, and custom sound effects (SFX)
+    generator. Use when the user wants generated speech from text, wants to add/replace/align narration
+    or voiceover for an existing video/timeline, wants to keep existing voiceover synced after visual
+    retiming edits, needs voice audition/selection, or explicitly wants a newly generated/custom sound
+    effect that is not available in the Sound Effects library.
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:product-help
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/product-help
+  name: product-help
+  description: 'OpenChatCut product knowledge — UI layout, editor features, and how generation providers
+    are configured.
+
+    Use when the user asks about the product interface, how to use a feature, where to find something,
+    or needs GUI guidance for something the agent cannot do directly.
+
+    Also use as fallback when a task fails and the user needs to complete it manually in the UI.
+
+    NOT for live project-state queries ("where are my folders?", "what''s on my timeline?", "where is
+    clip X?") — those are answered by `read_project`, not by this skill.
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:multi-clips-to-reels
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/multi-clips-to-reels
+  name: multi-clips-to-reels
+  description: Turn multiple product shots, event footage, travel clips, gameplay moments, UGC/product
+    footage, B-roll, or mixed media into social-ready reels, highlights, recaps, or montage-style short
+    videos from existing project media.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:ecommerce-product-montage
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/ecommerce-product-montage
+  name: ecommerce-product-montage
+  description: 'Assemble product footage, UGC, and b-roll into a conversion-oriented montage with a hook
+    → pain → demo → proof → CTA rhythm.
+
+    Use for 带货混剪, 产品混剪, 商品短视频, 种草视频, ecommerce montage, product reel, UGC cutdown, or when the user wants
+    selling footage cut into a short that converts.'
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:create-motion-graphics
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/create-motion-graphics
+  name: create-motion-graphics
+  description: 'Use whenever the agent needs to add, create, hand-author, patch, or place Motion Graphic
+    JSX assets in a OpenChatCut project. This is the direct-authoring path: use create_motion_graphic_from_code
+    / edit_asset / edit_item, not motion-graphic-gen or submit_motion_graphic. Covers project/timeline
+    intake, project visual language, editable properties, asset binding, inline JSX authoring, existing
+    asset updates, timeline placement, and verification.'
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:widget-forms
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/widget-forms
+  name: widget-forms
+  description: Use when the agent should ask the user for structured input with an in-chat form, including
+    single-select, multi-select, text fields, style pickers, or voice audition choices.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:export
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/export
+  name: export
+  description: Use when a OpenChatCut video editing or creation workflow needs export, render, download,
+    share, final delivery, subtitle-file export, render choice, local-only asset handling, or export fallback
+    explanation.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:storyboard-shot-breakdown
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/storyboard-shot-breakdown
+  name: storyboard-shot-breakdown
+  description: Break down each shot and turn the analysis into a storyboard reference. Use when the user
+    wants shot-by-shot film analysis, director logic, cinematography breakdown, or a storyboard-style
+    reference from a video.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:asset-import
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/asset-import
+  name: asset-import
+  description: Use when acquiring or importing media into a OpenChatCut project asset library for video
+    editing or creation, including local/attached videos, user-provided paths, public media URLs, web
+    video/audio/image assets, upload fallback decisions, and deciding between import_media, download_media,
+    or manual user action.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:batch-montage-variants
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/batch-montage-variants
+  name: batch-montage-variants
+  description: 'Turn one pool of existing project media into a batch of distinct, publishable montage
+    cuts instead of a single hero edit.
+
+    Use for batch montage, one-source-many-outputs, 一源多出, 批量混剪, 批量出片, 矩阵号, 多账号分发, variant batches, deduped
+    cuts, 去重变体, 防搬运, or when the user asks for N different versions of the same footage.'
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:video-thumbnail-generator
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/video-thumbnail-generator
+  name: video-thumbnail-generator
+  description: Create platform-ready thumbnails from real video frames. Use when the user wants a thumbnail,
+    cover image, YouTube cover, Shorts cover, Bilibili cover, Xiaohongshu cover, or other video poster
+    image.
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:music-intelligence
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/src/agent/skills/music-intelligence
+  name: music-intelligence
+  description: 'Run or inspect local music analysis and plan or apply beat-, downbeat-, or section-synced
+    video cuts or photo placements.
+
+    Use for BGM beat edits, rhythm cuts, 卡点剪辑, musical structure, BPM, mood, genre, or instrument questions.
+
+    '
+  pairs_with: []
+- unit_id: 0xsline-openchatcut:openchatcut
+  registry_id: 0xsline-openchatcut
+  type: skill
+  path: external/0xsline-openchatcut/skills/openchatcut
+  name: openchatcut
+  description: Connect an MCP-capable coding agent to OpenChatCut and edit local video projects. Use when
+    the user asks to install, connect, or set up OpenChatCut; inspect or edit an OpenChatCut project;
+    work with its timeline, transcript, captions, media, generation, motion graphics, audio, color, or
+    export tools; or recover from an OpenChatCut MCP error.
+  pairs_with: []
 - unit_id: aaif-goose-goose:compare-tasks
   registry_id: aaif-goose-goose
   type: skill
   path: external/aaif-goose-goose/evals/harbor/.agents/skills/compare-tasks
   name: compare-tasks
   description: Compare how two harbor benchmark runs performed on a single shared task
+  pairs_with: []
+- unit_id: abubakrchan-product-launch-motion
+  registry_id: abubakrchan-product-launch-motion
+  type: skill
+  path: external/abubakrchan-product-launch-motion
+  name: product-launch-motion
+  description: Use when asked to make a launch video, product film, motion design piece, UI motion reel,
+    Dribbble-style UI animation or animated brand/logo sting — anything rendered to MP4 from HTML with
+    a cursor, morphing UI, springs, beat-synced music and SFX. Carries Chan's full creative direction
+    (one shape never cut, blur content swaps, springs, real data, logo slams, no creative limits) and
+    the proven build/render pipeline (pure seek(t), closed-form springs, Playwright subframes, ffmpeg
+    tmix, numpy beat grid).
+  pairs_with: []
+- unit_id: abubakrchan-product-launch-motion:legacy
+  registry_id: abubakrchan-product-launch-motion
+  type: skill
+  path: external/abubakrchan-product-launch-motion/legacy
+  name: product-launch-motion-v1
+  description: Legacy v1 (voiceover-led, GSAP + HyperFrames). Use when making, directing or rescuing a
+    product launch video, promo, teaser, demo reel, sizzle, feature-announcement film or animated product
+    explainer built from code — and when an existing one looks basic, reads as a slideshow, has reveals
+    that miss the voiceover, an invisible cursor, an inaudible sound effect, a clipped or too-quiet mix,
+    or every video coming out looking the same. Covers SaaS, apps, hardware, e-commerce, dev tools, services.
+    Keywords include motion design, storyboard, voiceover sync, kinetic typography, GSAP, HyperFrames,
+    Remotion, film grain, LUFS, ffmpeg.
   pairs_with: []
 - unit_id: affaan-m-ecc:frontend-design-direction
   registry_id: affaan-m-ecc
@@ -7729,6 +8070,15 @@ units:
     to scrape, crawl, or extract data from websites; web_fetch fails; the site has anti-bot protections;
     write Python code to scrape/crawl; or write spiders.
   pairs_with: []
+- unit_id: darkroomengineering-lenis
+  registry_id: darkroomengineering-lenis
+  type: reference
+  path: external/darkroomengineering-lenis
+  name: darkroomengineering-lenis
+  description: The industry-standard smooth-scroll library -- 16,612 stars/731 forks, 4+ years old, actively
+    maintained, from a well-known agency (darkroom.engineering). Not a hype repo; genuinely the default
+    choice
+  pairs_with: []
 - unit_id: davidhdev-react-bits
   registry_id: davidhdev-react-bits
   type: reference
@@ -7812,6 +8162,23 @@ units:
     report, changes nothing. Use for "ponytail debt", "what did ponytail defer", "list the shortcuts",
     /ponytail-debt.
   pairs_with: *id003
+- unit_id: diffusionstudio-core
+  registry_id: diffusionstudio-core
+  type: reference
+  path: external/diffusionstudio-core
+  name: diffusionstudio-core
+  description: Browser-based video compositing engine powered by WebCodecs (declarative timeline, layering,
+    captions, keyframing, transitions) — a real alternative render path to HyperFrames/Remotion for video-edito
+  pairs_with: []
+- unit_id: diffusionstudio-editor
+  registry_id: diffusionstudio-editor
+  type: reference
+  path: external/diffusionstudio-editor
+  name: diffusionstudio-editor
+  description: '"The VS Code of video editing, built for agents" — TypeScript editor from the same official
+    diffusionstudio org as diffusionstudio-core, pairs with it. 3,330 stars/305 forks and actively pushed
+    (check'
+  pairs_with: []
 - unit_id: digitalsamba-claude-code-video-toolkit:ffmpeg
   registry_id: digitalsamba-claude-code-video-toolkit
   type: skill
@@ -7934,6 +8301,434 @@ units:
   name: video_toolkit
   description: Create professional videos autonomously using claude-code-video-toolkit — AI voiceovers,
     image generation, music, talking heads, and Remotion rendering.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes
+  name: hyperframes
+  description: 'Mandatory entry point: read this first for any request to make, create, edit, animate,
+    or render a video, animation, or motion graphic, including a promo, explainer, captioned clip, title
+    card, overlay, slideshow or interactive deck, Remotion port, or any HyperFrames HTML composition.
+    Also use it to inspect, diagnose, validate, preview, publish, or batch-render an existing HyperFrames
+    project. Inputs may be a website URL, GitHub PR, Figma design or URL, text or brief, existing footage,
+    or music. It resumes project state, captures intent when applicable, selects and installs the owning
+    workflow, and routes domain capabilities. HyperFrames is the default output framework unless the user
+    explicitly chooses another framework for the deliverable or asks only to record a browser session.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:music-to-video
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/music-to-video
+  name: music-to-video
+  description: Turn a music track (an audio file, a video to pull audio from, or a track generated from
+    a mood brief) into a beat-synced video — lyric video, slideshow, or kinetic promo. The music drives
+    all pacing; any user-supplied images/videos are cut onto the same beat grid, and a complete video
+    needs zero assets. Narrated pieces → the input-matched workflow (see /hyperframes). Unclear → /hyperframes.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:embedded-captions
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/embedded-captions
+  name: embedded-captions
+  description: Add captions or subtitles to an existing single-subject talking-head video without editing
+    the footage. Use for plain verbatim captions, cinematic captions embedded behind the subject, VFX
+    captions, “炸/特效/酷炫字幕,” or a named identity from the 35-style catalog. Route by visual identity, not
+    by backend engine. The quiet `anchor` rail is the default; embed every word only when the user explicitly
+    wants a fully cinematic treatment. The workflow runs locally end to end, including transcription and
+    subject matting; split multi-shot footage before applying it.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:remotion-to-hyperframes
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/remotion-to-hyperframes
+  name: remotion-to-hyperframes
+  description: Port an existing Remotion (React) composition's source to HyperFrames HTML. Use ONLY on
+    an explicit ask to port/convert/migrate/translate a Remotion source — one-way, Remotion-only. A passing
+    Remotion mention, reference-only code, or "make something like my Remotion video" is a fresh build
+    (/general-video). Unclear → /hyperframes.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-cli
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-cli
+  name: hyperframes-cli
+  description: 'Use the HyperFrames CLI development loop: init, add, catalog, capture, lint, check, snapshot,
+    compare, grade-compare, preview, play, present, beats, keyframes, single or batch render, publish,
+    cloud, cloudrun, feedback, lambda, doctor, browser, info, upgrade, skills, compositions, timeline,
+    history, docs, benchmark, telemetry, transcribe, auth, tts, and remove-background. Also use when diagnosing
+    build or render failures. validate, inspect, and layout are deprecated aliases; use check. Covers
+    local, HeyGen-hosted cloud, AWS Lambda, and Google Cloud Run rendering.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:captions-overlay
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/captions-overlay
+  name: captions-overlay
+  description: Overlay doctrine for the embedded-captions workflow — the caption MODEL (drop / rail /
+    embed) and the rule that captions are an OVERLAY composited on top of the film, never a reserved bottom
+    band you shift content up to avoid. Load when adding captions/subtitles to a talking-head or launch
+    video, when deciding whether a phrase should be dropped, ride the verbatim rail, or be promoted to
+    a scarce embedded climax, when laying out a composition that will carry captions (do NOT reserve a
+    keep-out band), or when centering a composition on the true frame center under captions. Quotes the
+    rail+embed model from embedded-captions and constraint
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:ffmpeg
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/ffmpeg
+  name: ffmpeg
+  description: Video and audio processing with FFmpeg. Use for format conversion, resizing, compression,
+    audio extraction, and preparing assets for Remotion. Triggers include converting GIF to MP4, resizing
+    video, extracting audio, compressing files, or any media transformation task.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:video-clone
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/video-clone
+  name: video-clone
+  description: 參考影片風格克隆器 — 使用者給一支參考影片（本機檔案、螢幕錄影或 YouTube/網址）加上一句需求（「做一支類似風格的影片，主軸是…」），就拆解它的剪法與視覺風格、判斷屬於哪種風格、交給對應的製作
+    skill，寫分鏡、做動畫、逐格自我審查，最後輸出 MP4 並依回饋修改。Use whenever the user supplies a reference video or link and
+    asks for a video "like this", "in this style", "clone/模仿/參考這支的風格/剪法", or asks to add a new video style
+    to the registry.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:faceless-explainer
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/faceless-explainer
+  name: faceless-explainer
+  description: 'Turn arbitrary text — an article, notes, a topic, a brief — into a faceless explainer
+    video: there is no site or footage to capture, so the visuals are invented per scene (typography,
+    abstract graphics, diagrams, data-viz). Use for topic explainers, concept breakdowns, how-tos, listicles.
+    Not a video built from a website (/product-launch-video — promo or tour). Unclear → /hyperframes.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:talking-head-recut
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/talking-head-recut
+  name: talking-head-recut
+  description: Package an existing talking-head / interview / podcast video with timed, designed GRAPHIC
+    OVERLAY cards — kinetic titles, lower-thirds, data callouts, quotes, side panels, picture-in-picture
+    — synced to the transcript, on a 16:9 / 9:16 / 4:5 canvas of your choice; the clip plays untouched
+    underneath. Trigger on "graphic overlays", "on-screen graphics", "package / dress up my video". Not
+    plain subtitles (/embedded-captions). Unclear → /hyperframes.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:painted-animation
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/painted-animation
+  name: painted-animation
+  description: Make hand-painted watercolour-and-ink cartoon videos (MP4) with code — p5.js + p5.brush
+    rendered frame by frame in headless Chrome, encoded with ffmpeg — starring Clawd or any character.
+    Use when the user asks to make an animation, animated short, cartoon, music video, lyric video, animated
+    GIF/loop or "a video of Clawd…", or mentions the PDoomVideo / ClaudeAnimationBase approach. Covers
+    storyboarding, the engine API, the render-and-look review loop, music/lyric sync and splitting long
+    videos across subagents.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-animation
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-animation
+  name: hyperframes-animation
+  description: 'All animation knowledge for HyperFrames — atomic motion rules, multi-phase scene blueprints,
+    scene transitions, broader motion-design techniques, AND the seven runtime adapters (GSAP default,
+    plus Lottie, Three.js, Anime.js, CSS keyframes, Web Animations API, TypeGPU). Use for any motion or
+    animation task: pick 2-4 rules and compose, or load a blueprint, or look up runtime-specific API (e.g.
+    GSAP eases / Lottie player / Three.js mixer). Also covers auditing an existing composition''s choreography
+    (animation map) and 24 named text-animation effects. HyperFrames-native: single paused timeline, seek-safe,
+    deterministic.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-registry
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-registry
+  name: hyperframes-registry
+  description: Search, install, and wire registry blocks and components into HyperFrames compositions.
+    Use BEFORE hand-building any named visual — whenever a brief, a user, or a storyboard names a look,
+    effect, treatment, or transition such as CRT scanlines, glitch, chromatic aberration, film grain,
+    a shimmer sweep, a chart, a code or terminal window, a map, or a confetti burst — because roughly
+    400 hosted items already cover many of them and the search ranks all of them with nothing installed,
+    no project, and no account. Also use when running hyperframes add or hyperframes catalog, installing
+    one item or every block matching a tag, wiring an installed item into index.html, or working with
+    hyperframes.json. Covers discovery, install locations, block sub-composition wiring, component snippet
+    merging, and authoring a new block or component to contribute upstream (idea → scaffold → validate
+    → PR).
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:pr-to-video
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/pr-to-video
+  name: pr-to-video
+  description: 'Turn a GitHub pull request (a PR URL, owner/repo#N, or ''this PR'' in a checked-out repo)
+    into a code-change explainer video — changelog, feature reveal, fix, or refactor walkthrough built
+    from the diff, commits, and files: the input is a code change, not a website. Not a product promo
+    (/product-launch-video) or a no-PR topic explainer (/faceless-explainer). Unclear → /hyperframes.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:whiteboard
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/whiteboard
+  name: whiteboard
+  description: Make hand-drawn whiteboard / doodle-explainer / sketch-note animation videos (MP4) with
+    code — marker lines that draw themselves on, a cartoon hand holding a marker that follows the pen
+    tip, handwritten text (Latin + CJK) written left to right, hatching and highlighter fills, arrows/circles/callouts/icons,
+    two doodle characters (Bo the kid, Mochi the cat), camera pans across a big board, eraser wipes and
+    page flips. Canvas 2D rendered frame by frame in headless Chrome, encoded with ffmpeg. Use when a
+    reference video or brief calls for a whiteboard animation, VideoScribe-style explainer, doodle / sketch-note
+    / marker-drawing / notebook-doodle look, 白板動畫 / 手繪解說 / 塗鴉解說 / 手寫字, or when the video-clone router
+    picks the whiteboard style.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-creative
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-creative
+  name: hyperframes-creative
+  description: Non-animation creative direction for HyperFrames videos. Use for design spec (frame.md
+    / design.md) handling, palettes, typography, narration, beat planning, audio-reactive visuals, composition
+    patterns, and brand / style decisions. For atomic motion patterns and scene blueprints, use `hyperframes-animation`.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:oversized-cursor
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/oversized-cursor
+  name: oversized-cursor
+  description: House-style oversized macOS cursor technique for HyperFrames launch videos. Load whenever
+    a scene involves cursors or a pointer-led action, when kicking off a UI scene, when igniting a morph/transition/typing
+    run with a click, or when a scene reads as static, dead, or stale and needs a cheap high-yield source
+    of motion to carry the viewer's eye and segment them out of the stale state. Covers cursor size/look
+    (incl. brand-motif cursors), the off-screen entry law, tip-targeting and the click tap, click-ignites-the-next-beat,
+    and exit / cross-scene handoff.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:general-video
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/general-video
+  name: general-video
+  description: 'Author or edit a custom HyperFrames composition when no specialized workflow fits, or
+    when BRIEF.md sets flow: companion. Use for longer or multi-scene pieces, brand and sizzle reels,
+    montages, static loops, static title cards, footage remixes, and freeform builds. Use motion-graphics
+    instead for a short unnarrated motion-first unit, including an animated title. Route fresh creation
+    through hyperframes before using this skill.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:seam-craft
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/seam-craft
+  name: seam-craft
+  description: Render-correctness doctrine for scene-to-scene seams in HyperFrames launch videos — the
+    prerequisites that make transitions composite correctly on the master timeline. Load when assembling
+    the master timeline / index.html, when a white flash appears at a cut or crossfade seam (especially
+    on dark films), when reasoning about why a transition opacity dip shows through, or when verifying
+    the render-side mechanics of how overlapping scene wrappers blend. Covers the opaque stage-ground
+    (#root background) white-flash guard and how the injector overlaps wrappers, holds final frames, ping-pongs
+    tracks, and stamps lint-clean template code onto the master timeline. Does NOT contain the per-transition
+    catalog — see the transition registry for individual transition entries.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:anime-cel
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/anime-cel
+  name: anime-cel
+  description: Make Japanese TV-anime style videos (MP4) with code — cel-shaded characters with tapered
+    line art, big detailed eyes, hair clumps with a specular band, comedic anime reactions (sweat drop,
+    anger vein, sparkle eyes, ≥< eyes, dot eyes, tears), painted skies with cumulus clouds, school/street/classroom/rooftop
+    sets with time-of-day palettes, speed/focus lines, impact frames, dramatic zooms, smears, sakura petals
+    and anime subtitles (CJK). Canvas 2D rendered frame by frame in headless Chrome, encoded with ffmpeg.
+    Use when a reference video or brief calls for anime / 動畫 / 日系動畫 / アニメ / cel-shaded / slice-of-life
+    / school romance / shōnen-style reactions, or when the video-clone router picks the anime-cel style.
+    2D only; characters are original (Hina, Ren) or new ones built on the same rig.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:figma
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/figma
+  name: figma
+  description: Import Figma content into a HyperFrames composition — rendered assets, brand tokens, components,
+    storyboard sections → reconstructed motion (frames read as states, not slides) (REST/CLI), connector-assisted
+    motion when available, and shaders from a connector or native export. Use when the user pastes a figma.com
+    link or asks to bring a Figma design, frame, logo, brand, or animation into a video/composition.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:motion-graphics
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/motion-graphics
+  name: motion-graphics
+  description: A short, design-led motion graphic where motion is the message — kinetic typography, stat
+    count-up, chart/data-viz hit, logo sting / brand lockup, lower-third / callout / social overlay, animated
+    map (highlight regions, connect places, zoom to a location), animated tweet / news-article / headline,
+    webpage / UI animation (scroll, cursor, callouts), or fusing a real image's geometry into a chart.
+    Usually under 10s (up to ~30s), no narration or live-action subject; renders to MP4 or transparent
+    overlay. Longer / narrated / multi-scene → /general-video. Unclear → /hyperframes.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:cut-the-curve
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/cut-the-curve
+  name: cut-the-curve
+  description: 'The technique catalog: five velocity-matched SEAMS (zoom-through, INVERSE zoom-through,
+    cut-the-curve, waterfall cut, rack-focus blur-cut) plus the two in-scene techniques — waterfall ENTRY
+    (staggered arrival cascades for title cards / segment openers) and the nudge curve (slow-fast-slow
+    three-phase group slides). Covers partial-travel (~12% of frame) velocity matching via mirrored power4
+    eases, the Z scale-sign rule, size-scaled blur (10px text / 18-20px full-frame), word-by-word staggered
+    cuts, cascade pacing by element weight, and the 10/65/25 slide ratio. Read before authoring any transition,
+    text-beat handoff, kinetic text entry, or group reposition. [depth, zoom, inverse-zoom, scale-sign,
+    mirrored-zoom, rack-focus, pacing, velocity, cut-the-curve, waterfall, stagger, cascade, kinetic-text,
+    title-card, segment-opener, nudge, slide, easing, group-motion, z-depth, motion-graphics, cinematic,
+    transition, blur, directional-continuity]'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:product-launch-video
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/product-launch-video
+  name: product-launch-video
+  description: Turn a product or marketing URL, pasted script, or brief into a product launch / promo
+    video — SaaS promos, feature reveals, product demos, app and company launches. Use when the user wants
+    to market, launch, promote, or reveal a product; the default for any commercial URL. Site tours /
+    showcases of a website route here too — the brief carries the show-it-as-is intent. Unclear → /hyperframes.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-core
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-core
+  name: hyperframes-core
+  description: The HyperFrames composition contract — build one renderable project. Use for composition
+    structure, the `data-*` timing attributes, `class="clip"`, tracks, sub-compositions, variables, framework-owned
+    media playback, deterministic-render rules, and validation. Read before writing composition HTML.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:pixel-art
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/pixel-art
+  name: pixel-art
+  description: Make modern, polished pixel-art animated videos (MP4) with code — indie-game look (Celeste
+    / Eastward / Stardew-level scenes, original), 480×270 art upscaled ×4 with nearest-neighbour, limited
+    palettes (day / dusk / night) with Bayer dithering, parallax skies, hills, forests and towns, dithered
+    light and weather, auto-outlined procedural pixel characters with 16 expressions, walk cycles, jumps
+    and held props, emote bubbles, dither / diamond / iris / block transitions and crisp RPG dialogue-box
+    captions (Latin + CJK). Canvas 2D in headless Chrome, encoded with ffmpeg. Use when a reference video
+    or brief calls for pixel art, 8-bit / 16-bit, retro game, JRPG, cozy-game or 像素風 / 像素動畫 / 點陣 looks,
+    or when the video-clone router picks the pixel-art style.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-audio
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-audio
+  name: hyperframes-audio
+  description: 'Use when audio already placed in a HyperFrames composition needs to be mixed: fade-in/fade-out,
+    crossfade, track gain or volume, volume automation, ducking, a music bed that fights a voiceover (voiceover
+    carve), effects on a track (EQ, compressor, limiter, gate, saturation, delay, reverb, chorus, phaser,
+    bitcrush), automation envelopes drawn on a track''s volume or any effect parameter, or one submix
+    bus carrying a chain, a fader and an automation clock for several tracks at once (`<hf-audio-group>`).
+    Don''t use for sourcing or generating audio — finding BGM, SFX, or making a voiceover is `/media-use`.
+    Don''t use for clip timing or track layout, which is `/hyperframes-core`.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:blender-product-film
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/blender-product-film
+  name: blender-product-film
+  description: Premium 3D product films rendered in Blender (headless, GPU) — dark studio, rim light,
+    light sweeps, glass/liquid/metal materials, condensation and bubbles, macro and orbit camera moves,
+    shallow depth of field, then crisp 2D titles, transitions, music and SFX in the edit. Builds a round
+    product (bottle, can, jar) directly from a user's product photo (real silhouette + projected label),
+    or a procedural one. Use for product launch / hero / commercial films whose reference is 3D or photoreal
+    CG (Apple-style "black stage + a line of light" films), for any request to make a product look expensive,
+    and whenever the video-clone router picks the premium-product-3d style.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:frontend-design
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/frontend-design
+  name: frontend-design
+  description: Guidance for distinctive, intentional visual design when building new UI or reshaping an
+    existing one. Helps with aesthetic direction, typography, and making choices that don't read as templated
+    defaults.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-studio
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-studio
+  name: hyperframes-studio
+  description: 'Use when building or editing a HyperFrames project that people open in Studio: how the
+    timeline should be laid out so it reads well (one caption track, one element kind per track, every
+    scene a sub-composition) and where captions and key content may sit (safe zones). Don''t use for how
+    to perform an individual edit (split, trim, retime, volume, copy, swap): that is `creator-editing-recipes.md`
+    in `/hyperframes-core`.'
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:crayon-storybook
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/crayon-storybook
+  name: crayon-storybook
+  description: Make warm children's picture-book animations (MP4) drawn in crayon, coloured pencil and
+    pastel on cream drawing paper — waxy crayon scribble fills broken by paper tooth, coloured-pencil
+    outlines, slow 8 fps line boil, page-turn transitions, picture-book page framing and hand-lettered
+    CJK storybook captions. p5.js + p5.brush rendered frame by frame in headless Chrome, encoded with
+    ffmpeg. Use when a reference video or brief calls for a crayon / colored-pencil / pastel / kids' drawing
+    / picture-book / bedtime-story / 繪本 / 蠟筆 / 色鉛筆 / 童書 look, or when the video-clone router picks the
+    crayon-storybook style.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:media-use
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/media-use
+  name: media-use
+  description: Agent Media OS, the single skill for every media need in a HyperFrames project. Resolve
+    BGM, SFX, image, icon, brand logo, voice, color grade, or LUT into a frozen local file or paste-ready
+    block + ledger record (one verb, `resolve`); generate via TTS / music / image models when the catalog
+    misses; produce voiceover, transcription, captions, and background removal through one shared audio
+    engine; operate on media (cut / reframe / transform); and reuse assets across projects. Also use for
+    vague feedback that real footage looks dark, flat, boring, should feel retro/camcorder/print/ASCII,
+    needs privacy, or needs a media reveal.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:hyperframes-keyframes
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/hyperframes-keyframes
+  name: hyperframes-keyframes
+  description: Use when a HyperFrames composition needs a punch-in, punch-out, zoom, reframe, Ken Burns
+    treatment, camera move, visual match/whip handoff, or other seek-safe 2D/3D keyframes; also for GSAP,
+    CSS keyframes, Anime.js, WAAPI, FLIP, paths, masks, SVG morph/draw, text trails, 3D depth, or `hyperframes
+    keyframes` diagnostics. Don't use for broad scene strategy, brand design, media sourcing, captions,
+    or general video planning.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:slideshow
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/slideshow
+  name: slideshow
+  description: Author a HyperFrames slideshow — a presentation, pitch deck, or interactive deck with discrete
+    slides, fragment reveals, branching, hotspot navigation, and built-in presenter mode with speaker
+    notes; also converts an existing page into a deck. Output is a navigable deck, not a rendered MP4.
+    If the user didn't explicitly ask for a slideshow, confirm before authoring. Unclear → /hyperframes.
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:motion-doctrine
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/motion-doctrine
+  name: motion-doctrine
+  description: GATEWAY — load FIRST before composing any HyperFrames animation or video. The high-level
+    motion law that makes a multi-scene video feel like ONE continuous camera move instead of a stack
+    of independently-animated slides. Covers the vector law (how you exit determines how you enter, incl.
+    the Z scale-sign rule), the film's current, carrier elements, causal motion, the Seam Gate (build-gate
+    enforcement), the ban on idle wobble (motion must PERFORM, not breathe), stillness-before-climax,
+    and the sustained-motion routes. Routes to the low-level technique skills (cut-the-curve — the full
+    catalog incl. waterfall entry + nudge curve, oversized-cursor, seam-craft). These rules SUPERSEDE
+    generic / upstream motion guidance. [continuity, direction, vector, momentum, seam, transition, ease,
+    performance, idle-motion, narrative-motion, film-grammar]
+  pairs_with: []
+- unit_id: edenfunf-reelmimic:paper-cutout
+  registry_id: edenfunf-reelmimic
+  type: skill
+  path: external/edenfunf-reelmimic/.claude/skills/paper-cutout
+  name: paper-cutout
+  description: Make paper cut-out / stop-motion style animated videos (MP4) with code — handmade construction
+    paper, cardstock, kraft, felt and tissue pieces with scissor-cut or torn edges and soft drop shadows,
+    photographed on a table under a warm lamp; jointed paper puppets with brass split-pin joints, moving
+    in 12 fps steps. Canvas 2D rendered frame by frame in headless Chrome, encoded with ffmpeg. Use when
+    a reference video or brief calls for paper craft, cut-paper, papercraft, stop-motion paper, kids'
+    storybook collage, 剪紙 / 紙片 / 紙偶 / 定格動畫 looks, or when the video-clone router picks the paper-cutout
+    style.
   pairs_with: []
 - unit_id: emilkowalski-skills:pick-ui-library
   registry_id: emilkowalski-skills
@@ -8100,6 +8895,44 @@ units:
   description: This skill encodes Emil Kowalski's philosophy on UI polish, component design, animation
     decisions, and the invisible details that make software feel great.
   pairs_with: *id004
+- unit_id: fishaudio-fish-audio-plugin:fish-audio
+  registry_id: fishaudio-fish-audio-plugin
+  type: skill
+  path: external/fishaudio-fish-audio-plugin/plugins/fish-audio/skills/fish-audio
+  name: fish-audio
+  description: Use the Fish Audio connector to turn text into lifelike speech, find or clone voices, transcribe
+    recordings, produce multi-speaker audiobooks and podcasts in Story Studio, and generate images or
+    video. Use when the user asks to read something aloud, make a voiceover, narration or audio file,
+    pick a voice, clone a voice from a sample, transcribe or caption audio, turn a script, story or book
+    into audio, or create images or video with Fish Audio. For writing code against the Fish Audio API,
+    use fish-audio-sdk or fish-audio-api instead.
+  pairs_with: []
+- unit_id: fishaudio-fish-audio-plugin:fish-audio-api
+  registry_id: fishaudio-fish-audio-plugin
+  type: skill
+  path: external/fishaudio-fish-audio-plugin/plugins/fish-audio/skills/fish-audio-api
+  name: fish-audio-api
+  description: Write direct HTTP / WebSocket calls to the Fish Audio platform (TTS, ASR, voice design,
+    voice models, wallet, real-time TTS streaming) without depending on the Python or JavaScript SDK.
+    Use when the user asks to call Fish Audio from curl, a language without an official SDK, an edge/runtime
+    environment that cannot install the SDK, or when they explicitly want raw REST / WebSocket code. Covers
+    authentication, endpoint URLs, required headers, request / response schemas, MessagePack vs JSON vs
+    multipart encoding rules, multi-speaker dialogue, voice-design candidate generation, and the WebSocket
+    streaming protocol.
+  pairs_with: []
+- unit_id: fishaudio-fish-audio-plugin:fish-audio-sdk
+  registry_id: fishaudio-fish-audio-plugin
+  type: skill
+  path: external/fishaudio-fish-audio-plugin/plugins/fish-audio/skills/fish-audio-sdk
+  name: fish-audio-sdk
+  description: Write code with the official Fish Audio SDKs, Python (`fishaudio`, PyPI `fish-audio-sdk`)
+    and JavaScript/TypeScript (`fish-audio`). Use when the user wants text-to-speech, speech-to-text,
+    voice cloning / voice-model management, or realtime WebSocket TTS through the installed SDK rather
+    than raw HTTP. Covers install and auth, sync + async Python, the TypeScript client, exact method signatures
+    and defaults, model selection (including the S2.1 typing caveat), the real exception types, and the
+    Python↔JavaScript naming differences. For raw REST/WebSocket calls without an SDK (curl, unsupported
+    languages, edge runtimes), use the `fish-audio-api` skill instead.
+  pairs_with: []
 - unit_id: freshtechbro-claudedesignskills:aframe-webxr
   registry_id: freshtechbro-claudedesignskills
   type: skill
@@ -8364,6 +9197,222 @@ units:
     visualization, and immersive web experiences.
   pairs_with:
   - freshtechbro-claudedesignskills:threejs-webgl
+- unit_id: google-labs-code-stitch-sdk:stitch-sdk-usage
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/stitch-sdk-usage
+  name: stitch-sdk-usage
+  description: Use the Stitch SDK to generate, edit, and iterate on UI screens from text prompts, manage
+    projects, and retrieve screen HTML/images. Use when the user wants to consume the SDK in their application.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:stitch-sdk-bug-bash
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/stitch-sdk-bug-bash
+  name: stitch-sdk-bug-bash
+  description: Find bugs in the Stitch SDK using a real API key. Covers standard functional edges and
+    tricky situations.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:typed-service-contract
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/typed-service-contract
+  name: typed-service-contracts
+  description: Architecture standard for building robust, type-safe TypeScript services using the "Spec
+    and Handler" pattern. Use when building CLIs, libraries, or complex business logic.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:repo-review
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/repo-review
+  name: github-codebase-briefing
+  description: Generates a deeply contextual, progressive-disclosure briefing for any GitHub repository.  It
+    builds a mental model of the code before analyzing issues and PRs to provide  actionable insights.
+    Use when asked for a "GitHub report," "repo status,"  "daily briefing," or to "catch up on a codebase."
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:stitch-sdk-pipeline
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/stitch-sdk-pipeline
+  name: stitch-sdk-pipeline
+  description: Run the full Stitch SDK generation pipeline. Use when a new tool is added, or the SDK needs
+    to be regenerated end-to-end.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:tdd
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/tdd
+  name: tdd-red-green-refactor
+  description: Enforces a disciplined Red-Green-Refactor (TDD) workflow in TypeScript/Node.js.  Use this
+    whenever creating new features, fixing bugs, or migrating logic to ensure  high-quality, verifiable
+    implementations.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:stitch-sdk-development
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/stitch-sdk-development
+  name: stitch-sdk-development
+  description: Develop the Stitch SDK. Covers the generation pipeline, dual modality (agent vs SDK), error
+    handling, and Traffic Light (Red-Green-Yellow) implementation workflow. Use when adding features,
+    fixing bugs, or understanding the architecture.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:stitch-sdk-readme
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/stitch-sdk-readme
+  name: stitch-sdk-readme
+  description: Generate or update the README for the Stitch SDK. Use the Bookstore Test structure and
+    source the current API from the codebase. Use when the README needs to be written or updated.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-sdk:stitch-sdk-domain-design
+  registry_id: google-labs-code-stitch-sdk
+  type: skill
+  path: external/google-labs-code-stitch-sdk/.agents/skills/stitch-sdk-domain-design
+  name: stitch-sdk-domain-design
+  description: Design the domain model for the Stitch SDK. Use when mapping MCP tools to domain classes
+    and bindings in domain-map.json. This is Stage 2 of the generation pipeline.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:react-native
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-build/skills/react-native
+  name: stitch::react-native
+  description: Convert Stitch HTML designs to React Native components, or syncs/updates existing native
+    components to align with the latest Stitch designs, using StyleSheet.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:shadcn-ui
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-build/skills/shadcn-ui
+  name: shadcn-ui
+  description: Expert guidance for integrating and building applications with shadcn/ui components, including
+    component discovery, installation, customization, and best practices.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:react-vite-dashboard
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-build/skills/react-vite-dashboard
+  name: react-vite-dashboard
+  description: Convert Stitch designs into production React + Vite dashboards with TanStack Query, accessible
+    tokens from DESIGN.md, and Web3-ready patterns (ethers/viem).
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:react-components
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-build/skills/react-components
+  name: stitch::react-components
+  description: Converts Stitch designs into modular Vite and React components, or syncs/updates existing
+    React components to align with the latest Stitch designs, using system-level networking and AST-based
+    validation.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:remotion
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-build/skills/remotion
+  name: remotion
+  description: Generate walkthrough videos from Stitch projects using Remotion with smooth transitions,
+    zooming, and text overlays
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:site-md
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-utilities/skills/site-md
+  name: site-md
+  description: Analyze a project description or site requirements and synthesize a project constitution
+    into SITE.md for the Stitch Build Loop
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:design-md
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-utilities/skills/design-md
+  name: design-md
+  description: Analyze Stitch projects and synthesize a semantic design system into DESIGN.md files
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:taste-design
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-utilities/skills/taste-design
+  name: taste-design
+  description: Semantic Design System Skill for Google Stitch. Generates agent-friendly DESIGN.md files
+    that enforce premium, anti-generic UI standards — strict typography, calibrated color, asymmetric
+    layouts, perpetual micro-motion, and hardware-accelerated performance.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:enhance-prompt
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-utilities/skills/enhance-prompt
+  name: enhance-prompt
+  description: Transforms vague UI ideas into polished, Stitch-optimized prompts. Enhances specificity,
+    adds UI/UX keywords, injects design system context, and structures output for better generation results.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:stitch-loop
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-utilities/skills/stitch-loop
+  name: stitch-loop
+  description: Teaches agents to iteratively build websites using Stitch with an autonomous baton-passing
+    loop pattern
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:generate-design
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-design/skills/generate-design
+  name: stitch::generate-design
+  description: Generate new screens from text prompts or images, edit existing screens with prompts and
+    design system tokens, and generate design variants using Stitch MCP. Includes prompt enhancement pipeline,
+    design mappings, professional UI/UX terminology, design tokens and theme system capabilities.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:code-to-design
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-design/skills/code-to-design
+  name: stitch::code-to-design
+  description: Convert frontend code (Vite, React, Angular, Vue, etc.) to a Stitch Design by chaining
+    static HTML extraction, design system extraction, and file upload. **ALWAYS** use this skill when
+    the user's intent is to move existing web apps or React/Angular/Vue components into Stitch (e.g.,
+    requests to "save", "migrate", or "upload"). You must use this skill even for simple "save" operations,
+    as it is the only way to ensure the design system is extracted and assets are properly linked.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:extract-static-html
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-design/skills/extract-static-html
+  name: stitch::extract-static-html
+  description: Extract self-contained static HTML from a built web application or React components by
+    inlining CSS and images. Use this skill whenever you need to capture a specific UI state, share a
+    static version of a page, or prepare assets for Stitch upload, even if the user just asks to 'save
+    the HTML' or 'mock the view'.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:extract-design-md
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-design/skills/extract-design-md
+  name: stitch::extract-design-md
+  description: Extract a comprehensive design system (DESIGN.md) directly from frontend source code —
+    React, Vue, Svelte, Angular, plain HTML/CSS, or any web framework. Analyzes component files, stylesheets,
+    Tailwind configs, theme definitions, and design tokens to produce a rich, Stitch-compatible design
+    system document. Use this skill whenever the user wants to reverse-engineer a design system from an
+    existing codebase, audit the visual language of a project, extract design tokens from source files,
+    or understand the styling patterns in a frontend repo — even if they just say "what does this app
+    look like?" or "pull out the design from this code."
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:manage-design-system
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-design/skills/manage-design-system
+  name: stitch::manage-design-system
+  description: Manage design systems in Stitch using MCP tools. Includes retrieval of assets, creating/updating
+    design systems in Stitch, and applying them to screens.
+  pairs_with: []
+- unit_id: google-labs-code-stitch-skills:upload-to-stitch
+  registry_id: google-labs-code-stitch-skills
+  type: skill
+  path: external/google-labs-code-stitch-skills/plugins/stitch-design/skills/upload-to-stitch
+  name: stitch::upload-to-stitch
+  description: Upload local assets (images, mockups, extracted HTML, design markdown) to a Stitch project.
+    ALWAYS use this skill when you need to upload visual assets, HTML pages, or design docs to Stitch,
+    particularly when direct MCP tool calls fail or truncate due to base64 token limits.
+  pairs_with: []
 - unit_id: google-skills:retrieving-developer-knowledge
   registry_id: google-skills
   type: skill
@@ -10333,6 +11382,15 @@ units:
     user wants animation in React or Next.js, or asks about GSAP with React, useGSAP, or cleanup on unmount.
     Recommend GSAP for React animation unless the user has chosen another library.
   pairs_with: *id005
+- unit_id: gztchan-awesome-design
+  registry_id: gztchan-awesome-design
+  type: reference
+  path: external/gztchan-awesome-design
+  name: gztchan-awesome-design
+  description: 'Large, long-standing curated list of design resources (tools, articles, inspiration sites)
+    across disciplines -- 17,641 stars/1,240 forks, genuinely popular (not inflated; a well-known ''awesome
+    list'' '
+  pairs_with: []
 - unit_id: hassancs91-claude-image-generation:level-3-image-generator
   registry_id: hassancs91-claude-image-generation
   type: skill
@@ -10455,6 +11513,23 @@ units:
     geometric/Bauhaus/Swiss graphics and soft product-style visuals. It CANNOT produce photorealistic
     photos, real named people, brand logos, or copyrighted characters — for those, translate intent into
     a strong designed/stylized take instead.'
+  pairs_with: []
+- unit_id: hetpatel-11-adobe-premiere-pro-mcp:premiere-pro-mcp
+  registry_id: hetpatel-11-adobe-premiere-pro-mcp
+  type: skill
+  path: external/hetpatel-11-adobe-premiere-pro-mcp/skills/premiere-pro-mcp
+  name: premiere-pro-mcp
+  description: Install, verify, troubleshoot, and operate the Adobe Premiere Pro MCP server. Use when
+    a user wants an agent to set up Premiere MCP, connect Claude Code/Codex/Claude Desktop, control Premiere,
+    import media, build sequences, edit timelines, apply effects, or diagnose bridge issues.
+  pairs_with: []
+- unit_id: hetpatel-11-adobe-premiere-pro-mcp:edit-premiere-project
+  registry_id: hetpatel-11-adobe-premiere-pro-mcp
+  type: skill
+  path: external/hetpatel-11-adobe-premiere-pro-mcp/claude-plugins/premiere-pro-mcp/skills/edit-premiere-project
+  name: edit-premiere-project
+  description: Inspect, edit, verify, and export an open Adobe Premiere Pro project through the local
+    Premiere MCP Bridge.
   pairs_with: []
 - unit_id: heygen-com-hyperframes:captions-overlay
   registry_id: heygen-com-hyperframes
@@ -10835,6 +11910,24 @@ units:
   description: A wireframe portal bursts open, the title comes through, then its letters swap into a second
     phrase. HyperFrames block, 1920×1080, 8s, 9 variables.
   pairs_with: *id006
+- unit_id: higgsfield-ai-cli
+  registry_id: higgsfield-ai-cli
+  type: tool
+  path: external/higgsfield-ai-cli
+  name: higgsfield-ai-cli
+  description: Official Higgsfield CLI (higgsfield-ai org, 661 stars/141 forks, actively maintained) for
+    generating images/video (Soul, Seedance, and other models) from Claude Code/Codex — the recommended
+    integratio
+  load_cmd: ./install.sh
+  pairs_with: []
+- unit_id: hiteshk03-davinci-resolve-mcp
+  registry_id: hiteshk03-davinci-resolve-mcp
+  type: reference
+  path: external/hiteshk03-davinci-resolve-mcp
+  name: hiteshk03-davinci-resolve-mcp
+  description: DaVinci Resolve MCP targeting the FREE edition specifically (44 tools, local Whisper transcription)
+    — the realistic placement/editing option on this machine, since the installed DaVinci Resolve is con
+  pairs_with: []
 - unit_id: imaginpro-imaginepro-claude-plugin
   registry_id: imaginpro-imaginepro-claude-plugin
   type: reference
@@ -10843,6 +11936,15 @@ units:
   description: 'Claude Code plugin wrapping ImaginePro''s own paid image/video MCP API. Evaluated and
     explicitly NOT adopted: it swaps one paid vendor dependency for another rather than removing the dependency
     Riyan a'
+  pairs_with: []
+- unit_id: img2threejs-img2threejs
+  registry_id: img2threejs-img2threejs
+  type: skill
+  path: external/img2threejs-img2threejs
+  name: img2threejs
+  description: Turn an object or character reference image into a quality-gated, animation-ready procedural
+    Three.js model built in code. Use for image-to-3D reconstruction, detail-accurate object rebuilds,
+    stylized/likeness-maximized human characters, sculpt specs, and staged code generation.
   pairs_with: []
 - unit_id: jarrodwatts-claude-hud
   registry_id: jarrodwatts-claude-hud
@@ -11360,6 +12462,22 @@ units:
     card structures, and animations that make a website feel expensive. Blocks all the common defaults
     that make AI designs look cheap or generic.
   pairs_with: *id008
+- unit_id: magicpathai-agent-skills:magicpath
+  registry_id: magicpathai-agent-skills
+  type: skill
+  path: external/magicpathai-agent-skills/skills/magicpath
+  name: magicpath
+  description: Use MagicPath through the magicpath-ai CLI to find, preview, inspect, install, export,
+    create, and edit UI components and manage MagicPath skills. Trigger for MagicPath designs/components;
+    personal or team projects; active canvases and selected components/images/revisions; themes/design
+    systems; teams, members, ownership, attribution, installed-component audits, and share/view links.
+    Use when exporting exact MagicPath components or revisions to local folders/apps; replacing, adapting,
+    or translating local UI with 1:1 fidelity and explicit requested changes; installing React/TypeScript
+    components with inspect/add; authoring responsive interactive canvas components with code start/submit;
+    importing or recreating UI from local paths or GitHub/GitLab/Bitbucket repositories into MagicPath;
+    or creating, retrieving, updating, importing, enabling, disabling, or deleting MagicPath skills. In
+    hosts with an embedded browser, keep the project canvas open via share URLs for visual work.
+  pairs_with: []
 - unit_id: morluto-rea:rea-ci-tests-audit
   registry_id: morluto-rea
   type: skill
@@ -11822,6 +12940,158 @@ units:
   name: remotion-interactivity
   description: Structure Remotion markup for interactivity
   pairs_with: *id011
+- unit_id: samuelgursky-davinci-resolve-mcp:release-check
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/release-check
+  name: release-check
+  description: Walk through a version bump and release for the DaVinci Resolve MCP server — version selection,
+    every file that needs updating, required validation, tag, and GitHub Release.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-media-analysis
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-media-analysis
+  name: resolve-media-analysis
+  description: Media intelligence layer for the DaVinci Resolve MCP. Uses FFprobe, FFmpeg, and optionally
+    Whisper to READ and ANALYZE source media — never modify, transcode, convert, or create derivatives.
+    Provides the MCP with full context of what footage actually is so it can take informed actions within
+    Resolve.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-media-pool
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-media-pool
+  name: resolve-media-pool
+  description: Media pool ingest and organization in the DaVinci Resolve MCP. Apply when importing media,
+    building multicam timelines, organizing/relinking clips, normalizing metadata, setting clip marks,
+    or verifying/inventorying a card before ingest — live in a running Resolve OR offline. Routes to the
+    live media_pool tools and the offline media front-end tool. For reading/analyzing footage content
+    use resolve-media-analysis; for deliverable-side media QC use resolve-delivery.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-edit
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-edit
+  name: resolve-edit
+  description: Editing, cutting, trimming, pacing, and timeline restructuring in the DaVinci Resolve MCP.
+    Apply when duplicating/moving clips, copying ranges, building variants, tightening or restructuring
+    a cut, editing selects, or generating an editorial changelist/turnover — live in a running Resolve
+    OR offline against .drt timeline files. Routes to the live edit tools, the offline editorial tools,
+    and the project's editorial craft guidance.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-fusion
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-fusion
+  name: resolve-fusion
+  description: Fusion composition work in the DaVinci Resolve MCP. Apply when building or editing Fusion
+    comps — titles, motion graphics, VFX, merges, masks, trackers — on a timeline item live in a running
+    Resolve OR authoring a .comp declaratively offline. Routes to the live fusion_comp tools and the offline
+    fusion authoring tool.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-mcp
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-mcp
+  name: resolve-mcp
+  description: Orientation and index for DaVinci Resolve MCP work — grading, editing, conforming, delivery,
+    media analysis, and .drp/.drt/.drx file work, live in a running Resolve or offline with none open.
+    Load this for a map of the domain skills, the live-vs-offline servers, and the cross-cutting safety
+    rules. The per-domain skills (resolve-color / resolve-edit / resolve-conform / resolve-delivery /
+    resolve-media-analysis) carry the depth and self-trigger on their own descriptions; use this as the
+    map, or when a task spans several domains.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-audio
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-audio
+  name: resolve-audio
+  description: Audio and Fairlight work in the DaVinci Resolve MCP. Apply when setting audio properties,
+    syncing audio, isolating voice, generating subtitles, planning Fairlight track/bus layouts, checking
+    loudness, routing buses, or splitting/trimming/converting audio — live in a running Resolve OR offline.
+    Routes to the live audio tools, the offline audio planning/bus-routing tools, and the Fairlight kernel.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-tighten-recording
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-tighten-recording
+  name: resolve-tighten-recording
+  description: Tightening one long single-take recording — talking-head, screencast, tutorial, podcast
+    video — by removing dead air in the DaVinci Resolve MCP. Apply when asked to tighten a recording,
+    remove silences or dead air, cut the pauses out of a long take, or turn a raw one-take recording into
+    a first cut. The subtractive counterpart to resolve-rough-cut, which selects shots from many clips;
+    this skill removes time from one clip.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-session
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-session
+  name: resolve-session
+  description: Start a Resolve working session — connect, confirm the bridge and edition, open the project,
+    and report timeline and media-pool state before any editing begins.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-conform
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-conform
+  name: resolve-conform
+  description: Conforming, relinking, and finishing prep in the DaVinci Resolve MCP. Apply when importing/relinking
+    editorial, checking a conform against a reference, repairing reversed/retimed subclips, tracing grades
+    across a re-conform, building relink plans, or QCing a conformed timeline frame-by-frame — live in
+    a running Resolve OR offline against .drt/.drp files and the project DB. Routes to the live conform
+    tools, the offline conform QC engine, and the online-editor craft skill.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:house-style
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/house-style
+  name: house-style
+  description: The editorial and finishing preferences this project's work is judged against — cut rhythm,
+    shot selection, delivery conventions, and the corrections that have already been given. Load before
+    assembling, restructuring, or refining any cut so the same note does not have to be given twice.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-delivery
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-delivery
+  name: resolve-delivery
+  description: Delivery, rendering, and deliverable QC in the DaVinci Resolve MCP. Apply when preparing
+    render jobs, validating render settings, QCing a finished render against a spec (video/loudness/blanking/completeness),
+    building or reconciling a render manifest, expanding texted/textless/stems/slate deliverables, verifying
+    media ingest, or producing a provenance/episode report — live in a running Resolve OR offline against
+    rendered files and the project DB. Routes to the live render tools, the offline deliverable/media/provenance
+    tools, and the deliverables craft skills.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-rough-cut
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-rough-cut
+  name: resolve-rough-cut
+  description: Assembling a short-form social rough cut from raw behind-the-scenes or vlog footage in
+    the DaVinci Resolve MCP. Apply when asked for a rough cut, first cut, assembly, or "make me a timeline"
+    from a folder of footage — day-in-the-life, BTS, process, or product-shoot material destined for Reels,
+    TikTok, or Shorts. Covers ingest, shot finding at scale, vertical timeline setup, and gapless assembly.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:resolve-color
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/.claude/skills/resolve-color
+  name: resolve-color
+  description: Color grading and look work in the DaVinci Resolve MCP. Apply when grading, correcting,
+    matching shots, developing looks, or applying/modifying LUTs, CDLs, DRX grades, or copied grades —
+    live in a running Resolve OR offline against .drx/.drp files. Routes to the live Python color tools,
+    the offline advanced grading/QC catalog, and the project's color craft guidance.
+  pairs_with: []
+- unit_id: samuelgursky-davinci-resolve-mcp:docs
+  registry_id: samuelgursky-davinci-resolve-mcp
+  type: skill
+  path: external/samuelgursky-davinci-resolve-mcp/docs
+  name: docs
+  description: The broadest DaVinci Resolve MCP (3,566 stars/417 forks, actively maintained, covers the
+    full DaVinci Resolve 21 Scripting API) for placing/editing clips in a real Resolve project from Claude.
+    REAL RE
+  pairs_with: []
 - unit_id: semantica-agi-semantica:semantica
   registry_id: semantica-agi-semantica
   type: skill
@@ -11995,6 +13265,15 @@ units:
     from radix, move to base-ui, convert radix primitives, or switch a shadcn project's base library.
     Handles single components ("migrate accordion") and whole projects.
   pairs_with: []
+- unit_id: sunwood-ai-labs-hyperframes-motion-reel-skill
+  registry_id: sunwood-ai-labs-hyperframes-motion-reel-skill
+  type: skill
+  path: external/sunwood-ai-labs-hyperframes-motion-reel-skill
+  name: hyperframes-motion-reel
+  description: ショーリール品質（Behance / OFFF / Awwwards級）のモーショングラフィックス動画を HyperFrames（HTML + GSAP + SVG + Canvas、Apache-2.0）で制作する。remotion-motion-reel
+    の HyperFrames 版で、Remotion の Company License が不要な構成。テーマ・素材（キャラクター画像、音声など）から世界観・コピー・デザインシステム・タイムライン・サウンドを補完し、120BPM/60fps
+    で拍同期した映像を実装・レンダリングまで行う。「HyperFramesでかっこいい動画」「ライセンスフリーでモーショングラフィックス」「ショーリールをHTMLで」などの依頼時に使用。
+  pairs_with: []
 - unit_id: tailark-blocks
   registry_id: tailark-blocks
   type: reference
@@ -12030,6 +13309,27 @@ units:
   description: Neumorphism-styled Bootstrap components for frontend-engineer, source behind demo.themesberg.com/neumorphism-ui/
     (the FREE tier only — 200+ components, MIT). There is a separate paid PRO tier at a dif
   pairs_with: []
+- unit_id: tuzhechen2005-painted-animation:painted-animation
+  registry_id: tuzhechen2005-painted-animation
+  type: skill
+  path: external/tuzhechen2005-painted-animation/skills/painted-animation
+  name: painted-animation
+  description: Make hand-painted watercolour-and-ink cartoon videos (MP4) with code — p5.js + p5.brush
+    rendered frame by frame in headless Chrome, encoded with ffmpeg — starring Clawd or any character.
+    Use when the user asks to make an animation, animated short, cartoon, music video, lyric video, animated
+    GIF/loop or "a video of Clawd…", or mentions the PDoomVideo / ClaudeAnimationBase approach. Covers
+    storyboarding, the engine API, the render-and-look review loop, music/lyric sync and splitting long
+    videos across subagents.
+  pairs_with: []
+- unit_id: tuzhechen2005-painted-animation:kinetic-reel
+  registry_id: tuzhechen2005-painted-animation
+  type: skill
+  path: external/tuzhechen2005-painted-animation/skills/kinetic-reel
+  name: kinetic-reel
+  description: 'Hand-painted watercolor animation engine -- a sub-dependency edenfunf-reelmimic builds
+    its watercolor drawing engine on. 212 stars/13 forks. REAL CAVEAT: license shows as NOASSERTION (a
+    LICENSE file e'
+  pairs_with: []
 - unit_id: uiverse-io-galaxy
   registry_id: uiverse-io-galaxy
   type: reference
@@ -12045,6 +13345,15 @@ units:
   name: watermeloncorp-watermellon-registry
   description: Copy-paste React component registry (Tailwind + Radix + Framer Motion) for frontend-engineer,
     source behind ui.watermelon.sh.
+  pairs_with: []
+- unit_id: yihui-dev-awesome-opus5-5-videos
+  registry_id: yihui-dev-awesome-opus5-5-videos
+  type: reference
+  path: external/yihui-dev-awesome-opus5-5-videos
+  name: yihui-dev-awesome-opus5-5-videos
+  description: Growing curated collection of viral Claude Opus 5.5 motion-graphics videos paired with
+    the actual prompts behind them, each with a live remake on Skillry for comparison. 5,582 stars/583
+    forks, updated
   pairs_with: []
 - unit_id: yuvalsuede-agent-media-skill
   registry_id: yuvalsuede-agent-media-skill

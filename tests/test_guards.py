@@ -98,6 +98,47 @@ class TestWorktreeEscape(unittest.TestCase):
     def test_allows_tmp_scratch(self):
         self.assertIsNone(self.esc("mkdir -p /tmp/rev101 && cd /tmp/rev101"))
 
+
+MAIN_REPO = "/Users/User/dev/company-os"
+
+
+class TestMainRepoReadAccess(unittest.TestCase):
+    """Regression (2026-10-17): a Tier-2 worker was blocked from reading
+    external/<id>/ and skills/<id>/ in the main checkout -- `cd` into
+    COMPANY_MAIN_REPO was treated identically to a write escape, even for
+    pure reads (`ls`, `find`, `which`). The whole capability-registry/
+    external/ workflow depends on every worker being able to cd there and
+    read; this is load-bearing, not optional."""
+
+    def esc(self, cmd):
+        return guard.find_escape(cmd, WT, CROOT, MAIN_REPO)
+
+    def test_allows_reading_main_repo(self):
+        for cmd in (
+            "cd /Users/User/dev/company-os; ls; ls external 2>/dev/null | head -80",
+            "cd /Users/User/dev/company-os && cat skills/motion-graphics-video/SKILL.md",
+            "cd /Users/User/dev/company-os && find external -maxdepth 2 -type d",
+        ):
+            self.assertIsNone(self.esc(cmd), cmd)
+
+    def test_still_blocks_writing_into_main_repo(self):
+        """cd being allowed must never imply writes into the main repo are --
+        the ownership hook only sees Write/Edit/NotebookEdit, so a shell
+        redirect is still the escape hatch this guard exists to close."""
+        self.assertEqual(
+            self.esc("cd /Users/User/dev/company-os && echo pwned > /Users/User/dev/company-os/README.md"),
+            "/Users/User/dev/company-os/README.md")
+        self.assertEqual(
+            self.esc("cat a | tee /Users/User/dev/company-os/notes.txt"),
+            "/Users/User/dev/company-os/notes.txt")
+
+    def test_still_blocks_cd_into_unrelated_absolute_paths(self):
+        self.assertEqual(self.esc("cd /etc && cat hosts"), "/etc")
+
+    def test_worktree_and_company_root_unaffected(self):
+        self.assertIsNone(self.esc(f"cd {WT} && git log"))
+        self.assertIsNone(self.esc(f"cd {CROOT} && cat events/events.jsonl"))
+
     def test_allows_dev_null(self):
         self.assertIsNone(self.esc("python3 -m unittest discover -q tests > /dev/null"))
 

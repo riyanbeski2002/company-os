@@ -180,6 +180,22 @@ re-explain installation from scratch each time.
 - Checking whether a well-known fact changed (e.g. "is this API still current")
   without adopting anything new.
 
+## Combine approved capabilities — don't silo to one per task
+
+Checking the registry and finding a fit is not the same as finding *the*
+fit. A real build routinely needs several registered capabilities working
+together, each doing the part it's actually best at — a renderer, a
+technique skill, a component library, and a placement tool in the same
+video build is normal, not scope creep (see `agents/video-editor.md`'s
+worked example). Don't stop at the first match and force it to cover
+everything; keep checking what else the task's other parts need.
+
+Two skills exist specifically to make this concrete rather than aspirational:
+`component-customization` (reuse-then-restyle discipline for UI work) and
+`capture-and-tailor` (route-by-reference-type, grammar-only, deliberate-
+divergence discipline for anything built from a reference). Invoke the
+relevant one before assuming a from-scratch build is the only option.
+
 ## Anti-patterns
 
 - Never install, `npm add`, or execute anything found during research —
