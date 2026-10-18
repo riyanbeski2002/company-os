@@ -72,20 +72,30 @@ def deny(reason: str) -> None:
 # NotebookEdit, so without this a worker could write anywhere via a shell
 # redirect. This catches the common shapes; it is NOT a complete sandbox —
 # see the "residual gap" note in the README.
-ESCAPE_PATTERNS = [
+#
+# `cd` is deliberately NOT a write pattern: it's pure navigation, and the
+# capability-registry workflow (external/<id>/, skills/<id>/) requires every
+# worker to be able to `cd` into the MAIN checkout to read vetted capabilities
+# there — that's the whole point of $CLAUDE_PLUGIN_ROOT/COMPANY_MAIN_REPO
+# always pointing at it regardless of which worktree launched the worker (see
+# agents/company-pm.md). A worker's writes are still fully blocked outside its
+# worktree by the ownership hook (Write/Edit/NotebookEdit) and by the write
+# patterns below for the shell-redirect escape those tools don't see — cd
+# alone changes no bytes, so it gets its own, more permissive allowlist.
+WRITE_ESCAPE_PATTERNS = [
     re.compile(r">>?\s*(/[^\s;|&>]+)"),                 # > /abs  and  >> /abs
     re.compile(r"\btee\s+(?:-a\s+)?(/[^\s;|&]+)"),      # tee /abs
     re.compile(r"\b(?:cp|mv|install)\s+[^;|&]*?\s(/[^\s;|&]+)\s*(?:$|[;|&])"),
-    re.compile(r"\bcd\s+(/[^\s;|&]+)"),                 # cd /abs
 ]
+CD_PATTERN = re.compile(r"\bcd\s+(/[^\s;|&]+)")
 
 # Writable-anyway locations: scratch space a reviewer or test run legitimately
 # uses, and the event log the worker is required to append to.
 ESCAPE_ALLOW_PREFIXES = ("/tmp/", "/private/tmp/", "/var/folders/", "/dev/")
 
 
-def find_escape(command: str, worktree: str, company_root: str) -> str | None:
-    for pattern in ESCAPE_PATTERNS:
+def find_escape(command: str, worktree: str, company_root: str, main_repo: str = "") -> str | None:
+    for pattern in WRITE_ESCAPE_PATTERNS:
         for target in pattern.findall(command):
             path = os.path.normpath(target)
             if path.startswith(ESCAPE_ALLOW_PREFIXES) or path in ("/dev/null",):
@@ -95,6 +105,17 @@ def find_escape(command: str, worktree: str, company_root: str) -> str | None:
             if company_root and (path == company_root or path.startswith(company_root + "/")):
                 continue
             return path
+    for target in CD_PATTERN.findall(command):
+        path = os.path.normpath(target)
+        if path.startswith(ESCAPE_ALLOW_PREFIXES) or path in ("/dev/null",):
+            continue
+        if worktree and (path == worktree or path.startswith(worktree + "/")):
+            continue
+        if company_root and (path == company_root or path.startswith(company_root + "/")):
+            continue
+        if main_repo and (path == main_repo or path.startswith(main_repo + "/")):
+            continue
+        return path
     return None
 
 
@@ -113,7 +134,8 @@ def main() -> None:
 
     worktree = os.path.normpath(os.environ.get("COMPANY_REPO", "")) if os.environ.get("COMPANY_REPO") else ""
     croot = os.path.normpath(os.environ.get("COMPANY_ROOT", "")) if os.environ.get("COMPANY_ROOT") else ""
-    escaped = find_escape(command, worktree, croot)
+    main_repo = os.path.normpath(os.environ.get("COMPANY_MAIN_REPO", "")) if os.environ.get("COMPANY_MAIN_REPO") else ""
+    escaped = find_escape(command, worktree, croot, main_repo)
     if escaped:
         record(task_id, command, "shell write outside the worktree")
         deny(

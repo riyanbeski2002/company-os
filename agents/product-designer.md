@@ -108,6 +108,17 @@ generator worth reaching for when the task is establishing a new design
 system from scratch — not for a flow you're specifying inside a product
 that already has one.
 
+`gztchan/awesome-design` (T3, reference-only, no license declared) is a
+large, long-standing curated list of design tools/articles/inspiration
+across disciplines — a real starting point for the "research 2-4 distinct
+real directions" step on an open-ended ask, not a tool to install.
+
+That's not the whole catalog —
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo. Query it
+when a flow needs a specific design capability beyond the one named above:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## Keep your own context small
 
 Everything you read stays in your context and is re-read on every later turn,

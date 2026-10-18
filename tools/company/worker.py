@@ -49,6 +49,7 @@ RESULT_SCHEMA = {
 ROLE_TOOLS = {
     "backend-engineer": "Read,Grep,Glob,Edit,Write,Bash",
     "frontend-engineer": "Read,Grep,Glob,Edit,Write,Bash",
+    "video-editor": "Read,Grep,Glob,Edit,Write,Bash",
     "code-reviewer": "Read,Grep,Glob,Bash",
     "qa-engineer": "Read,Grep,Glob,Bash",
     "security-reviewer": "Read,Grep,Glob,Bash",
@@ -115,6 +116,7 @@ def ensure_worktree(repo: Path, company_root: Path, task: dict) -> tuple[Path, s
         raise WorkerError(f"git worktree add failed: {r.stderr.strip()}")
 
     _copy_worktree_includes(repo, wt)
+    _link_loaded_skills(repo, wt)
     return wt, branch
 
 
@@ -145,6 +147,36 @@ def _copy_worktree_includes(repo: Path, wt: Path) -> None:
                 dst = wt / src.relative_to(repo)
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(src.read_bytes())
+
+
+def _link_loaded_skills(repo: Path, wt: Path) -> None:
+    """Carry currently-`load`ed capability skills (tools/capability.py) into
+    the worktree, same reasoning as _copy_worktree_includes: Claude Code's own
+    skill-discovery scans the *worktree's* skills/, not the main checkout's,
+    so a worker otherwise can't see a skill loaded in the main checkout even
+    though it CAN already read anything under external/ (that's resolved via
+    $CLAUDE_PLUGIN_ROOT, which always points at the main checkout regardless
+    of worktree — see agents/company-pm.md).
+
+    skills/<id> entries created by `capability.py load` are symlinks into
+    external/<id>/... (itself gitignored, main-checkout-only); we recreate
+    the same symlink, pointing at the *main repo's* absolute path, so the
+    worktree doesn't need its own external/ clone.
+    """
+    src_skills = repo / "skills"
+    if not src_skills.is_dir():
+        return
+    dst_skills = wt / "skills"
+    for entry in src_skills.iterdir():
+        if not entry.is_symlink():
+            continue  # vendored real skills (e.g. skills/claudedesignskills/) are
+                      # tracked in git and already present via the worktree checkout
+        target = entry.resolve()
+        dst = dst_skills / entry.name
+        if dst.exists() or dst.is_symlink():
+            continue
+        dst_skills.mkdir(parents=True, exist_ok=True)
+        dst.symlink_to(target)
 
 
 # --- launch -----------------------------------------------------------------
@@ -192,7 +224,7 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
 
 
 def build_command(task: dict, role: str, model: str | None = None,
-                   effort: str | None = None) -> list[str]:
+                   effort: str | None = None, skip_permissions: bool = False) -> list[str]:
     cmd = [
         "claude", "-p",
         # --agent is what makes this affordable. The agent file's `tools:` list
@@ -218,6 +250,18 @@ def build_command(task: dict, role: str, model: str | None = None,
         cmd += ["--model", model]
     if effort:
         cmd += ["--effort", effort]
+    if skip_permissions:
+        # ESC-009, 2026-10-17: Claude Code's own sensitive-file permission
+        # prompt blocks headless writes under .company/worktrees/<TASK>/ even
+        # with --permission-mode acceptEdits (likely its heuristic treating
+        # the whole .company/ tree as sensitive because .company/secrets/
+        # lives alongside it). Logged, one-off stopgap per Riyan's explicit
+        # instruction, not a default -- the ownership hook and
+        # protect_branches.py still fully constrain what a worker can touch;
+        # this only removes Claude Code's own extra prompt on top of them.
+        # Real fix tracked at ESC-009 (move worktrees out of .company/, or a
+        # scoped settings.json allow-rule), not this flag.
+        cmd += ["--dangerously-skip-permissions"]
     return cmd
 
 
@@ -307,8 +351,22 @@ def live_worker_on(company_root: Path, task_id: str) -> str | None:
 
 
 def launch(repo: Path, company_root: Path, task: dict, packet: str,
-           role: str, actor: str, timeout: int = 1800) -> dict:
-    """Run one Tier-2 worker to completion. Returns a result record."""
+           role: str, actor: str, timeout: int = 1800,
+           model_override: str | None = None, effort_override: str | None = None,
+           override_reason: str | None = None, skip_permissions: bool = False) -> dict:
+    """Run one Tier-2 worker to completion. Returns a result record.
+
+    model_override/effort_override replace staffing.yaml's tier policy for
+    this one launch only — never persisted, never changes the policy for any
+    other task. Per D11, escalating above policy needs a recorded reason;
+    override_reason is required whenever either override is set and is
+    written into WORKER_STARTED so the escalation is visible in the event
+    log, not a silent one-off.
+    """
+    if (model_override or effort_override or skip_permissions) and not override_reason:
+        raise WorkerError(
+            "model/effort/skip-permissions override requires --why (the reason is "
+            "recorded in WORKER_STARTED, per D11's escalation-needs-a-reason discipline)")
     if not claim_task(company_root, task["id"], actor):
         busy = live_worker_on(company_root, task["id"]) or "another worker"
         raise WorkerError(
@@ -324,20 +382,31 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         out_path, err_path = state / "stdout.json", state / "stderr.log"
 
         policy_cfg = staffing.load_config(company_root, "staffing.yaml")
-        policy = staffing.model_policy(policy_cfg, tier=2, gated=bool(task.get("gates")), role=role)
+        policy = dict(staffing.model_policy(policy_cfg, tier=2, gated=bool(task.get("gates")), role=role))
+        if model_override:
+            policy["model"] = model_override
+        if effort_override:
+            policy["effort"] = effort_override
 
+        event_data = {"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
+                      "timeout_s": timeout, "model": policy.get("model"),
+                      "effort": policy.get("effort")}
+        if model_override or effort_override or skip_permissions:
+            event_data["policy_override"] = {
+                "reason": override_reason,
+                "model_override": model_override, "effort_override": effort_override,
+                "skip_permissions": skip_permissions,
+            }
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
-            task=task["id"],
-            data={"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
-                  "timeout_s": timeout, "model": policy.get("model"),
-                  "effort": policy.get("effort")},
+            task=task["id"], data=event_data,
         ))
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
-                build_command(task, role, model=policy.get("model"), effort=policy.get("effort")),
+                build_command(task, role, model=policy.get("model"), effort=policy.get("effort"),
+                              skip_permissions=skip_permissions),
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
                               thinking=bool(policy.get("thinking", True))),

@@ -70,6 +70,12 @@ requirement has emerged since you last knew about it — use
 `capability-curator` (see that skill) for this. You may only ever propose an
 addition to `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, never write it.
 
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo — before
+remediating from memory alone, check whether a relevant control or scanner
+is already catalogued:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## How you report
 
 ```

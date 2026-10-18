@@ -61,6 +61,13 @@ update), fall back immediately: `company session ping --target <tmux-target>
   `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`) names the reuse-first, YAGNI
   discipline worth holding yourself to before reaching for a new dependency
   or writing a component that already exists in this product.
+- `multica-ai/andrej-karpathy-skills` (T3 — no owner-declared license, real
+  flagged-stars caveat, see its registry entry — content itself is a short,
+  concrete CLAUDE.md on LLM-coding pitfalls: state assumptions instead of
+  guessing, minimum code for what was asked, touch only what the request
+  requires, define a verifiable success criterion before looping). Hold
+  yourself to it the same way as `ponytail` — a standard to check your own
+  diff against, not a tool to install.
 
 ## Taste — enforced the same way correctness is
 A functionally correct screen that looks like generic AI output is not done.
@@ -94,11 +101,48 @@ options, not just one, and what needs Riyan vs. what you build yourself.
 
 ## External skills worth reaching for
 
+**Invoke `component-customization` before building any hero section, card
+grid, nav, pricing table, scroll effect, or other common UI pattern from
+scratch.** It has the full library-to-job table and the restyle discipline
+that keeps a reused component from shipping with its demo look — this repo
+has 15+ registered component/animation libraries that get cloned and then
+not actually reached for; that skill exists specifically to close that gap.
+If the task hands you a reference (a site, a screenshot, a competitor's
+section) to work from rather than a blank brief, invoke `capture-and-tailor`
+first instead — it routes to the right capture tool and enforces the
+grammar-only/no-photocopy discipline before you build anything.
+
 Researched and registered in `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`
 (check it for current trust tier/license before installing anything —
-registry entries can go stale). Reach for the one that actually fits the
-task, not all of them by default:
+registry entries can go stale). Most entries below also have a `local_path`
+in the registry — they're already cloned under
+`$CLAUDE_PLUGIN_ROOT/external/<id>/`, no install step needed before reading
+or running anything in them. Reach for the one that actually fits the task,
+not all of them by default — and combine more than one within a single
+build when the task genuinely needs it (a component library for structure,
+`darkroomengineering/lenis` for scroll feel, GSAP ScrollTrigger for what
+happens as it scrolls, is a normal combination, not over-engineering):
 
+- **`skills/claudedesignskills/`** (T2, MIT, from `freshtechbro/claudedesignskills`)
+  — vendored directly into this repo's own `skills/` tree, not left as an
+  external reference: 22 real Claude Code skills (each with its own
+  `SKILL.md`, `references/`, `scripts/`, `assets/`) for 3D/WebGL and
+  animation — Three.js, GSAP ScrollTrigger, React Three Fiber, Babylon.js,
+  Framer Motion, Lottie, and more. Load the specific one the task needs
+  (`skills/claudedesignskills/threejs-webgl/SKILL.md` etc.), not all 22.
+- **`skills/claude-image-generation/`** (T2, MIT, from
+  `hassancs91/claude-image-generation`) — the default answer when a page
+  needs a generated image and you'd otherwise reach for Nano Banana or
+  ChatGPT: **Level 1** (`level-1-image-generator`) is a Pillow/numpy
+  code-based design engine — posters, logos, quote cards, geometric art,
+  zero API, zero cost, local, crisp text. **Level 2**
+  (`level-2-image-generator`) is a real headless Three.js 3D render — product
+  shots, 3D backgrounds, zero API, zero cost, local. Reach for one of these
+  two first. **Level 3** (`level-3-image-generator`, Cloudflare Workers AI
+  flux-1-schnell) is the only tier needing a key, for photographic/freeform
+  looks the first two can't produce — still not Nano Banana/ChatGPT, nearly
+  free. A `storybook-pipeline` sub-skill composes these into an illustrated
+  HTML storybook if a task ever needs that.
 - **`emilkowalski/skills`** (T2, MIT) — animation/UI taste guidance from a
   named design engineer (ex-Vercel/Linear). Closest match to this file's own
   "Taste" section above; use when a motion or component decision needs more
@@ -157,10 +201,31 @@ task, not all of them by default:
   component code. Use Dribbble searches (if you use them at all) purely as
   visual inspiration in the options-research step above, the same way you'd
   look at any reference site — never scrape or copy an asset from it.
+- **`darkroomengineering/lenis`** (T1, MIT) — the industry-standard
+  smooth-scroll library, from a well-known agency, 4+ years maintained. Use
+  for the scroll-physics layer itself; pair with GSAP ScrollTrigger or
+  `scroll-animation` for what triggers as the page scrolls.
+- **`img2threejs/img2threejs`** (T2, Apache-2.0) — rebuilds an object from a
+  reference image as a code-only, procedural Three.js model (no mesh
+  downloads). Use when a task hands you a photo of an object and wants a
+  tailored 3D version of it, not a stock asset.
+- **`google-labs-code/stitch-sdk`** + **`stitch-skills`** (T2, Apache-2.0,
+  official Google Labs) — generates a UI screen from a text prompt and
+  extracts its real HTML + screenshot programmatically. Real dependency:
+  needs a billed `STITCH_API_KEY`, not free/local — reach for this when a
+  task specifically wants Stitch's generated screens, not as a default UI
+  generator.
 
 If you're not confident one of these is still current before relying on it,
 that's exactly what `capability-curator` is for — don't skip the check
 because it's already in this list.
+
+The list above is hand-picked, not the whole catalog —
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo. Query it
+when a task needs something outside this list:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`,
+then `load <unit_id>` to activate a skill it finds.
 
 ## Open-ended asks — research and present options, don't guess
 

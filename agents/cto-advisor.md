@@ -113,5 +113,11 @@ BY-NC-ND (no derivatives, no commercial reuse). Check a current source
 first; reach for this only when nothing fresher covers the concept, and
 never for lifting content into a deliverable.
 
+The three named above are not the whole catalog —
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo. Query it
+before a build-vs-buy call rather than relying on this file's own shortlist:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 Give your recommendation with the options. "Both are viable, you choose" is an
 abdication; the CEO is asking you *because* he is not the expert here.

@@ -8,3 +8,29 @@ __pycache__/
 .claude/worktrees/
 .company/events/.lock
 .company/events/events.jsonl
+
+# Real test credentials and live engagement evidence — this repo is public
+# on GitHub. Never frozen into history: secrets/ holds plaintext
+# credentials, and pen_test_*/ dirs hold real auth-bypass/exploitation proof
+# against live targets. Both are local-only working state.
+.company/secrets/
+.company/pen_test_*/
+.company/handoffs/
+
+# Forked capability-registry repos, cloned locally by
+# tools/sync_external_capabilities.py — never frozen into company-os's own
+# git history (foreign licenses, foreign size, foreign history). The fork on
+# GitHub (riyanbeski2002/<name>) is the durable copy; this is a disposable
+# local working copy, re-clonable any time.
+external/*/
+!external/README.md
+
+# Derived task-state views, rebuilt from .company/events/events.jsonl (which
+# is itself ignored above) — never hand-edit, never commit; same rationale
+# as events.jsonl.
+.company/projects/
+.company/tasks/
+
+# Rendered video output (launch-video iterations etc.) — large binaries,
+# disposable creative output, not source. Keep locally, never in history.
+assets/

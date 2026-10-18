@@ -78,6 +78,11 @@ Code capabilities that could replace something custom) also go stale. Use
 itself could be improved with something you don't yet know about. You may
 only ever propose an addition to the capability registry, never write it.
 
+`$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml` indexes 1,100+ loadable
+units (skills/tools/reference) across every vetted external repo — query it
+when a delivery-process gap might already have a vetted answer:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## How you report
 
 ```

@@ -64,6 +64,12 @@ Run `scripts/install_extra_tools.sh` and `scripts/update_engines.sh` once
 per machine, and re-run the latter before any real engagement (its feeds
 go stale).
 
+Beyond these three tiers, `$CLAUDE_PLUGIN_ROOT/config/capability-index.yaml`
+indexes 1,100+ loadable units (skills/tools/reference) across every vetted
+external repo — query it if an engagement needs a capability outside the
+pen_test skill's own scope:
+`python3 $CLAUDE_PLUGIN_ROOT/tools/capability.py search <keyword> [<keyword> ...]`.
+
 ## Run the engagement in order
 
 The skill defines the lifecycle — follow it, don't jump straight to a

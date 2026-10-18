@@ -136,10 +136,21 @@ That is not a proposal, it is homework handed back.
 
 ## How a skill actually gets loaded, once approved
 
-Most external skill repos in `capability-registry.yaml` are installed the
-same way, via `vercel-labs/skills` (T2, MIT, itself registered) — the CLI
-behind the `npx skills add <owner>/<repo>` command referenced elsewhere in
-this repo:
+**Check `local_path` on the registry entry first.** Most entries now carry
+one (2026-10-16 sweep) — it means the repo is already shallow-cloned under
+`$CLAUDE_PLUGIN_ROOT/external/<id>/`, no install step needed: read, run, or
+build on top of it directly. `tools/sync_external_capabilities.py` keeps
+these current (`--check` to report staleness without changing anything);
+`tools/repoint_to_fork.py --all` switches a clone's remote to its fork once
+`forked_to` lands (fork creation can lag behind the clone — see
+`external/README.md`). An entry without `local_path` yet just hasn't been
+synced — run `tools/sync_external_capabilities.py <id>` rather than treating
+its absence as "not available."
+
+For an entry with no `local_path` and no `forked_to` either, or for one-off
+use outside this repo, the older mechanism still works: via
+`vercel-labs/skills` (T2, MIT, itself registered) — the CLI behind the
+`npx skills add <owner>/<repo>` command referenced elsewhere in this repo:
 
 ```
 npx skills add <owner>/<repo>              # installs it
@@ -168,6 +179,22 @@ re-explain installation from scratch each time.
   something to fork or propose adopting wholesale.
 - Checking whether a well-known fact changed (e.g. "is this API still current")
   without adopting anything new.
+
+## Combine approved capabilities — don't silo to one per task
+
+Checking the registry and finding a fit is not the same as finding *the*
+fit. A real build routinely needs several registered capabilities working
+together, each doing the part it's actually best at — a renderer, a
+technique skill, a component library, and a placement tool in the same
+video build is normal, not scope creep (see `agents/video-editor.md`'s
+worked example). Don't stop at the first match and force it to cover
+everything; keep checking what else the task's other parts need.
+
+Two skills exist specifically to make this concrete rather than aspirational:
+`component-customization` (reuse-then-restyle discipline for UI work) and
+`capture-and-tailor` (route-by-reference-type, grammar-only, deliberate-
+divergence discipline for anything built from a reference). Invoke the
+relevant one before assuming a from-scratch build is the only option.
 
 ## Anti-patterns
 
