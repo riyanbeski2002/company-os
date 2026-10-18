@@ -426,12 +426,27 @@ def cmd_plan(args):
     collisions = staffing.predict_overlap(parallel)
     band = staffing.size_band(len(tier2))
 
+    # This project's still-live tasks from EARLIER plans, not just this
+    # batch — both checks below exist because a batch-local view already
+    # missed real incidents (finos-5a: same fix staffed 3x across 3 waves;
+    # resolve-os: 18 tasks across 6 waves in ~29h, each wave its own PR).
+    existing = [t for t in taskstate.fold(EventLog(root).read()).values()
+               if t.get("project") == project]
+
+    cross_plan_joins = staffing.join_existing_gate_groups(planned, existing)
+    default_group_id, default_grouped_tasks = staffing.default_gate_group(planned, project)
+    duplicates = staffing.find_duplicate_staffing(planned, existing)
+
     plan = {
         "project": project, "request": request, "tasks": planned,
         "staffing": band, "tier2_workers": len(tier2),
         "gates_forced_by_risk_table": forced,
         "predicted_file_overlap": collisions,
         "tier_escalations_without_reason": unreasoned_escalations,
+        "cross_plan_gate_joins": cross_plan_joins,
+        "default_gate_group": default_group_id,
+        "default_gate_group_tasks": default_grouped_tasks,
+        "possible_duplicate_staffing": duplicates,
     }
 
     if collisions and not args.allow_overlap:
@@ -448,6 +463,16 @@ def cmd_plan(args):
             "fast_path recommends Tier 0 for one or more tasks (no risk trigger, "
             "diff in-bounds) but they're staffed above it with no recorded reason — "
             "set 'tier_reason' on the task, or pass --allow-tier-escalation"
+        )
+        emit(plan, 3)
+
+    if duplicates and not args.allow_duplicate:
+        plan["ok"] = False
+        plan["refusal"] = (
+            "one or more planned tasks closely match the title of a still-live "
+            "task already in this project — check its status before staffing the "
+            "same fix twice under a different id, or pass --allow-duplicate if "
+            "this genuinely is separate work"
         )
         emit(plan, 3)
 
@@ -504,6 +529,24 @@ def cmd_staff(args):
 
 GATE_ROLES = {"code-reviewer", "qa-engineer", "security-reviewer"}
 
+# Turn budgets (2026-09-14, cost audit): `_diff_summary_for_gate` already hands
+# a gate role the actual patch specifically so it doesn't have to rediscover it
+# via its own Read/Grep/Bash — so it needs far fewer turns than an implementer
+# building something from scratch. Measured 2026-09-14: gate roles were the
+# majority of a day's launches (66 of 99) and 64% of its cache_creation tokens,
+# all riding the same 60-turn ceiling as an implementer. This is a starting
+# number, not a settled one — treat it the way packet.py's TOKEN_BUDGET is
+# treated: raise it only against measured GATE_NO_VERDICT/timeout evidence,
+# never on suspicion.
+GATE_MAX_TURNS = 15
+IMPLEMENTER_MAX_TURNS = 60
+
+
+def _resolve_max_turns(explicit: int | None, role: str) -> int:
+    if explicit is not None:
+        return explicit
+    return GATE_MAX_TURNS if role in GATE_ROLES else IMPLEMENTER_MAX_TURNS
+
 
 def _diff_summary_for_gate(repo, root, task, role, worker_mod):
     """Hand a gate role the actual patch, not just a pointer to go find it
@@ -544,22 +587,36 @@ def cmd_run(args):
         emit({"ok": False, "task": task["id"], "waiting_on": unmet,
               "hint": "let the dependency publish a CONTRACT_PUBLISHED event, or pass --force"}, 3)
 
+    # ESC-026 (Riyan, 2026-09-11: "go with A"). Computed before render() —
+    # not after, where it used to live — because find_handoff needs the
+    # actor this launch will actually use, not a placeholder. A relaunch
+    # addressed to the actor by name ("backend-engineer-231") only matches
+    # if that name exists before the lookup runs.
+    actor = args.actor or f"{args.role}-{task['id'].split('-')[-1]}"
+
+    # find_handoff/handoff_text (packet.py) already had the mechanism to
+    # embed a handoff's actual content into the packet — nothing here ever
+    # called it, so `company handoff` wrote a file every worker was blind
+    # to. See packet.py's own ESC-026 comment for the fuller cost.
+    handoff_path = packet_mod.find_handoff(root, task["id"], actor, args.role)
+    handoff_text = handoff_path.read_text() if handoff_path else None
+
     try:
         body = packet_mod.render(
             task, why=args.why or "Requested by the CEO.",
             diff_summary=_diff_summary_for_gate(repo, root, task, args.role, worker_mod),
             contracts=contracts, handoff_target=args.handoff_to,
-            max_turns=args.max_turns, timeout_s=args.timeout,
+            max_turns=_resolve_max_turns(args.max_turns, args.role), timeout_s=args.timeout,
             verify=verify_command(root, args.verify),
-            baseline=_baseline(root, task.get("project")))
+            baseline=_baseline(root, task.get("project")),
+            handoff_text=handoff_text)
     except (packet_mod.PacketTooLarge, ValueError) as exc:
         die(str(exc), 1)
 
     if args.dry_run:
         emit({"ok": True, "task": task["id"], "dry_run": True,
-              "packet_tokens": packet_mod.estimate_tokens(body), "packet": body})
-
-    actor = args.actor or f"{args.role}-{task['id'].split('-')[-1]}"
+              "packet_tokens": packet_mod.estimate_tokens(body), "packet": body,
+              "handoff_used": str(handoff_path) if handoff_path else None})
 
     if args.detach:
         # A PM running as `claude -p` cannot outlive its own turn: Claude Code
@@ -702,7 +759,8 @@ def cmd_gate_group(args):
         group_tasks, group_id=args.group,
         why=args.why or "Requested by the CEO.",
         diff_summary=diff_summary, verify=verify_command(root, args.verify),
-        baseline=baseline, max_turns=args.max_turns, timeout_s=args.timeout)
+        baseline=baseline, max_turns=_resolve_max_turns(args.max_turns, args.role),
+        timeout_s=args.timeout)
 
     if args.dry_run:
         emit({"ok": True, "group": args.group, "dry_run": True,
@@ -805,8 +863,9 @@ def cmd_status(args):
     project = args.project or os.environ.get("COMPANY_PROJECT")
     tasks = _project_tasks(root, project)
     events = EventLog(root).read()
-    stalls = {**render.detect_stalls(root, tasks, events),
-             **render.gates_with_no_verdict(events)}
+    stalls = {**render.detect_stale_tasks(tasks),
+             **render.detect_stalls(root, tasks, events),
+             **render.gates_with_no_verdict(events, tasks)}
     if args.json:
         emit({"project": project, "progress": render.project_progress(tasks),
               "tasks": tasks, "escalations": _escalations(root, project), "stalled": stalls})
@@ -1246,9 +1305,30 @@ def cmd_lesson(args):
 
 
 def cmd_escalate(args):
-    """Ask the CEO for something the PM cannot do or decide."""
+    """Ask the CEO for something the PM cannot do or decide — or, with
+    --list, query what's already been raised instead of raising a new one."""
     import escalations
     root = company_root(args)
+
+    if args.list:
+        # Deliberately does not require --project — "what's still waiting on
+        # Riyan" is usually a cross-project question, and demanding a project
+        # just to read a list is the same needless friction flagged
+        # elsewhere (finos-5a: `company event` requiring --project with only
+        # one project in cwd).
+        events = EventLog(root).read()
+        everything = escalations.all_escalations(events)
+        items = list(everything.values())
+        if args.list != "all":
+            items = [e for e in items if e.get("status") == args.list]
+        if args.project:
+            items = [e for e in items if e.get("project") == args.project]
+        items.sort(key=lambda e: (not e.get("blocking"), e.get("id", "")))
+        emit({"ok": True, "filter": args.list, "count": len(items), "escalations": items})
+
+    if not args.kind or not args.need:
+        die("--kind and --need are required to raise an escalation "
+           "(use --list to query existing ones instead)", 1)
     project = load_project(root, args.project)
     try:
         esc = escalations.raise_escalation(
@@ -1438,6 +1518,9 @@ def build_parser():
                     help="plan anyway despite predicted file collisions")
     pl.add_argument("--allow-tier-escalation", action="store_true",
                     help="plan anyway despite an unreasoned Tier 0 -> staffed escalation (D9)")
+    pl.add_argument("--allow-duplicate", action="store_true",
+                    help="plan anyway despite a title closely matching a still-live "
+                         "task already in this project (finos-5a, cost audit)")
     pl.set_defaults(fn=cmd_plan)
 
     sf = sub.add_parser("staff", help="apply a plan: tasks, branches, worktrees")
@@ -1450,7 +1533,9 @@ def build_parser():
     rn.add_argument("--actor", help="worker id (default: <role>-<task number>)")
     rn.add_argument("--why", help="one line: why this matters, in business terms")
     rn.add_argument("--handoff-to", default="pm")
-    rn.add_argument("--max-turns", type=int, default=60)
+    rn.add_argument("--max-turns", type=int, default=None,
+                    help="default: 60 for implementers, 15 for gate roles "
+                         "(role already has the diff, doesn't need to rediscover it)")
     rn.add_argument("--timeout", type=int, default=1800, help="wall-clock seconds")
     rn.add_argument("--max-concurrent", type=int,
                     help="override the concurrency cap from budgets.yaml")
@@ -1473,7 +1558,8 @@ def build_parser():
                     help="explicit task id order (default: task-creation order)")
     gg.add_argument("--actor", help="default: <role>-group-<group>")
     gg.add_argument("--why", help="one line: why this matters, in business terms")
-    gg.add_argument("--max-turns", type=int, default=60)
+    gg.add_argument("--max-turns", type=int, default=None,
+                    help="default: 15 (gate roles already have the combined diff)")
     gg.add_argument("--timeout", type=int, default=1800, help="wall-clock seconds")
     gg.add_argument("--verify", help="override the configured verify command")
     gg.add_argument("--detach", action="store_true",
@@ -1559,10 +1645,10 @@ def build_parser():
     ls.set_defaults(fn=cmd_lesson)
 
     es = sub.add_parser("escalate", help="ask the CEO for something the PM cannot do")
-    es.add_argument("--kind", required=True,
+    es.add_argument("--kind",
                     choices=sorted(["human_action", "decision", "approval",
                                     "information", "risk"]))
-    es.add_argument("--need", required=True, help="plainly, what you want")
+    es.add_argument("--need", help="plainly, what you want")
     es.add_argument("--detail", help="context the CEO needs to answer")
     es.add_argument("--option", action="append", help="repeatable; for --kind decision")
     es.add_argument("--command", action="append",
@@ -1571,6 +1657,10 @@ def build_parser():
     es.add_argument("--project")
     es.add_argument("--actor")
     es.add_argument("--non-blocking", action="store_true")
+    es.add_argument("--list", choices=["open", "resolved", "all"],
+                    help="query instead of raising — 'what's still waiting on "
+                         "Riyan' without reading every .md file by hand "
+                         "(finos-52, cost audit 2026-09-14)")
     es.set_defaults(fn=cmd_escalate)
 
     rs = sub.add_parser("resolve", help="CEO: answer an escalation")

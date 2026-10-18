@@ -65,13 +65,22 @@ def workers_that_ended_cleanly(events: list[dict]) -> set[str]:
     return {a for a, n in last.items() if n in ("WORKER_EXITED", "TASK_FAILED")}
 
 
-def gates_with_no_verdict(events: list[dict]) -> dict[str, str]:
+def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None) -> dict[str, str]:
     """Tasks whose gate worker exited without a PASSED/FAILED verdict.
 
     KNOWN_ISSUES #3: this looked identical to success — a gate worker ending
     cleanly with no verdict got silently re-run under a new actor name and
     paid for twice. GATE_NO_VERDICT events (worker.py) are the fix; this is
     what surfaces them rather than leaving them buried in the raw log.
+
+    A GATE_NO_VERDICT is only actionable while the task hasn't otherwise
+    resolved. Without this, a task that later got a clean re-run (or landed
+    entirely, e.g. via a different gate) stayed permanently flagged as
+    STALLED forever, even after reaching DONE/MERGED — a real bug, not a
+    ledger-update someone forgot: found 12 Sep when a from-scratch audit
+    showed all 37 "STALLED" tasks were in fact already merged to main, every
+    one traced back to exactly this. A task is only genuinely still waiting
+    on this verdict if its current status is not yet DONE_ISH.
     """
     out = {}
     for ev in events:
@@ -84,6 +93,9 @@ def gates_with_no_verdict(events: list[dict]) -> dict[str, str]:
             f"neither of {data.get('expected_one_of')} — the review did not happen, "
             f"even though nothing failed loudly. Investigate before re-running the gate."
         )
+    if tasks is not None:
+        done_ids = {t["id"] for t in tasks if t.get("status") in DONE_ISH}
+        out = {tid: why for tid, why in out.items() if tid not in done_ids}
     return out
 
 
@@ -127,6 +139,37 @@ def detect_stalls(company_root, tasks: list[dict], events=None) -> dict[str, str
         except PermissionError:
             pass                     # alive, owned by another user
     return stalls
+
+
+STALE_TASK_AGE_S = 48 * 3600  # 2 days with no event at all while "active".
+# Complements detect_stalls() above, which only fires when this checkout
+# still has a pid file to check against — cost audit, 2026-09-14: finos-52
+# found 7 of 10 IN_PROGRESS tasks hadn't been touched in 3 weeks, and none
+# of them were caught, because by the time anyone looks, whatever process
+# trail they left is long gone (or never existed here — a different machine,
+# a since-cleaned state dir). This needs no process check: staleness is just
+# how long nothing happened, read straight off the task's own updated_at.
+def detect_stale_tasks(tasks: list[dict], max_age_s: int = STALE_TASK_AGE_S) -> dict[str, str]:
+    from datetime import datetime, timezone
+
+    out = {}
+    now = datetime.now(timezone.utc)
+    for task in tasks:
+        if task.get("status") not in ("IN_PROGRESS", "REVIEW", "QA", "SECURITY_REVIEW"):
+            continue
+        ts = task.get("updated_at")
+        try:
+            then = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+        age_s = (now - then).total_seconds()
+        if age_s > max_age_s:
+            out[task["id"]] = (
+                f"no event in {_age(ts)} while status is {task['status']!r} — "
+                f"almost certainly a dead worker whose process trail is already "
+                f"gone. Resume or reassign."
+            )
+    return out
 
 
 def _mark(task: dict) -> str:

@@ -16,6 +16,25 @@
 # thinking exists as of Claude Code v2.1.239).
 
 policy:
+  # The PM's own session model — separate from tier0 (which is Tier-0 *work*,
+  # read by the PM but not a launch flag). This row is what `claude --agent
+  # company-pm` should launch with. Not read by any code today (session model
+  # is chosen at launch, outside worker.py) — it exists so the policy is
+  # written down and the next session has something to check against, the
+  # same reasoning tier0's note already gives for staying documented even
+  # unread. Decided 2026-09-11 (Riyan) after one PM session ran on
+  # `opus[1m]` for 3 days without a /clear: 850 turns, context grew to 562k
+  # (85% of all cache-read tokens spent above the 200k long-context line),
+  # ~$478 for coordination — more than all 46 Sonnet Tier-2 workers on the
+  # same project combined ($58). Escalate to opus by hand for a genuine
+  # architecture or staffing call, then back — that's a small fraction of
+  # turns, not the default.
+  pm_session:
+    model: sonnet
+    context: 200k   # not opus[1m] — the smaller ceiling forces a compact
+                     # instead of letting context run to 500k+ unattended.
+    note: "claude --agent company-pm launch model. Escalate to opus per-turn on demand, never as the session default."
+
   tier0:
     model: sonnet
     effort: low

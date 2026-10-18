@@ -69,9 +69,39 @@ GATE_EVENT = {
     "security": "SECURITY_REVIEW_PASSED",
 }
 
+# A gate's PASSED verdict, keyed to its own FAILED verdict for the same role
+# (cost audit, 2026-09-14). Real incident, two independent sessions same day:
+# a fix worker hit its usage limit and was relaunched WITHOUT committing —
+# then the next review/security pass re-ran against the identical, still-
+# broken commit and PASSED it, because nothing bound the verdict to the SHA
+# it actually reviewed. See `_rejects_stale_gate_verdict` below.
+GATE_FAIL_EVENT = {
+    "REVIEW_PASSED": "REVIEW_FAILED",
+    "QA_PASSED": "QA_FAILED",
+    "SECURITY_REVIEW_PASSED": "SECURITY_REVIEW_FAILED",
+}
+
 
 class EvidenceError(ValueError):
     """Raised when an event asserts a fact it cannot back up."""
+
+
+def _evidence_commit(evidence) -> str | None:
+    """The commit SHA an evidence value points at, or None. `cli.py`'s
+    `_parse_evidence` normalizes a bare SHA on the command line into
+    `{"commit": sha}` before it ever reaches here, so evidence is a dict in
+    practice — this stays conservative and only reads that shape. Evidence
+    that isn't commit-shaped (a log path, `{"log": ...}`) returns None and
+    never trips the stale-verdict check below — the point is to catch
+    "nothing changed," not to police evidence format."""
+    if isinstance(evidence, dict):
+        sha = evidence.get("commit")
+    else:
+        sha = evidence
+    if not (isinstance(sha, str) and 7 <= len(sha) <= 40
+            and all(c in "0123456789abcdef" for c in sha.lower())):
+        return None
+    return sha.lower()
 
 
 def validate(event: dict) -> None:
@@ -95,6 +125,35 @@ def validate(event: dict) -> None:
             raise EvidenceError("IMPLEMENTATION_READY requires evidence.commit (a SHA)")
 
 
+def _rejects_stale_gate_verdict(event: dict, history: list[dict]) -> None:
+    """A PASSED verdict citing the exact same commit SHA as that role's own
+    most recent FAILED verdict on this task is refused — that combination
+    means the gate reviewed nothing new, whether because a relaunch died
+    before committing or a fix was never actually made. `history` is this
+    task's prior events only; the caller filters."""
+    name = event.get("event")
+    fail_event = GATE_FAIL_EVENT.get(name)
+    if not fail_event:
+        return
+    sha = _evidence_commit(event.get("evidence"))
+    if not sha:
+        return
+    for prior in reversed(history):
+        if prior.get("event") not in (name, fail_event):
+            continue
+        # Most recent verdict from this same gate family is the one that
+        # matters — an earlier one two rounds back is stale information.
+        if prior.get("event") == fail_event and _evidence_commit(prior.get("evidence")) == sha:
+            raise EvidenceError(
+                f"{name} cites evidence {sha!r}, the exact commit its own "
+                f"{fail_event} already reviewed and rejected — nothing has "
+                f"changed since that verdict, so this one can't be trusted. "
+                f"Relaunch the implementer, confirm a NEW commit exists, "
+                f"then gate that."
+            )
+        break
+
+
 class EventLog:
     def __init__(self, company_root: Path):
         self.root = Path(company_root)
@@ -116,6 +175,9 @@ class EventLog:
         with open(self.lockpath, "r+") as lock:
             _flock_with_timeout(lock)
             try:
+                if event.get("task") and event.get("event") in GATE_FAIL_EVENT:
+                    task_history = [e for e in self.read() if e.get("task") == event["task"]]
+                    _rejects_stale_gate_verdict(event, task_history)
                 event = dict(event)
                 event["seq"] = self._next_seq()
                 line = compact(event)

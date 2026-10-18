@@ -15,14 +15,23 @@ SP = staffing.load_config(Path("/nonexistent"), "staffing.yaml")
 
 
 class TestRiskTable(unittest.TestCase):
-    def test_untriggered_change_gets_no_mandatory_gate(self):
-        """D10, efficiency addendum v1: baseline_gates is empty now — review
-        is risk-based like qa/security, not universal. Adding it back on an
-        untriggered task needs a recorded reason, same as any other gate
-        addition (see TestReconcile.test_pm_addition_needs_a_reason)."""
+    def test_untriggered_change_gets_a_baseline_review(self):
+        """D10 (2026-08-24) made baseline_gates empty; REVERSED 2026-09-14 on
+        real evidence — finos shipped tasks with a real correctness surface
+        (a context-duplication bug across 4 modules) with zero independent
+        review because nothing triggered and nobody remembered to add one.
+        Every untriggered-but-substantive task now gets `review` as a floor;
+        qa/security stay risk-triggered only, not baseline."""
         r = staffing.evaluate(CFG, "Fix the typo on the settings screen", ["docs/**"])
-        self.assertEqual(r["gates"], [])
+        self.assertEqual(r["gates"], ["review"])
         self.assertEqual(r["triggers_fired"], [])
+
+    def test_baseline_review_is_still_only_a_floor_not_a_ceiling(self):
+        """A triggered task's gates are still whatever the table says, with
+        review folded in same as any other task — no double-counting, no
+        triggered task ending up UNDER its category's mandate."""
+        r = staffing.evaluate(CFG, "Add role-based expense approvals", ["api/approvals/**"])
+        self.assertEqual(sorted(r["gates"]), ["qa", "review", "security"])
 
     def test_authorization_forces_security_unasked(self):
         r = staffing.evaluate(CFG, "Add role-based expense approvals", ["api/approvals/**"])
@@ -152,7 +161,7 @@ class TestFastPath(unittest.TestCase):
     def test_unset_without_diff_stats(self):
         """Omitting files_touched/diff_lines leaves tier recommendation
         unset — existing callers (`company gates` with no counts) see no
-        behavior change from D9 beyond baseline_gates now being empty."""
+        fast_path behavior change from D9."""
         r = staffing.evaluate(CFG, "Fix the typo on the settings screen", ["docs/**"])
         self.assertFalse(r["fast_path"])
         self.assertIsNone(r["recommended_tier"])
@@ -238,6 +247,212 @@ class TestOverlap(unittest.TestCase):
             {"id": "T2", "owned_globs": ["web/**", "tests/test_web.py"]},
         ])
         self.assertEqual(c, [])
+
+
+class TestDefaultGateGroup(unittest.TestCase):
+    def test_groups_two_or_more_eligible_tier2_gated_tasks(self):
+        planned = [
+            {"id": "T1", "tier": 2, "gates": ["review"]},
+            {"id": "T2", "tier": 2, "gates": ["review", "qa"]},
+        ]
+        group_id, assigned = staffing.default_gate_group(planned, "proj")
+        self.assertIsNotNone(group_id)
+        self.assertEqual(sorted(assigned), ["T1", "T2"])
+        self.assertEqual(planned[0]["gate_group"], group_id)
+        self.assertEqual(planned[1]["gate_group"], group_id)
+        self.assertTrue(group_id.startswith("proj-plan-"))
+
+    def test_single_eligible_task_stays_solo(self):
+        planned = [{"id": "T1", "tier": 2, "gates": ["review"]}]
+        group_id, assigned = staffing.default_gate_group(planned, "proj")
+        self.assertIsNone(group_id)
+        self.assertEqual(assigned, [])
+        self.assertNotIn("gate_group", planned[0])
+
+    def test_ungated_tasks_are_not_eligible(self):
+        planned = [
+            {"id": "T1", "tier": 2, "gates": []},
+            {"id": "T2", "tier": 2, "gates": ["review"]},
+        ]
+        group_id, assigned = staffing.default_gate_group(planned, "proj")
+        self.assertIsNone(group_id)  # only 1 gated task, still solo
+
+    def test_tier1_tasks_are_not_eligible(self):
+        planned = [
+            {"id": "T1", "tier": 1, "gates": ["review"]},
+            {"id": "T2", "tier": 2, "gates": ["review"]},
+        ]
+        group_id, assigned = staffing.default_gate_group(planned, "proj")
+        self.assertIsNone(group_id)
+
+    def test_explicit_gate_group_is_never_overridden(self):
+        planned = [
+            {"id": "T1", "tier": 2, "gates": ["review"], "gate_group": "manual-choice"},
+            {"id": "T2", "tier": 2, "gates": ["review"]},
+        ]
+        group_id, assigned = staffing.default_gate_group(planned, "proj")
+        # T1 already had its own choice, so only T2 was ever eligible — 1
+        # eligible task stays solo, and T1's explicit group is untouched.
+        self.assertIsNone(group_id)
+        self.assertEqual(planned[0]["gate_group"], "manual-choice")
+        self.assertNotIn("gate_group", planned[1])
+
+    def test_solo_gate_opt_out_needs_a_reason(self):
+        planned = [
+            {"id": "T1", "tier": 2, "gates": ["review"], "solo_gate": True},
+            {"id": "T2", "tier": 2, "gates": ["review"]},
+            {"id": "T3", "tier": 2, "gates": ["review"]},
+        ]
+        # T1 opted out with no reason recorded -> the opt-out is ignored,
+        # same as reconcile() ignoring an ungated addition with no reason.
+        group_id, assigned = staffing.default_gate_group(planned, "proj")
+        self.assertIsNotNone(group_id)
+        self.assertEqual(sorted(assigned), ["T1", "T2", "T3"])
+
+    def test_solo_gate_opt_out_with_reason_is_honored(self):
+        planned = [
+            {"id": "T1", "tier": 2, "gates": ["review"],
+             "solo_gate": True, "solo_gate_reason": "touches a different subsystem"},
+            {"id": "T2", "tier": 2, "gates": ["review"]},
+            {"id": "T3", "tier": 2, "gates": ["review"]},
+        ]
+        group_id, assigned = staffing.default_gate_group(planned, "proj")
+        self.assertEqual(sorted(assigned), ["T2", "T3"])
+        self.assertNotIn("gate_group", planned[0])
+
+    def test_deterministic_across_reruns(self):
+        planned_a = [
+            {"id": "T1", "tier": 2, "gates": ["review"]},
+            {"id": "T2", "tier": 2, "gates": ["review"]},
+        ]
+        planned_b = [
+            {"id": "T1", "tier": 2, "gates": ["review"]},
+            {"id": "T2", "tier": 2, "gates": ["review"]},
+        ]
+        group_a, _ = staffing.default_gate_group(planned_a, "proj")
+        group_b, _ = staffing.default_gate_group(planned_b, "proj")
+        self.assertEqual(group_a, group_b)
+
+
+class TestJoinExistingGateGroups(unittest.TestCase):
+    """resolve-os, 2026-09-16/17: 18 tasks staffed across 6 separate `company
+    plan` calls in ~29h produced 6 gate_groups (and PRs) — default_gate_group
+    only ever sees its own batch. This is the cross-plan-call half."""
+
+    def test_joins_a_still_open_group_sharing_owned_files(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(len(joins), 1)
+        self.assertEqual(planned[0]["gate_group"], "wave-1-group")
+
+    def test_does_not_join_a_group_that_already_reached_review(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "REVIEW",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+        self.assertNotIn("gate_group", planned[0])
+
+    def test_does_not_join_across_projects(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p2",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p1", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+
+    def test_does_not_join_without_overlapping_files(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "owned_globs": ["src/unrelated.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+
+    def test_never_overrides_an_explicit_gate_group(self):
+        planned = [{"id": "NEW-1", "tier": 2, "project": "p",
+                    "gate_group": "manual-choice",
+                    "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        joins = staffing.join_existing_gate_groups(planned, existing)
+        self.assertEqual(joins, [])
+        self.assertEqual(planned[0]["gate_group"], "manual-choice")
+
+    def test_joining_makes_the_task_ineligible_for_a_fresh_batch_group(self):
+        """The composition with default_gate_group(): a task that joins an
+        existing group here is no longer eligible there, since it already
+        carries a gate_group."""
+        planned = [
+            {"id": "NEW-1", "tier": 2, "project": "p", "gates": ["review"],
+             "owned_globs": ["src/ticket/move-ticket.ts"]},
+            {"id": "NEW-2", "tier": 2, "project": "p", "gates": ["review"]},
+        ]
+        existing = [{"id": "OLD-1", "project": "p", "status": "IN_PROGRESS",
+                     "gate_group": "wave-1-group",
+                     "owned_globs": ["src/ticket/move-ticket.ts"]}]
+        staffing.join_existing_gate_groups(planned, existing)
+        group_id, assigned = staffing.default_gate_group(planned, "p")
+        self.assertEqual(planned[0]["gate_group"], "wave-1-group")
+        # NEW-2 is the only one left eligible for a new batch group, and one
+        # task alone can't form one.
+        self.assertIsNone(group_id)
+        self.assertEqual(assigned, [])
+
+
+class TestFindDuplicateStaffing(unittest.TestCase):
+    """finos-5a, 2026-09-14: the same admin-self-attach fix was staffed
+    three times across three waves under three different task ids — two of
+    the three produced nothing. This is the cross-wave check that was
+    missing."""
+
+    def test_flags_a_near_identical_title_against_a_live_task(self):
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        existing = [{"id": "TASK-OLD", "title": "Admin self attach bug fix",
+                     "status": "IMPLEMENTATION_READY"}]
+        hits = staffing.find_duplicate_staffing(planned, existing)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["existing_task"], "TASK-OLD")
+
+    def test_does_not_flag_unrelated_titles(self):
+        planned = [{"id": "TASK-NEW", "title": "Add dark mode to the dashboard"}]
+        existing = [{"id": "TASK-OLD", "title": "Fix the admin self-attach bug",
+                     "status": "IN_PROGRESS"}]
+        self.assertEqual(staffing.find_duplicate_staffing(planned, existing), [])
+
+    def test_does_not_flag_a_resolved_existing_task(self):
+        """A DONE/MERGED/ABANDONED/FAILED task isn't live work someone could
+        collide with — restaffing the same title after it shipped or was
+        abandoned is a legitimate new task, not a duplicate."""
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        for status in ("DONE", "MERGED", "ABANDONED", "FAILED"):
+            existing = [{"id": "TASK-OLD", "title": "Fix the admin self-attach bug",
+                         "status": status}]
+            self.assertEqual(staffing.find_duplicate_staffing(planned, existing), [],
+                             f"should not flag against a {status} task")
+
+    def test_replanning_the_same_task_id_is_not_a_duplicate(self):
+        planned = [{"id": "TASK-1", "title": "Fix the admin self-attach bug"}]
+        existing = [{"id": "TASK-1", "title": "Fix the admin self-attach bug",
+                     "status": "IN_PROGRESS"}]
+        self.assertEqual(staffing.find_duplicate_staffing(planned, existing), [])
+
+    def test_deterministic(self):
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        existing = [{"id": "TASK-OLD", "title": "Admin self attach fix",
+                     "status": "READY"}]
+        a = staffing.find_duplicate_staffing(planned, existing)
+        b = staffing.find_duplicate_staffing(planned, existing)
+        self.assertEqual(a, b)
 
 
 class TestSizeBands(unittest.TestCase):

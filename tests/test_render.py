@@ -142,6 +142,73 @@ class TestGatesWithNoVerdict(unittest.TestCase):
     def test_no_events_no_findings(self):
         self.assertEqual(render.gates_with_no_verdict([]), {})
 
+    def test_resolved_task_stops_being_flagged(self):
+        """12 Sep 2026: a real from-scratch ledger audit found all 37 tasks
+        `company status` showed STALLED were in fact already merged to main —
+        every one traced back to this exact bug. A GATE_NO_VERDICT from a
+        worker that exited without a verdict must stop being surfaced once
+        the task it belongs to later resolved (a clean re-run, or landing via
+        a different gate entirely) rather than flagging it forever."""
+        events = [
+            {"event": "GATE_NO_VERDICT", "task": "T-1", "actor": "security-reviewer-1",
+             "data": {"role": "security-reviewer",
+                      "expected_one_of": ["SECURITY_REVIEW_PASSED", "SECURITY_REVIEW_FAILED"]}},
+            {"event": "SECURITY_REVIEW_PASSED", "task": "T-1", "actor": "security-reviewer-2"},
+        ]
+        still_active = [{"id": "T-1", "status": "SECURITY_REVIEW"}]
+        merged = [{"id": "T-1", "status": "MERGED"}]
+        done = [{"id": "T-1", "status": "DONE"}]
+
+        # No task list given (back-compat): old, unfiltered behaviour.
+        self.assertIn("T-1", render.gates_with_no_verdict(events))
+        # Task still genuinely in flight: correctly still surfaced.
+        self.assertIn("T-1", render.gates_with_no_verdict(events, still_active))
+        # Task resolved since: no longer flagged.
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events, merged))
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events, done))
+
+
+class TestDetectStaleTasks(unittest.TestCase):
+    """Cost audit, 2026-09-14: finos-52 found 7 of 10 IN_PROGRESS tasks
+    untouched for 3 weeks, none caught by the pid-based detect_stalls()
+    because that check needs a pid file this checkout may not still have.
+    This is the age-only fallback — no process check required."""
+
+    @staticmethod
+    def _iso(hours_ago: float) -> str:
+        from datetime import datetime, timedelta, timezone
+        then = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+        return then.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def test_flags_an_old_untouched_in_progress_task(self):
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(3 * 24)}]
+        self.assertIn("T-1", render.detect_stale_tasks(tasks))
+
+    def test_does_not_flag_a_recently_touched_task(self):
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(1)}]
+        self.assertNotIn("T-1", render.detect_stale_tasks(tasks))
+
+    def test_does_not_flag_a_terminal_task_regardless_of_age(self):
+        tasks = [{"id": "T-1", "status": "DONE", "updated_at": self._iso(30 * 24)}]
+        self.assertNotIn("T-1", render.detect_stale_tasks(tasks))
+
+    def test_does_not_flag_an_off_path_task_like_waiting(self):
+        """WAITING/BLOCKED aren't "in flight" the same way — a dependency
+        can legitimately sit unmet for a long time without being a dead
+        worker; that's a different signal than this one."""
+        tasks = [{"id": "T-1", "status": "WAITING", "updated_at": self._iso(30 * 24)}]
+        self.assertNotIn("T-1", render.detect_stale_tasks(tasks))
+
+    def test_missing_or_malformed_updated_at_is_skipped_not_crashed(self):
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS"},
+                 {"id": "T-2", "status": "IN_PROGRESS", "updated_at": "not-a-timestamp"}]
+        self.assertEqual(render.detect_stale_tasks(tasks), {})
+
+    def test_custom_threshold_is_respected(self):
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(2)}]
+        self.assertIn("T-1", render.detect_stale_tasks(tasks, max_age_s=3600))
+        self.assertNotIn("T-1", render.detect_stale_tasks(tasks, max_age_s=10 * 3600))
+
 
 if __name__ == "__main__":
     unittest.main()

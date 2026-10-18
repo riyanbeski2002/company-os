@@ -64,6 +64,100 @@ class TestAppend(unittest.TestCase):
                 event="LOOKS_PRODUCTIVE", actor="w1", project="p", task="TASK-1"))
 
 
+class TestStaleGateVerdict(unittest.TestCase):
+    """Cost audit, 2026-09-14 — real incident, two independent sessions same
+    day: a fix worker hit its usage limit and was relaunched without
+    committing, then the next review/security pass re-approved the exact
+    same unfixed commit. A PASSED verdict citing the same SHA as that role's
+    own last FAILED verdict on the task is refused."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+        self.log = EventLog(self.root)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_passing_the_exact_commit_that_already_failed_is_refused(self):
+        self.log.append(make_event(
+            event="SECURITY_REVIEW_FAILED", actor="security-reviewer-1",
+            project="p", task="TASK-1", evidence={"commit": "abc1234"},
+            data={"finding": "fileLabel leaks into the outbound payload"}))
+        with self.assertRaises(EvidenceError):
+            self.log.append(make_event(
+                event="SECURITY_REVIEW_PASSED", actor="security-reviewer-2",
+                project="p", task="TASK-1", evidence={"commit": "abc1234"}))
+
+    def test_passing_a_new_commit_after_a_failure_is_allowed(self):
+        self.log.append(make_event(
+            event="REVIEW_FAILED", actor="code-reviewer-1", project="p",
+            task="TASK-1", evidence={"commit": "abc1234"}))
+        self.log.append(make_event(
+            event="REVIEW_PASSED", actor="code-reviewer-2", project="p",
+            task="TASK-1", evidence={"commit": "def5678"}))  # real, new commit
+        events = [e["event"] for e in self.log.read()]
+        self.assertEqual(events, ["REVIEW_FAILED", "REVIEW_PASSED"])
+
+    def test_first_time_pass_with_no_prior_failure_is_unaffected(self):
+        self.log.append(make_event(
+            event="QA_PASSED", actor="qa-engineer-1", project="p",
+            task="TASK-1", evidence={"commit": "abc1234"}))  # no prior FAIL — fine
+
+    def test_only_the_same_gate_role_binds__a_different_roles_failure_does_not(self):
+        """The stale check is per gate family — a QA failure on this SHA
+        must not block an unrelated security PASS on the same SHA; they are
+        independent judgments, exactly as `gategroup.py` already treats
+        per-task verdicts within a group."""
+        self.log.append(make_event(
+            event="QA_FAILED", actor="qa-engineer-1", project="p",
+            task="TASK-1", evidence={"commit": "abc1234"}))
+        self.log.append(make_event(
+            event="SECURITY_REVIEW_PASSED", actor="security-reviewer-1",
+            project="p", task="TASK-1", evidence={"commit": "abc1234"}))
+        events = [e["event"] for e in self.log.read()]
+        self.assertEqual(events, ["QA_FAILED", "SECURITY_REVIEW_PASSED"])
+
+    def test_a_later_failure_two_rounds_back_does_not_block_a_fresh_pass(self):
+        """Only the MOST RECENT verdict from this gate family matters — an
+        older failed SHA is stale information, not a standing block."""
+        self.log.append(make_event(
+            event="REVIEW_FAILED", actor="code-reviewer-1", project="p",
+            task="TASK-1", evidence={"commit": "aaa1111"}))
+        self.log.append(make_event(
+            event="REVIEW_FAILED", actor="code-reviewer-1", project="p",
+            task="TASK-1", evidence={"commit": "bbb2222"}))
+        # A pass citing the FIRST failed SHA (not the most recent one) isn't
+        # what happened in the real incident, but must still not be
+        # confused with re-approving the LATEST failure.
+        self.log.append(make_event(
+            event="REVIEW_PASSED", actor="code-reviewer-2", project="p",
+            task="TASK-1", evidence={"commit": "ccc3333"}))
+        events = [e["event"] for e in self.log.read()]
+        self.assertEqual(events, ["REVIEW_FAILED", "REVIEW_FAILED", "REVIEW_PASSED"])
+
+    def test_evidence_that_is_not_a_commit_sha_never_trips_the_check(self):
+        self.log.append(make_event(
+            event="REVIEW_FAILED", actor="code-reviewer-1", project="p",
+            task="TASK-1", evidence={"log": "reviews/task-1-round1.md"}))
+        self.log.append(make_event(
+            event="REVIEW_PASSED", actor="code-reviewer-2", project="p",
+            task="TASK-1", evidence={"log": "reviews/task-1-round1.md"}))
+        events = [e["event"] for e in self.log.read()]
+        self.assertEqual(events, ["REVIEW_FAILED", "REVIEW_PASSED"])
+
+    def test_different_tasks_never_cross_contaminate(self):
+        self.log.append(make_event(
+            event="REVIEW_FAILED", actor="code-reviewer-1", project="p",
+            task="TASK-1", evidence={"commit": "abc1234"}))
+        self.log.append(make_event(
+            event="REVIEW_PASSED", actor="code-reviewer-2", project="p",
+            task="TASK-2", evidence={"commit": "abc1234"}))  # different task
+        events = [e["event"] for e in self.log.read()]
+        self.assertEqual(events, ["REVIEW_FAILED", "REVIEW_PASSED"])
+
+
 class TestConcurrency(unittest.TestCase):
     """8 processes x 25 events. Any lost update or duplicated seq fails here."""
 

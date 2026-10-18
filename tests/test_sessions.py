@@ -78,6 +78,27 @@ class TestSessionsModule(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertTrue(out[0]["stale"])
 
+    def test_ancient_entries_are_reaped_not_merely_flagged(self):
+        """finos-52, 2026-09-14: 22 sessions, 22 stale, 0 live, oldest 12
+        days old and still listed — nothing ever cleared a session that
+        died without calling `done`, so the list stopped being trusted."""
+        sessions.announce(self.root, "sess-a", "doing something")
+        p = self.root / "state" / "sessions" / "sess-a" / "doing.json"
+        ancient = p.stat().st_mtime - (sessions.REAP_AFTER_S + 1)
+        os.utime(p, (ancient, ancient))
+        out = sessions.list_active(self.root)
+        self.assertEqual(out, [])
+        self.assertFalse(p.exists())
+
+    def test_reaping_one_ancient_entry_does_not_touch_a_live_one(self):
+        sessions.announce(self.root, "sess-old", "doing something")
+        sessions.announce(self.root, "sess-live", "doing something else")
+        p = self.root / "state" / "sessions" / "sess-old" / "doing.json"
+        ancient = p.stat().st_mtime - (sessions.REAP_AFTER_S + 1)
+        os.utime(p, (ancient, ancient))
+        out = sessions.list_active(self.root)
+        self.assertEqual([r["actor"] for r in out], ["sess-live"])
+
 
 class TestSessionCLI(unittest.TestCase):
     def setUp(self):

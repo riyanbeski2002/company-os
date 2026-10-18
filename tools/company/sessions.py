@@ -31,6 +31,15 @@ STALE_AFTER_S = 1800  # 30 minutes with no update. Long enough that a normal
 # trusted as still true. Stale entries are flagged, not hidden: a session
 # that died without calling `done` is exactly the case a peer needs to see.
 
+REAP_AFTER_S = 24 * 3600  # a day. Well past STALE_AFTER_S's "might still be
+# relevant" window — this is noise, not signal. finos-52, 2026-09-14:
+# `session list` returned 22 sessions, 22 stale, 0 live, oldest 12 days old
+# and still listed — nothing ever cleared an entry whose session died
+# without calling `done`. Practical effect: the PM stopped trusting the
+# list, which is exactly the collision it exists to prevent. Reaped on
+# every read rather than a separate cron, the same self-healing-on-access
+# shape everything else in this file already has.
+
 
 def _dir(company_root: Path) -> Path:
     return Path(company_root) / "state" / "sessions"
@@ -83,12 +92,22 @@ def list_active(company_root: Path) -> list[dict]:
     d = _dir(company_root)
     if not d.is_dir():
         return out
+    now = time.time()
     for p in sorted(d.glob("*/doing.json")):
+        age = now - p.stat().st_mtime
+        if age > REAP_AFTER_S:
+            # Ancient — reap now rather than report it as live or as the
+            # kind of recently-stale entry a peer should still weigh.
+            try:
+                p.unlink()
+                p.parent.rmdir()
+            except OSError:
+                pass  # another reader already reaped it, or it's not empty
+            continue
         try:
             record = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        age = time.time() - p.stat().st_mtime
         record["age_s"] = round(age)
         record["stale"] = age > STALE_AFTER_S
         out.append(record)

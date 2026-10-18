@@ -18,6 +18,19 @@ LIFECYCLE = [
 OFF_PATH = {"WAITING", "BLOCKED", "FAILED", "RETRYING", "ESCALATED", "ABANDONED",
             "MERGED"}
 
+# Once a task reaches one of these, only an explicit STATUS_CHANGED — a
+# deliberate decision — may move it elsewhere. Generalizes what used to be a
+# single MERGED-vs-DONE carve-out below into the actual rule it was an
+# instance of. Bug, live-reproduced on ht-workspace 2026-09-14: a task
+# explicitly marked ABANDONED via STATUS_CHANGED had ESCALATION_RAISED fire
+# right after it, and fold() flipped its displayed status back to
+# ESCALATED — a closed task kept resurfacing as open work. The event that
+# would have implied a status change still exists in the log (an escalation
+# on already-abandoned work is real information, findable through
+# `company status`'s own escalation list) — it just no longer overwrites
+# what already happened, the same reasoning MERGED-vs-DONE already used.
+TERMINAL_STATUSES = {"DONE", "ABANDONED", "MERGED"}
+
 # Events that move a task along on their own. Everything else is recorded but
 # does not advance state; `company task advance` is the only other mover.
 IMPLIED_STATUS = {
@@ -210,11 +223,13 @@ def fold(events: list[dict]) -> dict[str, dict]:
         if name == "TASK_BLOCKED" and data.get("attempted_transition"):
             implied = None
         if implied and name != "STATUS_CHANGED":
-            # MERGED must never downgrade DONE. DONE is the stronger claim —
-            # shipped AND evidenced — and a merge recorded after it would
-            # otherwise silently erase that. MERGED only fills the gap for a
-            # task that shipped without ever reaching DONE.
-            if implied == "MERGED" and task.get("status") == "DONE":
+            # A terminal status (DONE/ABANDONED/MERGED) is never silently
+            # overwritten by an implied-status event — only STATUS_CHANGED
+            # can move a task out of one. This is what protects MERGED from
+            # downgrading DONE (a merge recorded after DONE would otherwise
+            # erase the stronger, evidenced claim) and ABANDONED from being
+            # reopened by a later ESCALATION_RAISED, the same rule either way.
+            if task.get("status") in TERMINAL_STATUSES:
                 pass
             else:
                 task["status"] = implied

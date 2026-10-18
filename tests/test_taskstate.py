@@ -191,5 +191,53 @@ class TestMalformedStatusChanged(unittest.TestCase):
         self.assertEqual(len(task["_malformed_events"]), 1)
 
 
+class TestTerminalStatusIsNotReopenedByAnImpliedEvent(unittest.TestCase):
+    """Cost audit, 2026-09-14, live-reproduced on ht-workspace: a task
+    explicitly ABANDONED via STATUS_CHANGED had ESCALATION_RAISED fire right
+    after it, and fold() flipped its displayed status back to ESCALATED — a
+    closed task kept resurfacing as open work. Generalizes the older
+    MERGED-vs-DONE carve-out into the actual rule it was one instance of."""
+
+    def test_escalation_raised_after_abandoned_does_not_reopen_it(self):
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "STATUS_CHANGED", data={"to": "ABANDONED"}),
+            ev(3, "ESCALATION_RAISED", data={"kind": "risk"}),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "ABANDONED")
+
+    def test_a_stray_worker_started_after_merged_does_not_reopen_it(self):
+        """Same rule, a different implied event — MERGED wasn't the only
+        terminal status a later automatic event could silently overwrite."""
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "MERGED"),
+            ev(3, "WORKER_STARTED", data={"role": "backend-engineer"}),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "MERGED")
+
+    def test_an_explicit_status_changed_can_still_move_a_terminal_task(self):
+        """The protection is against implied events only — a deliberate,
+        explicit STATUS_CHANGED must still be able to move a task, e.g.
+        reopening an abandoned task on purpose."""
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "STATUS_CHANGED", data={"to": "ABANDONED"}),
+            ev(3, "STATUS_CHANGED", data={"to": "READY"}),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "READY")
+
+    def test_non_terminal_off_path_statuses_are_still_overwritable(self):
+        """ESCALATED/BLOCKED/WAITING are OFF_PATH but not terminal — an
+        implied event must still be able to move a task past them, or
+        escalations would freeze every task they touch forever."""
+        events = [
+            ev(1, "TASK_CREATED", data={"title": "t"}),
+            ev(2, "ESCALATION_RAISED", data={"kind": "risk"}),
+            ev(3, "WORKER_STARTED", data={"role": "backend-engineer"}),
+        ]
+        self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "IN_PROGRESS")
+
+
 if __name__ == "__main__":
     unittest.main()

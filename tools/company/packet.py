@@ -13,6 +13,32 @@ from __future__ import annotations
 
 from pathlib import Path
 
+
+# ESC-026 (Riyan, 2026-09-11: "go with A"). `company handoff` succeeded, wrote
+# a file, emitted HANDOFF_WRITTEN — and no worker packet ever read it, so a
+# PM's rescoping brief for a relaunched task silently went nowhere. Caught on
+# resolve-os: three relaunches (TASK-254/255/257) exited 0 with byte-identical
+# diffs to their first attempt, because the "fix" existed only in a handoff
+# file the second worker never opened.
+#
+# Filename contract is cli.py's cmd_handoff: `{task}-{from}-to-{to}.md`. `to`
+# is whatever the PM passed as `--to` — by convention either a role (`pm`) or
+# an exact actor name (`backend-engineer-231`). This looks for a handoff
+# addressed to the actor about to be launched, OR to its bare role (a PM
+# writing a handoff before an actor name is assigned yet still wants it
+# found). Newest file wins if more than one matches — a handoff is meant to
+# be read once, by the very next worker on this task, not accumulated.
+def find_handoff(root: Path, task_id: str, actor: str, role: str) -> Path | None:
+    handoffs_dir = root / "handoffs"
+    if not handoffs_dir.is_dir():
+        return None
+    candidates = []
+    for target in {actor, role}:
+        candidates.extend(handoffs_dir.glob(f"{task_id}-*-to-{target}.md"))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
 # RAISED 2000 -> 3500 on 5 Sep 2026 by Riyan's explicit decision, after the
 # budget blocked TWO finished Wave 7 tasks from being gated at all:
 # TASK-MERCHANT-RULE-BUILD rendered ~3002 tokens and TASK-IAM-VOCABULARY-DESIGN
@@ -96,7 +122,7 @@ def render(task: dict, *, why: str, contracts: list[dict] | None = None,
            handoff_target: str = "pm", max_turns: int = 60,
            timeout_s: int = 1800, enforce_budget: bool = True,
            verify: str | None = None, baseline: dict | None = None,
-           diff_summary: str | None = None) -> str:
+           diff_summary: str | None = None, handoff_text: str | None = None) -> str:
     contracts = contracts or []
     verify = verify or task.get("test_command")
     if not verify:
@@ -140,6 +166,19 @@ def render(task: dict, *, why: str, contracts: list[dict] | None = None,
     if diff_summary:
         diff_section = f"\nCHANGES SO FAR (what to review — full patch unless noted otherwise)\n{diff_summary}\n"
 
+    # ESC-026 / A: the actual content, not just a pointer telling you a file
+    # exists — same reasoning diff_section above already gives for gates. A
+    # worker has Read and could open the file itself, but "it's in
+    # .company/handoffs/ if you want it" is exactly the kind of optional
+    # context a Tier-2 worker with a narrow objective has no reason to go
+    # looking for, which is how this went unread the first time.
+    handoff_section = ""
+    if handoff_text:
+        handoff_section = (
+            "\nHANDOFF FROM THE PM (read this — it is why you were relaunched)\n"
+            f"{handoff_text}\n"
+        )
+
     packet = f"""TASK {task['id']} — {task.get('title', 'untitled')}
 TIER {task.get('tier', 2)}
 
@@ -163,7 +202,7 @@ DEPENDENCIES
 
 CONTRACTS PUBLISHED BY YOUR DEPENDENCIES (build against these, not guesses)
 {contract_text}
-{diff_section}
+{diff_section}{handoff_section}
 RELEVANT ARCHITECTURE (pointers, read them if you need them)
 {_bullets(architecture, empty='(nothing beyond the files in your owned globs)')}
 
