@@ -71,3 +71,56 @@ the real lever, not "reduce cache reads."
   the third explicitly flagged. Stop after one clear block, report it
   plainly, and solve at the architecture level instead (see the worktree
   point above) rather than searching for a fourth way around it.
+
+## Donor-codebase review: what to steal from paperclip, and how (2026-10-19)
+
+Reviewing paperclip (github.com/paperclipai/paperclip, a hosted multi-tenant
+agent-orchestration SaaS) for mechanisms worth porting into company-os (a
+single-user, terminal-native, evidence-first system). Most of its surface
+doesn't transfer — multi-org, billing, board users, mobile, a cloud runner
+fleet are solving a different company's problem, not ours, and copying them
+would be scope creep against cmd-center's own explicit "not Jarvis" boundary
+(`~/dev/cmd-center/.planning/PROJECT.md`). What's underneath the SaaS skin —
+hard governance/lifecycle problems — does transfer, selectively:
+
+- **A "donor" review should separate the hosted-product skin from the
+  mechanism.** Paperclip's README reads as team/SaaS marketing; the real
+  signal was in `doc/*.md` (task watchdog, agent lifecycle, MCP access
+  governance, decision models, dependency-wake-recovery) — second-order
+  design docs a marketing pass would never surface. Read those before
+  judging whether a competitor's docs justify copying anything.
+- **Resting-state detection needs scoping by whether the state was a GOOD
+  decision or a BAD one, not just "no recent activity."** company-os already
+  had two age-based detectors (`render.detect_stale_tasks`,
+  `detect_stalls`) that deliberately excluded BLOCKED/WAITING/ESCALATED/
+  FAILED — correctly, since reaching one of those can be the right call. The
+  actual gap (paperclip's "task watchdog" concept) wasn't "flag stale work,"
+  it was the complement: flag work that stopped *correctly* but that nobody
+  ever came back to decide was still correct. `render.detect_resting_tasks`
+  fills exactly that gap, deliberately disjoint from the other two by
+  status, not a wider version of them.
+- **Dependency-wake semantics need precision, not just "a dependency
+  resolved."** Paperclip's `doc/dependency-wake-recovery.md` draws fine
+  lines worth keeping in mind if/when company-os ever automates blocked-task
+  recovery (cmd-center Phase 8, not built yet): a task blocking *itself*
+  does not count as requesting a dependency wake; a title/monitor edit
+  doesn't change the wait; only a named blocker's actual completion, or an
+  export that explicitly names the waiting task, permits re-checking it;
+  pausing the owning agent suppresses automatic recovery entirely (a human
+  paused it on purpose — don't second-guess that by auto-resuming). Get this
+  wrong and a blocked-recovery sweep either resurrects work a human
+  deliberately stopped, or silently strands work that should have resumed.
+- **A BYO-model abstraction only needed one seam, not a rewrite.**
+  company-os's entire Claude-Code coupling for launching a worker lived in
+  exactly one function (`worker.py`'s `build_command`, plus one inline
+  duplicate in `launch_readonly`) — finding that seam before designing
+  the abstraction is what kept `tools/company/harness.py` to one small
+  module instead of touching 15 agent files. Grep for the actual
+  subprocess/API call before assuming a vendor-coupling problem is bigger
+  than it is.
+- **Don't guess a competitor's CLI flags to look thorough.** The harness
+  seam ships one real, fully-tested backend (`claude`, byte-identical to the
+  old hardcoded behavior) and a documented, config-driven contract for a
+  second — not a second hardcoded backend with invented flag names for a
+  CLI I hadn't verified. A wrong guess shipped with confidence is worse than
+  an honestly-unfinished integration point; see `doc/BYO-MODEL.md`.

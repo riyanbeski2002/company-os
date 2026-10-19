@@ -172,6 +172,45 @@ def detect_stale_tasks(tasks: list[dict], max_age_s: int = STALE_TASK_AGE_S) -> 
     return out
 
 
+RESTING_TASK_AGE_S = 24 * 3600  # 1 day with no revisit while deliberately off-path.
+# detect_stale_tasks/detect_stalls above only ever fire on IN_PROGRESS/REVIEW/
+# QA/SECURITY_REVIEW — work that is SUPPOSED to be actively running, so
+# silence there is itself the anomaly. BLOCKED/WAITING/ESCALATED/FAILED are
+# the opposite case: reaching one of them was often the CORRECT decision, so
+# nothing here claims the stop was wrong. It generalizes GATE_NO_VERDICT
+# (worker.py) — a gate role going silent is one specific way a task stops
+# moving without anyone noticing — to any resting status: the failure mode
+# this catches is nobody ever coming back to look, not the stop itself.
+# Modeled on paperclip's "task watchdog" concept (github.com/paperclipai/
+# paperclip), scoped down for a single-user CLI with no issue-tree/subtree
+# concept to hang a per-task opt-in flag on — running `company status` at all
+# is the opt-in here, the same way `company advise` is opt-in by invocation.
+RESTING_STATUSES = {"BLOCKED", "WAITING", "ESCALATED", "FAILED"}
+
+
+def detect_resting_tasks(tasks: list[dict], max_age_s: int = RESTING_TASK_AGE_S) -> dict[str, str]:
+    from datetime import datetime, timezone
+
+    out = {}
+    now = datetime.now(timezone.utc)
+    for task in tasks:
+        if task.get("status") not in RESTING_STATUSES:
+            continue
+        ts = task.get("updated_at")
+        try:
+            then = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue
+        age_s = (now - then).total_seconds()
+        if age_s > max_age_s:
+            out[task["id"]] = (
+                f"resting at {task['status']!r} for {_age(ts)} with nobody revisiting it — "
+                f"reaching this status may have been correct, but confirm it's still "
+                f"waiting on something real, not just forgotten."
+            )
+    return out
+
+
 def _mark(task: dict) -> str:
     status = task.get("status")
     if status in DONE_ISH:

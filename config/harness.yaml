@@ -1,0 +1,75 @@
+# BYO-model harness registry (tools/company/harness.py has the full contract
+# an alternate harness must satisfy, and doc/BYO-MODEL.md has a worked
+# example of wiring a second one in).
+#
+# `default` is the harness every role launches with unless overridden below.
+# Pointing a role at a different backend is the entire integration surface —
+# no worker.py edit required.
+
+default: claude
+
+roles: {}
+  # Example override, left empty until a second harness is real and tested:
+  # backend-engineer: my-other-cli
+
+harnesses:
+  claude:
+    # This is the exact command worker.py hardcoded before the harness seam
+    # existed — kept byte-for-byte so the default behavior never changed.
+    # `--agent` is what makes a Tier-2 launch affordable: the named agent
+    # file's `tools:` list removes every other tool DEFINITION from context,
+    # not just permission to call it (measured on this machine: 36,151
+    # tokens of base context with no agent, 6,016 with a six-tool agent —
+    # re-read on every turn). native_agent_loading is true for exactly that
+    # reason: Claude Code loads agents/<role>.md itself, so worker.py must
+    # not also fold its body into the packet.
+    native_agent_loading: true
+    command:
+      - claude
+      - -p
+      - --agent
+      - "{role}"
+      - --plugin-dir
+      - "{plugin_root}"
+      - --strict-mcp-config
+      - --output-format
+      - json
+      - --json-schema
+      - "{schema_json}"
+      - --permission-mode
+      - acceptEdits
+      - --allowedTools
+      - "{allowed_tools}"
+    model_flag: --model
+    effort_flag: --effort
+    skip_permissions_flag: --dangerously-skip-permissions
+    # An ANTHROPIC_API_KEY in the environment silently takes precedence over
+    # the claude.ai login and returns terminal_reason "api_error" with zero
+    # tokens consumed (verified on this machine) — workers must run on the
+    # subscription session, so these are always stripped before launch.
+    strip_env:
+      - ANTHROPIC_API_KEY
+      - ANTHROPIC_AUTH_TOKEN
+      - CLAUDE_CODE_SESSION_ID
+      - CLAUDE_CODE_CHILD_SESSION
+      - CLAUDE_CODE_ENTRYPOINT
+
+  # Template for a second backend — commented out rather than guessed-and-
+  # shipped, because getting another vendor's CLI flags wrong and shipping it
+  # anyway is worse than leaving the seam undemonstrated. Copy this, point
+  # `command` at the real CLI (or a thin adapter script if it can't natively
+  # satisfy harness.py's output contract), and flip `native_agent_loading` to
+  # false unless that CLI has its own `--agent`-equivalent persona loader.
+  #
+  # generic-example:
+  #   native_agent_loading: false
+  #   command: ["/path/to/adapter-script", "--role", "{role}"]
+  #   model_flag: --model
+  #   effort_flag: --effort
+  #   model_map:
+  #     sonnet: gpt-5.1
+  #     opus: gpt-5.1-high
+  #     haiku: gpt-5.1-mini
+  #   effort_map:
+  #     medium: standard
+  #   strip_env: []

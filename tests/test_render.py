@@ -210,5 +210,52 @@ class TestDetectStaleTasks(unittest.TestCase):
         self.assertNotIn("T-1", render.detect_stale_tasks(tasks, max_age_s=10 * 3600))
 
 
+class TestDetectRestingTasks(unittest.TestCase):
+    """The deliberate complement of TestDetectStaleTasks: BLOCKED/WAITING/
+    ESCALATED/FAILED are explicitly excluded there (reaching one of them can
+    be correct), but excluding them everywhere means a task that stops there
+    and is never revisited has no detector at all — paperclip calls this
+    failure mode a task watchdog's job."""
+
+    @staticmethod
+    def _iso(hours_ago: float) -> str:
+        from datetime import datetime, timedelta, timezone
+        then = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+        return then.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def test_flags_an_old_untouched_blocked_task(self):
+        tasks = [{"id": "T-1", "status": "BLOCKED", "updated_at": self._iso(3 * 24)}]
+        self.assertIn("T-1", render.detect_resting_tasks(tasks))
+
+    def test_does_not_flag_a_recently_touched_blocked_task(self):
+        tasks = [{"id": "T-1", "status": "BLOCKED", "updated_at": self._iso(1)}]
+        self.assertNotIn("T-1", render.detect_resting_tasks(tasks))
+
+    def test_does_not_flag_a_terminal_task_regardless_of_age(self):
+        tasks = [{"id": "T-1", "status": "DONE", "updated_at": self._iso(30 * 24)}]
+        self.assertNotIn("T-1", render.detect_resting_tasks(tasks))
+
+    def test_does_not_flag_an_in_progress_task(self):
+        """That's detect_stale_tasks's job, not this one's — the two are
+        deliberately disjoint on status."""
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(30 * 24)}]
+        self.assertNotIn("T-1", render.detect_resting_tasks(tasks))
+
+    def test_covers_all_four_resting_statuses(self):
+        for status in ("BLOCKED", "WAITING", "ESCALATED", "FAILED"):
+            tasks = [{"id": "T-1", "status": status, "updated_at": self._iso(3 * 24)}]
+            self.assertIn("T-1", render.detect_resting_tasks(tasks), status)
+
+    def test_missing_or_malformed_updated_at_is_skipped_not_crashed(self):
+        tasks = [{"id": "T-1", "status": "BLOCKED"},
+                 {"id": "T-2", "status": "BLOCKED", "updated_at": "not-a-timestamp"}]
+        self.assertEqual(render.detect_resting_tasks(tasks), {})
+
+    def test_custom_threshold_is_respected(self):
+        tasks = [{"id": "T-1", "status": "BLOCKED", "updated_at": self._iso(2)}]
+        self.assertIn("T-1", render.detect_resting_tasks(tasks, max_age_s=3600))
+        self.assertNotIn("T-1", render.detect_resting_tasks(tasks, max_age_s=10 * 3600))
+
+
 if __name__ == "__main__":
     unittest.main()

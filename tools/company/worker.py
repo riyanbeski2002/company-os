@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 from eventlog import EventLog, make_event
+import harness
 import staffing
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
@@ -182,7 +183,8 @@ def _link_loaded_skills(repo: Path, wt: Path) -> None:
 # --- launch -----------------------------------------------------------------
 
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
-              worktree: Path, thinking: bool = True) -> dict:
+              worktree: Path, thinking: bool = True,
+              harness_spec: dict | None = None) -> dict:
     """Build the worker's environment.
 
     COMPANY_REPO is the *worktree*, not the main checkout: the worker's whole
@@ -190,20 +192,17 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
     against it. Pointing this at the main checkout makes every path look like
     `.company/worktrees/TASK-101/api/...` and blocks the worker from its own
     files.
+
+    Vendor-specific env stripping (a stale ANTHROPIC_API_KEY silently
+    overriding the claude.ai login, the parent session's own identity
+    leaking into the child) is the harness's own policy now, not hardcoded
+    here — see config/harness.yaml's `strip_env`. A harness_spec of None
+    resolves the configured default, so existing callers that built env
+    before a role/harness was known keep working unchanged.
     """
     env = dict(os.environ)
-
-    # An ANTHROPIC_API_KEY in the environment silently takes precedence over the
-    # claude.ai login. Verified on this machine: with it set, `claude -p` returns
-    # terminal_reason "api_error" with zero tokens consumed. Workers must use the
-    # subscription session, so it is stripped rather than trusted.
-    env.pop("ANTHROPIC_API_KEY", None)
-    env.pop("ANTHROPIC_AUTH_TOKEN", None)
-
-    # Don't let the parent session's identity leak into the worker.
-    for var in ("CLAUDE_CODE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION",
-                "CLAUDE_CODE_ENTRYPOINT"):
-        env.pop(var, None)
+    spec = harness_spec or harness.resolve(harness.load_config(company_root), None)
+    env = harness.apply_env(spec, env)
 
     env.update({
         "COMPANY_TASK": task["id"],
@@ -224,45 +223,28 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
 
 
 def build_command(task: dict, role: str, model: str | None = None,
-                   effort: str | None = None, skip_permissions: bool = False) -> list[str]:
-    cmd = [
-        "claude", "-p",
-        # --agent is what makes this affordable. The agent file's `tools:` list
-        # removes every other tool DEFINITION from context, not just permission
-        # to call it. Measured on this machine: 36,151 tokens of base context
-        # with no agent, 6,016 with a six-tool agent — and that difference is
-        # re-read on every single turn.
-        "--agent", role,
-        "--plugin-dir", str(PLUGIN_ROOT),
-        # Workers never call MCP tools, and their schemas are pure overhead.
-        # Worth ~300 tokens/turn on top of the agent restriction.
-        "--strict-mcp-config",
-        "--output-format", "json",
-        "--json-schema", json.dumps(RESULT_SCHEMA),
-        "--permission-mode", "acceptEdits",
-        "--allowedTools", ROLE_TOOLS.get(role, "Read,Grep,Glob,Bash"),
-    ]
-    # Model/effort come from staffing.yaml's tier policy (D11), not a
-    # default — switching either mid-task busts the prompt cache and
-    # re-prefills the whole conversation at full price, so this is set once
-    # at launch and never changed by a running worker.
-    if model:
-        cmd += ["--model", model]
-    if effort:
-        cmd += ["--effort", effort]
-    if skip_permissions:
-        # ESC-009, 2026-10-17: Claude Code's own sensitive-file permission
-        # prompt blocks headless writes under .company/worktrees/<TASK>/ even
-        # with --permission-mode acceptEdits (likely its heuristic treating
-        # the whole .company/ tree as sensitive because .company/secrets/
-        # lives alongside it). Logged, one-off stopgap per Riyan's explicit
-        # instruction, not a default -- the ownership hook and
-        # protect_branches.py still fully constrain what a worker can touch;
-        # this only removes Claude Code's own extra prompt on top of them.
-        # Real fix tracked at ESC-009 (move worktrees out of .company/, or a
-        # scoped settings.json allow-rule), not this flag.
-        cmd += ["--dangerously-skip-permissions"]
-    return cmd
+                   effort: str | None = None, skip_permissions: bool = False,
+                   harness_spec: dict | None = None, company_root: Path | None = None) -> list[str]:
+    """Fill the role's configured harness command template (config/harness.yaml).
+
+    Model/effort come from staffing.yaml's tier policy (D11), not a default —
+    switching either mid-task busts the prompt cache and re-prefills the
+    whole conversation at full price, so this is set once at launch and never
+    changed by a running worker. skip_permissions exists only for ESC-009
+    (2026-10-17: Claude Code's own sensitive-file prompt blocks headless
+    writes under .company/worktrees/<TASK>/ even with --permission-mode
+    acceptEdits) — the ownership hook and protect_branches.py still fully
+    constrain what a worker can touch; this only removes Claude Code's own
+    extra prompt on top of them, and a harness without that flag configured
+    just ignores the request.
+    """
+    spec = harness_spec or harness.resolve(harness.load_config(company_root or PLUGIN_ROOT), role)
+    return harness.build_command(
+        spec, role=role, plugin_root=PLUGIN_ROOT,
+        allowed_tools=ROLE_TOOLS.get(role, "Read,Grep,Glob,Bash"),
+        schema=RESULT_SCHEMA, model=model, effort=effort,
+        skip_permissions=skip_permissions,
+    )
 
 
 CLAIM_STALE_AFTER_S = 7200  # comfortably above any real launch timeout — a
@@ -388,9 +370,11 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         if effort_override:
             policy["effort"] = effort_override
 
+        harness_spec = harness.resolve(harness.load_config(company_root), role)
+
         event_data = {"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
                       "timeout_s": timeout, "model": policy.get("model"),
-                      "effort": policy.get("effort")}
+                      "effort": policy.get("effort"), "harness": harness_spec["_name"]}
         if model_override or effort_override or skip_permissions:
             event_data["policy_override"] = {
                 "reason": override_reason,
@@ -402,14 +386,23 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             task=task["id"], data=event_data,
         ))
 
+        # A harness without Claude Code's own `--agent` persona loader never
+        # sees agents/<role>.md at all, so its body has to travel in the
+        # packet instead — the default `claude` harness skips this (it would
+        # otherwise load the same persona twice, once natively and once
+        # inline).
+        worker_input = packet
+        if not harness_spec.get("native_agent_loading"):
+            worker_input = harness.load_persona(PLUGIN_ROOT, role) + "\n\n---\n\n" + packet
+
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
                 build_command(task, role, model=policy.get("model"), effort=policy.get("effort"),
-                              skip_permissions=skip_permissions),
+                              skip_permissions=skip_permissions, harness_spec=harness_spec),
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
-                              thinking=bool(policy.get("thinking", True))),
+                              thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec),
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
             (state / "pid").write_text(str(proc.pid))
@@ -422,9 +415,9 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             release_claim(company_root, task["id"])
             try:
                 # The packet is the worker's entire context. Closing stdin
-                # matters: a `claude -p` process with an inherited open stdin
-                # blocks forever waiting for EOF instead of running the prompt.
-                proc.communicate(input=packet, timeout=timeout)
+                # matters: a process with an inherited open stdin blocks
+                # forever waiting for EOF instead of running the prompt.
+                proc.communicate(input=worker_input, timeout=timeout)
                 timed_out = False
             except subprocess.TimeoutExpired:
                 # SIGTERM, not SIGKILL: it aborts the turn cleanly, tears down
@@ -525,23 +518,29 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         policy_cfg = staffing.load_config(company_root, "staffing.yaml")
         policy = staffing.model_policy(policy_cfg, tier=2, gated=True, role=role)
         task_ids = [t["id"] for t in tasks]
+        harness_spec = harness.resolve(harness.load_config(company_root), role)
 
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
             data={"role": role, "tier": 2, "gate_group": group_id, "tasks": task_ids,
                   "worktree": str(worktree), "timeout_s": timeout,
-                  "model": policy.get("model"), "effort": policy.get("effort")},
+                  "model": policy.get("model"), "effort": policy.get("effort"),
+                  "harness": harness_spec["_name"]},
         ))
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
-                        worktree, thinking=bool(policy.get("thinking", True)))
+                        worktree, thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec)
         env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
+
+        worker_input = packet
+        if not harness_spec.get("native_agent_loading"):
+            worker_input = harness.load_persona(PLUGIN_ROOT, role) + "\n\n---\n\n" + packet
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
                 build_command({"id": claim_id}, role, model=policy.get("model"),
-                              effort=policy.get("effort")),
+                              effort=policy.get("effort"), harness_spec=harness_spec),
                 cwd=str(worktree), env=env,
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
@@ -549,7 +548,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
             (state / "started_task").write_text(claim_id)
             release_claim(company_root, claim_id)
             try:
-                proc.communicate(input=packet, timeout=timeout)
+                proc.communicate(input=worker_input, timeout=timeout)
                 timed_out = False
             except subprocess.TimeoutExpired:
                 proc.send_signal(signal.SIGTERM)
@@ -645,29 +644,27 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
 
     policy_cfg = staffing.load_config(company_root, "staffing.yaml")
     policy = staffing.model_policy(policy_cfg, tier=1, gated=False, role=role)
+    harness_spec = harness.resolve(harness.load_config(company_root), role)
 
     log.append(make_event(
         event="WORKER_STARTED", actor=actor, project=project,
         data={"role": role, "tier": 1, "readonly": True, "timeout_s": timeout,
-              "model": policy.get("model"), "effort": policy.get("effort")}))
+              "model": policy.get("model"), "effort": policy.get("effort"),
+              "harness": harness_spec["_name"]}))
 
     env = build_env(repo, company_root, {"id": "", "project": project}, actor, repo,
-                     thinking=bool(policy.get("thinking", True)))
+                     thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec)
     env.pop("COMPANY_TASK", None)   # not task-scoped; nothing to own
 
-    cmd = [
-        "claude", "-p",
-        "--agent", role,
-        "--plugin-dir", str(PLUGIN_ROOT),
-        "--strict-mcp-config",
-        "--output-format", "json",
-        "--permission-mode", "acceptEdits",
-        "--allowedTools", "Read,Grep,Glob,Bash",
-    ]
-    if policy.get("model"):
-        cmd += ["--model", policy["model"]]
-    if policy.get("effort"):
-        cmd += ["--effort", policy["effort"]]
+    cmd = harness.build_command(
+        harness_spec, role=role, plugin_root=PLUGIN_ROOT,
+        allowed_tools="Read,Grep,Glob,Bash", schema=None,
+        model=policy.get("model"), effort=policy.get("effort"),
+    )
+
+    worker_input = packet
+    if not harness_spec.get("native_agent_loading"):
+        worker_input = harness.load_persona(PLUGIN_ROOT, role) + "\n\n---\n\n" + packet
 
     started = time.monotonic()
     with open(out_path, "w") as out, open(err_path, "w") as err:
@@ -675,7 +672,7 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
                                 stdout=out, stderr=err, text=True)
         (state / "pid").write_text(str(proc.pid))
         try:
-            proc.communicate(input=packet, timeout=timeout)
+            proc.communicate(input=worker_input, timeout=timeout)
             timed_out = False
         except subprocess.TimeoutExpired:
             proc.send_signal(signal.SIGTERM)

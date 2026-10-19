@@ -871,6 +871,7 @@ def cmd_status(args):
     events = EventLog(root).read()
     stalls = {**render.detect_stale_tasks(tasks),
              **render.detect_stalls(root, tasks, events),
+             **render.detect_resting_tasks(tasks),
              **render.gates_with_no_verdict(events, tasks)}
     if args.json:
         emit({"project": project, "progress": render.project_progress(tasks),
