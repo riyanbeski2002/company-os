@@ -1157,6 +1157,7 @@ def cmd_costs(args):
         "by_actor": result["by_actor"],
         "by_task": result["by_task"],
         "untasked": result["untasked"],
+        "runs_with_unestimated_cost": result["runs_with_unestimated_cost"],
         "notes": [
             "api_equivalent_usd is Claude Code's CLIENT-SIDE ESTIMATE of what this "
             "work would have cost through the API. It is not a bill and nothing "
@@ -1178,6 +1179,13 @@ def cmd_costs(args):
             "avg_cache_read_per_turn/avg_output_per_turn on a by_actor entry are "
             "only as reliable as num_turns capture — check runs_missing_turns "
             "before trusting them for a role with many pre-capture runs.",
+            f"runs_with_unestimated_cost: {result['runs_with_unestimated_cost']}. A "
+            "harness that reports tokens but no cost estimate (e.g. the codex "
+            "adapter — Codex's API has no cost figure to report) still has its "
+            "tokens counted in `tokens`/by_actor/by_task above, but contributes "
+            "$0 to api_equivalent_usd — a non-zero count here means the dollar "
+            "figure understates true spend by that many runs' worth, not that "
+            "nothing happened.",
         ],
     })
 

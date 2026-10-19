@@ -28,6 +28,7 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
     totals = {"output": 0, "input": 0, "cache_read": 0, "cache_creation": 0}
     estimate = 0.0
     seconds = 0.0
+    runs_with_unestimated_cost = 0
 
     for ev in events:
         if ev.get("event") != "WORKER_EXITED":
@@ -46,13 +47,23 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
         entry = by_actor.setdefault(ev["actor"], {
             "runs": 0, "output_tokens": 0, "cache_read_tokens": 0,
             "seconds": 0.0, "usd_equivalent": 0.0, "tasks": [],
-            "turns": 0, "runs_missing_turns": 0,
+            "turns": 0, "runs_missing_turns": 0, "runs_with_unestimated_cost": 0,
             "_output_with_turns": 0, "_cache_read_with_turns": 0})
         entry["runs"] += 1
         entry["output_tokens"] += tokens.get("output", 0)
         entry["cache_read_tokens"] += tokens.get("cache_read", 0)
         entry["seconds"] = round(entry["seconds"] + elapsed, 1)
         entry["usd_equivalent"] = round(entry["usd_equivalent"] + (cost or 0), 4)
+        if cost is None and tokens:
+            # A harness that reports token usage but no cost estimate (the
+            # `codex` adapter always does this — Codex's own API has no cost
+            # figure to report) still had real tokens counted above; without
+            # this counter, api_equivalent_usd silently understates true
+            # spend by however many such runs exist, with no visible sign
+            # anything was left out (cfo-advisor's own finding, 2026-10-19,
+            # filed the day the codex harness shipped and found this gap in
+            # the costs rollup it had just started feeding).
+            entry["runs_with_unestimated_cost"] += 1
         if ev.get("task") and ev["task"] not in entry["tasks"]:
             entry["tasks"].append(ev["task"])
         if num_turns:
@@ -101,6 +112,8 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
             totals[k] += tokens.get(k, 0)
         estimate += cost or 0
         seconds += elapsed
+        if cost is None and tokens:
+            runs_with_unestimated_cost += 1
 
     for entry in by_actor.values():
         if entry["turns"]:
@@ -114,6 +127,7 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
         "tokens": totals,
         "wall_clock_minutes": round(seconds / 60, 1),
         "api_equivalent_usd": round(estimate, 2),
+        "runs_with_unestimated_cost": runs_with_unestimated_cost,
         "by_actor": dict(sorted(by_actor.items(), key=lambda kv: -kv[1]["output_tokens"])),
         "by_task": dict(sorted(by_task.items(), key=lambda kv: -kv[1]["cache_read_tokens"])),
         "untasked": untasked,

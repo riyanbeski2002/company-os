@@ -115,6 +115,46 @@ class TestTurnLevelAttribution(unittest.TestCase):
         self.assertEqual(entry["avg_output_per_turn"], 20)
 
 
+class TestUnestimatedCostVisibility(unittest.TestCase):
+    """cfo-advisor's own finding, filed the day the codex harness shipped
+    (2026-10-19): a harness that reports tokens but no cost estimate (the
+    codex adapter always does -- Codex's API has no cost figure) still
+    counts its tokens, but contributes $0 to api_equivalent_usd with no
+    visible sign anything was left out."""
+
+    def test_a_run_with_tokens_but_no_cost_is_counted(self):
+        events = [_exited("cfo-advisor", output=100, cache_read=1000, cost=None)]
+        result = costs.aggregate(events)
+        self.assertEqual(result["runs_with_unestimated_cost"], 1)
+        self.assertEqual(result["by_actor"]["cfo-advisor"]["runs_with_unestimated_cost"], 1)
+        # Tokens are still counted even though cost wasn't.
+        self.assertEqual(result["tokens"]["output"], 100)
+
+    def test_a_normal_estimated_run_does_not_count(self):
+        events = [_exited("cfo-advisor", output=100, cache_read=1000, cost=0.5)]
+        result = costs.aggregate(events)
+        self.assertEqual(result["runs_with_unestimated_cost"], 0)
+
+    def test_a_run_with_neither_cost_nor_tokens_is_skipped_entirely(self):
+        """Not an unestimated-cost run -- there's nothing here at all,
+        already excluded by the existing cost-is-None-and-no-tokens skip."""
+        events = [{"event": "WORKER_EXITED", "actor": "x", "project": "p",
+                   "data": {}}]
+        result = costs.aggregate(events)
+        self.assertEqual(result["runs_with_unestimated_cost"], 0)
+        self.assertEqual(result["worker_runs"], 0)
+
+    def test_mixed_estimated_and_unestimated_runs_count_only_the_latter(self):
+        events = [
+            _exited("cfo-advisor", output=100, cache_read=1000, cost=0.5),
+            _exited("cfo-advisor", output=50, cache_read=500, cost=None),
+        ]
+        result = costs.aggregate(events)
+        self.assertEqual(result["runs_with_unestimated_cost"], 1)
+        self.assertEqual(result["by_actor"]["cfo-advisor"]["runs_with_unestimated_cost"], 1)
+        self.assertEqual(result["by_actor"]["cfo-advisor"]["runs"], 2)
+
+
 class TestProjectFiltering(unittest.TestCase):
     def test_a_run_from_a_different_project_is_excluded(self):
         events = [
