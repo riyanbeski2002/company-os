@@ -20,6 +20,7 @@ import worker  # noqa: E402
 # Shape of a real `claude -p --output-format json` result.
 REAL_RESULT = {
     "total_cost_usd": 0.361738,
+    "num_turns": 23,
     "usage": {
         "output_tokens": 5332,
         "input_tokens": 30,
@@ -52,6 +53,19 @@ class TestUsageExtraction(unittest.TestCase):
         u = worker._usage({"usage": {"output_tokens": 10}})
         self.assertEqual(u["output"], 10)
         self.assertEqual(u["cache_read"], 0)
+
+
+class TestNumTurnsFieldName(unittest.TestCase):
+    """worker.py reads `result.get("num_turns")` directly (no helper
+    function — pinned here so a field-name change in a future Claude Code
+    version is caught by a test, not discovered silently via costs.py's
+    turn-level averages going quietly to zero)."""
+
+    def test_the_real_result_shape_carries_num_turns(self):
+        self.assertEqual(REAL_RESULT.get("num_turns"), 23)
+
+    def test_a_result_missing_num_turns_reads_as_none_not_a_crash(self):
+        self.assertIsNone({}.get("num_turns"))
 
 
 class TestSubscriptionAuth(unittest.TestCase):

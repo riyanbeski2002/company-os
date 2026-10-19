@@ -1131,60 +1131,32 @@ def cmd_costs(args):
     On a Claude subscription these runs are NOT billed in dollars — they draw
     down plan usage. So tokens lead, and the dollar figure is reported only as
     what the same work would have cost through the API, clearly labelled.
+    Aggregation itself lives in costs.py (pure, directly unit-testable); this
+    just adds the task-delivery context only cli.py's helpers have.
     """
+    import costs as costs_mod
     root = company_root(args)
     project = args.project or os.environ.get("COMPANY_PROJECT")
     events = EventLog(root).read()
 
-    by_actor: dict[str, dict] = {}
-    totals = {"output": 0, "input": 0, "cache_read": 0, "cache_creation": 0}
-    estimate = 0.0
-    seconds = 0.0
-
-    for ev in events:
-        if ev.get("event") != "WORKER_EXITED":
-            continue
-        if project and ev.get("project") != project:
-            continue
-        data = ev.get("data") or {}
-        # `cost_usd` is the pre-V2 field name; read both so old logs still fold.
-        cost = data.get("cost_usd_estimate", data.get("cost_usd"))
-        tokens = data.get("tokens") or {}
-        if cost is None and not tokens:
-            continue
-
-        entry = by_actor.setdefault(ev["actor"], {
-            "runs": 0, "output_tokens": 0, "cache_read_tokens": 0,
-            "seconds": 0.0, "usd_equivalent": 0.0, "tasks": []})
-        entry["runs"] += 1
-        entry["output_tokens"] += tokens.get("output", 0)
-        entry["cache_read_tokens"] += tokens.get("cache_read", 0)
-        entry["seconds"] = round(entry["seconds"] + (data.get("elapsed_s") or 0), 1)
-        entry["usd_equivalent"] = round(entry["usd_equivalent"] + (cost or 0), 4)
-        if ev.get("task") and ev["task"] not in entry["tasks"]:
-            entry["tasks"].append(ev["task"])
-
-        for k in totals:
-            totals[k] += tokens.get(k, 0)
-        estimate += cost or 0
-        seconds += data.get("elapsed_s") or 0
+    result = costs_mod.aggregate(events, project)
 
     tasks = _project_tasks(root, project)
     done = [t for t in tasks if t.get("status") in ("DONE", "MERGED")]
-    runs = sum(e["runs"] for e in by_actor.values())
 
     emit({
         "project": project,
         "billed_to": "Claude subscription — no dollar charge for these runs",
-        "worker_runs": runs,
+        "worker_runs": result["worker_runs"],
         "tasks_delivered": len(done),
-        "tokens": totals,
+        "tokens": result["tokens"],
         "tokens_per_delivered_task": (
-            {k: round(v / len(done)) for k, v in totals.items()} if done else None),
-        "wall_clock_minutes": round(seconds / 60, 1),
-        "api_equivalent_usd": round(estimate, 2),
-        "by_actor": dict(sorted(by_actor.items(),
-                                key=lambda kv: -kv[1]["output_tokens"])),
+            {k: round(v / len(done)) for k, v in result["tokens"].items()} if done else None),
+        "wall_clock_minutes": result["wall_clock_minutes"],
+        "api_equivalent_usd": result["api_equivalent_usd"],
+        "by_actor": result["by_actor"],
+        "by_task": result["by_task"],
+        "untasked": result["untasked"],
         "notes": [
             "api_equivalent_usd is Claude Code's CLIENT-SIDE ESTIMATE of what this "
             "work would have cost through the API. It is not a bill and nothing "
@@ -1193,12 +1165,19 @@ def cmd_costs(args):
             "cache_read is normally the largest number by far, because a non-bare "
             "worker re-reads its cached context every turn. It is the figure that "
             "matters when you start hitting plan limits.",
-            f"{runs} worker runs produced {len(done)} delivered tasks. Most runs "
+            f"{result['worker_runs']} worker runs produced {len(done)} delivered "
+            "tasks. Most runs "
             "are gates and fixes rather than waste — a gated task legitimately "
             "costs one implementation plus one run per gate. Watch the ratio over "
             "time, not its absolute value.",
             "Runs logged before token capture existed report zero tokens; only "
             "the api_equivalent_usd figure survives for those.",
+            "by_task splits a gate-group run's cost evenly across every task it "
+            "covered — an explicit estimate, not a measured per-task split; "
+            "'split_across_tasks' on an entry names how many tasks shared that run.",
+            "avg_cache_read_per_turn/avg_output_per_turn on a by_actor entry are "
+            "only as reliable as num_turns capture — check runs_missing_turns "
+            "before trusting them for a role with many pre-capture runs.",
         ],
     })
 

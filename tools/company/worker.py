@@ -470,7 +470,16 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                   # through the API, so it is recorded as an estimate and
                   # never presented as a bill.
                   "cost_usd_estimate": result.get("total_cost_usd"),
-                  "tokens": _usage(result)},
+                  "tokens": _usage(result),
+                  # How many turns the run actually took — the normalizer
+                  # task/turn cost attribution (company costs) needs so a
+                  # long genuinely-thorough run and a short run that
+                  # re-reads redundantly per turn don't look identical just
+                  # because their raw cache_read totals happen to match.
+                  # Harness-dependent: present for `claude` (the result JSON
+                  # reports it directly), absent for a harness whose adapter
+                  # doesn't populate it yet.
+                  "num_turns": result.get("num_turns")},
         ))
 
         if timed_out:
@@ -592,7 +601,8 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                   "is_error": result.get("is_error"),
                   "terminal_reason": result.get("terminal_reason"),
                   "cost_usd_estimate": result.get("total_cost_usd"),
-                  "tokens": _usage(result)},
+                  "tokens": _usage(result),
+                  "num_turns": result.get("num_turns")},
         ))
 
         missing_verdict = []
@@ -710,7 +720,8 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
               "elapsed_s": elapsed, "readonly": True,
               "session_id": result.get("session_id"),
               "cost_usd_estimate": result.get("total_cost_usd"),
-              "tokens": _usage(result)}))
+              "tokens": _usage(result),
+              "num_turns": result.get("num_turns")}))
 
     return {"actor": actor, "role": role, "exit_code": proc.returncode,
             "timed_out": timed_out, "elapsed_s": elapsed,
