@@ -7,6 +7,30 @@
 #
 # A trigger fires when a task's owned globs match `paths`, OR when the request
 # text matches any of `keywords` (case-insensitive, word boundary).
+#
+# `presentational_paths` (Riyan, 2026-10-19 — "a UI landing page with 'auth'
+# written... should not trigger security, waste of effort"): when a trigger's
+# ONLY hit is a keyword match in the request text (no path corroboration for
+# that trigger), and every one of the task's owned paths matches one of these
+# patterns, that specific trigger is downgraded instead of forced — the task
+# still gets `review` via baseline_gates, just not qa/security from a false
+# positive. A real path hit (the keyword also matches the trigger's own
+# `paths` list) is NEVER downgraded regardless of this list; this only
+# narrows the free-text-keyword-alone case. Extend this list deliberately,
+# not broadly — it should name genuinely content-only locations (copy,
+# marketing text, landing pages), never a directory that could plausibly
+# hold real logic (a form component, a page with client-side validation).
+presentational_paths:
+  - "**/content/**"
+  - "**/copy/**"
+  - "**/marketing/**"
+  - "**/landing/**"
+  - "**/*.copy.ts"
+  - "**/*.copy.tsx"
+  - "**/*.copy.js"
+  - "**/*.copy.jsx"
+  - "**/locales/**"
+  - "**/i18n/**"
 
 triggers:
   - name: authentication

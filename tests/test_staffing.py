@@ -469,6 +469,85 @@ class TestSizeBands(unittest.TestCase):
         self.assertEqual(staffing.size_band(0)["tier2_cap"], 0)
 
 
+class TestPresentationalPathDowngrade(unittest.TestCase):
+    """Riyan, 2026-10-19: "a UI landing page with 'auth' written... should
+    not trigger security, waste of effort." Keyword-only hits on purely
+    presentational content are downgraded instead of forced — still fully
+    deterministic, still conservative in every direction that matters."""
+
+    SYN_CFG = {
+        "presentational_paths": ["**/content/**", "**/*.copy.tsx"],
+        "triggers": [
+            {"name": "authentication", "keywords": ["login", "auth"],
+             "paths": ["**/auth/**", "**/session/**"], "gates": ["review", "qa", "security"]},
+        ],
+        "baseline_gates": ["review"],
+    }
+
+    def test_keyword_only_hit_on_presentational_paths_is_downgraded(self):
+        r = staffing.evaluate(self.SYN_CFG, "Add a Login button to the landing page",
+                              ["ui/content/landing.md"])
+        self.assertEqual(r["gates"], ["review"])
+        self.assertEqual(r["triggers_fired"], [])
+        self.assertEqual([d["trigger"] for d in r["downgraded_triggers"]], ["authentication"])
+
+    def test_a_real_path_hit_is_never_downgraded_regardless_of_keyword(self):
+        r = staffing.evaluate(self.SYN_CFG, "Add a Login button",
+                              ["api/auth/session.ts"])
+        self.assertIn("security", r["gates"])
+        self.assertEqual(r["downgraded_triggers"], [])
+
+    def test_a_non_presentational_path_is_never_downgraded(self):
+        """A form component isn't pure copy — conservative by design."""
+        r = staffing.evaluate(self.SYN_CFG, "Add a Login button",
+                              ["ui/components/LoginForm.tsx"])
+        self.assertIn("security", r["gates"])
+        self.assertEqual(r["downgraded_triggers"], [])
+
+    def test_no_declared_paths_at_all_is_never_downgraded(self):
+        """Nothing to judge presentational from — can't be less conservative
+        than today's behavior just because owned_globs wasn't filled in yet."""
+        r = staffing.evaluate(self.SYN_CFG, "Add a Login button", [])
+        self.assertIn("security", r["gates"])
+        self.assertEqual(r["downgraded_triggers"], [])
+
+    def test_mixed_paths_where_only_some_are_presentational_is_not_downgraded(self):
+        """Every owned path must be presentational, not just some of them."""
+        r = staffing.evaluate(self.SYN_CFG, "Add a Login button",
+                              ["ui/content/landing.md", "api/handlers.ts"])
+        self.assertIn("security", r["gates"])
+        self.assertEqual(r["downgraded_triggers"], [])
+
+    def test_no_presentational_paths_configured_never_downgrades_anything(self):
+        cfg = {**self.SYN_CFG, "presentational_paths": []}
+        r = staffing.evaluate(cfg, "Add a Login button", ["ui/content/landing.md"])
+        self.assertIn("security", r["gates"])
+
+    def test_downgrade_is_visible_with_its_evidence_not_silent(self):
+        r = staffing.evaluate(self.SYN_CFG, "Add a Login button",
+                              ["ui/content/landing.md"])
+        entry = r["downgraded_triggers"][0]
+        self.assertEqual(entry["matched_keyword"], "login")
+        self.assertEqual(entry["owned_paths"], ["ui/content/landing.md"])
+        self.assertIn("reason", entry)
+
+    def test_real_config_downgrades_the_exact_reported_false_positive(self):
+        """Integration check against the actual shipped config/
+        risk-triggers.yaml, not just a synthetic fixture."""
+        r = staffing.evaluate(
+            CFG, "Update the landing page copy to say Login or Sign up for free",
+            ["ui/content/landing.copy.tsx"])
+        self.assertNotIn("security", r["gates"])
+        self.assertIn("authentication", [d["trigger"] for d in r["downgraded_triggers"]])
+
+    def test_real_config_still_gates_real_auth_implementation(self):
+        r = staffing.evaluate(
+            CFG, "Implement session token verification for the login endpoint",
+            ["api/auth/session.ts"])
+        self.assertIn("security", r["gates"])
+        self.assertEqual(r["downgraded_triggers"], [])
+
+
 class TestConfigDrift(unittest.TestCase):
     """`company doctor`'s self-hosted-only drift check — real incident,
     2026-10-19: a plugin policy fix (restoring the baseline review gate)

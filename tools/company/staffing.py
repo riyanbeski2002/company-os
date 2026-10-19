@@ -51,6 +51,24 @@ def _path_hit(paths, patterns) -> str | None:
     return None
 
 
+def _all_presentational(paths, presentational_patterns) -> bool:
+    """True only when every owned path matches a presentational pattern —
+    and there's at least one path to judge at all. No paths (the common case
+    for a request text with no declared owned_globs yet) can't be judged
+    presentational and must not be treated as if it were; that would make
+    the exemption fire on strictly less evidence than today's behavior,
+    the opposite of the conservative direction this is supposed to err in.
+    """
+    if not paths or not presentational_patterns:
+        return False
+    for path in paths:
+        probe = path.replace("**", "x").replace("*", "x")
+        if not any(pathrules.matches(probe, pattern) or pathrules.matches(probe.rstrip("/x"), pattern)
+                   for pattern in presentational_patterns):
+            return False
+    return True
+
+
 def evaluate(config: dict, request: str = "", paths=None,
              files_touched: int | None = None, diff_lines: int | None = None) -> dict:
     """Return the mandatory gates and which triggers produced them.
@@ -62,14 +80,40 @@ def evaluate(config: dict, request: str = "", paths=None,
     `fast_path` bounds, the result recommends Tier 0 — the PM does it
     inline, no staffing pipeline. Omitting them (the default) leaves
     tier recommendation unset; only the gate lookup runs, exactly as before.
+
+    `presentational_paths` context downgrade (Riyan, 2026-10-19 — "a UI
+    landing page with 'auth' written... should not trigger security, waste
+    of effort"): a keyword-only hit (no path corroboration for that specific
+    trigger) on a task whose OWNED PATHS are entirely presentational content
+    — copy, marketing text, landing pages — is downgraded rather than forced.
+    Still fully deterministic and still fail-safe in every direction that
+    matters: a real path hit (the keyword also matches the trigger's own
+    `paths` list) is never downgraded regardless of content; a task with no
+    declared paths at all is never downgraded (nothing to judge
+    presentational from); and a downgrade is always recorded in
+    `downgraded_triggers` with its evidence, never silently dropped — the PM
+    can still add the gate back with a reason, same as it could add any
+    gate the table didn't mandate. This is the table declining to fire on
+    specifically-scoped, auditable grounds, not a judgment call overriding it.
     """
     fired = []
+    downgraded = []
     gates: list[str] = []
+    presentational = config.get("presentational_paths") or []
 
     for trigger in config.get("triggers", []):
         kw = _keyword_hit(request, trigger.get("keywords"))
         ph = _path_hit(paths, trigger.get("paths"))
         if not (kw or ph):
+            continue
+        if kw and not ph and _all_presentational(paths, presentational):
+            downgraded.append({
+                "trigger": trigger["name"], "matched_keyword": kw,
+                "owned_paths": list(paths or []),
+                "reason": "keyword matched only in request text, and every owned "
+                          "path is presentational content — no path corroborated "
+                          "real implementation for this trigger",
+            })
             continue
         fired.append({
             "trigger": trigger["name"],
@@ -93,7 +137,7 @@ def evaluate(config: dict, request: str = "", paths=None,
             fast_path = True
             recommended_tier = 0
 
-    return {"gates": gates, "triggers_fired": fired,
+    return {"gates": gates, "triggers_fired": fired, "downgraded_triggers": downgraded,
             "fast_path": fast_path, "recommended_tier": recommended_tier}
 
 

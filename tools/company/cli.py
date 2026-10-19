@@ -417,6 +417,12 @@ def cmd_plan(args):
         task["project"] = project
         task["triggers_fired"] = [t["trigger"] for t in verdict["triggers_fired"]]
         task["fast_path"] = verdict["fast_path"]
+        if verdict["downgraded_triggers"]:
+            # A keyword matched but every owned path was presentational
+            # content -- recorded on the task itself, not just the one-off
+            # evaluate() call, so a later audit of this plan can see a gate
+            # was deliberately not forced and why, not just that it wasn't.
+            task["downgraded_triggers"] = verdict["downgraded_triggers"]
         if additions:
             task["gates_added_by_pm"] = additions
         planned.append(task)
