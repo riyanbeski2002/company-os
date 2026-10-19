@@ -60,6 +60,7 @@ entries:
     trust_tier: T1
     source: "https://github.com/anthropics/financial-services-plugins"
     local_path: "external/anthropics-financial-services-plugins"
+    pinned_commit: "574ed3624aebd0418c7e96cd101262f30210ab26"
     forked_to: "https://github.com/riyanbeski2002/financial-services"
     license: "Apache-2.0"
     approved_by: riyan
@@ -71,6 +72,7 @@ entries:
     trust_tier: T1
     source: "https://github.com/anthropics/knowledge-work-plugins/tree/main/legal"
     local_path: "external/anthropics-knowledge-work-plugins-legal"
+    pinned_commit: "33eeda1e8fd856455b05479d13a0f85b5f803744"
     forked_to: "https://github.com/riyanbeski2002/knowledge-work-plugins"
     license: "Apache-2.0"
     approved_by: riyan
@@ -91,6 +93,7 @@ entries:
     source: "https://github.com/emilkowalski/skills"
     forked_to: "https://github.com/riyanbeski2002/test-fork-check"
     local_path: "external/emilkowalski-skills"
+    pinned_commit: "2d228630ba1446365f614a108cb8252f1feda202"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -101,6 +104,7 @@ entries:
     trust_tier: T1
     source: "https://github.com/greensock/gsap-skills"
     local_path: "external/greensock-gsap-skills"
+    pinned_commit: "aed9cfd3277740755f6bfc1155c7aa645403b760"
     forked_to: "https://github.com/riyanbeski2002/gsap-skills"
     license: MIT
     approved_by: riyan
@@ -112,6 +116,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/pbakaus/impeccable"
     local_path: "external/pbakaus-impeccable"
+    pinned_commit: "5bf0a069dc857e1b5f4b090e004d9d5b231416ca"
     forked_to: "https://github.com/riyanbeski2002/impeccable"
     license: Apache-2.0
     approved_by: riyan
@@ -123,6 +128,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
     local_path: "external/nextlevelbuilder-ui-ux-pro-max-skill"
+    pinned_commit: "56ea9cf174ed86786187daa9de0e6247cb0747e4"
     forked_to: "https://github.com/riyanbeski2002/ui-ux-pro-max-skill"
     license: MIT
     approved_by: riyan
@@ -134,6 +140,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/Graphify-Labs/graphify"
     local_path: "external/graphify-labs-graphify"
+    pinned_commit: "10130e79ed9caf8f60d998073e097531eaa1a395"
     forked_to: "https://github.com/riyanbeski2002/graphify"
     license: "Apache-2.0 / MIT"
     approved_by: riyan
@@ -154,6 +161,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/jarrodwatts/claude-hud"
     local_path: "external/jarrodwatts-claude-hud"
+    pinned_commit: "02d73c416b52b4e510a9be004fca469f961cd5bc"
     forked_to: "https://github.com/riyanbeski2002/claude-hud"
     license: MIT
     approved_by: riyan
@@ -165,6 +173,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/JuliusBrussee/caveman"
     local_path: "external/juliusbrussee-caveman"
+    pinned_commit: "d262ab3882952a59312ff3537cd86d894523c5ab"
     forked_to: "https://github.com/riyanbeski2002/caveman"
     license: "MIT (skill) / BSL-1.1 (engine) — see repo's LICENSING.md"
     approved_by: riyan
@@ -176,6 +185,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/heygen-com/hyperframes"
     local_path: "external/heygen-com-hyperframes"
+    pinned_commit: "8be76fc86cda5b2a77d0ee23b65f582e85376042"
     forked_to: "https://github.com/riyanbeski2002/hyperframes"
     license: "Apache-2.0"
     approved_by: riyan
@@ -188,6 +198,7 @@ entries:
     source: "https://github.com/remotion-dev/skills"
     forked_to: "https://github.com/riyanbeski2002/skills"
     local_path: "external/remotion-dev-skills"
+    pinned_commit: "7ba4dcf8ebe1626b00baa41e1f2478113719b60b"
     license: "none declared on this repo (Remotion framework itself is MIT)"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -203,6 +214,7 @@ entries:
     source: "https://github.com/Leonxlnx/taste-skill"
     forked_to: "https://github.com/riyanbeski2002/taste-skill"
     local_path: "external/leonxlnx-taste-skill"
+    pinned_commit: "f624f37a8c650b9cc550253104925efe4c8de246"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -223,6 +235,7 @@ entries:
     source: "https://github.com/DietrichGebert/ponytail"
     forked_to: "https://github.com/riyanbeski2002/ponytail"
     local_path: "external/dietrichgebert-ponytail"
+    pinned_commit: "84740e3d344b69b4a133201fa519eb37a62a2b2a"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -234,6 +247,7 @@ entries:
     source: "https://github.com/mvanhorn/last30days-skill"
     forked_to: "https://github.com/riyanbeski2002/last30days-skill"
     local_path: "external/mvanhorn-last30days-skill"
+    pinned_commit: "0341304f8ecb307ca0a939e48ecd002761ef23b2"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -245,6 +259,7 @@ entries:
     source: "https://github.com/blader/humanizer"
     forked_to: "https://github.com/riyanbeski2002/humanizer"
     local_path: "external/blader-humanizer"
+    pinned_commit: "225a6f39ac85f76ee48dbad772ea4abe4ed6c9d8"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -256,6 +271,7 @@ entries:
     source: "https://github.com/anthropics/skills"
     forked_to: "https://github.com/riyanbeski2002/skills-1"
     local_path: "external/anthropics-skills"
+    pinned_commit: "dbd4588f9e1033efb41dad4bef2f7947c8993d44"
     license: "Apache-2.0 (most); source-available for some doc-generation skills — check per-skill"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -267,6 +283,7 @@ entries:
     source: "https://github.com/coreyhaines31/marketingskills"
     forked_to: "https://github.com/riyanbeski2002/marketingskills"
     local_path: "external/coreyhaines31-marketingskills"
+    pinned_commit: "365b412152b9542499ca1439426f7fc3cc92bb65"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -286,6 +303,7 @@ entries:
     source: "https://github.com/DavidHDev/react-bits"
     forked_to: "https://github.com/riyanbeski2002/react-bits"
     local_path: "external/davidhdev-react-bits"
+    pinned_commit: "963f4d21dca65326a470956c42b7b467804f3c14"
     license: "MIT + Commons Clause (per repo's own claim — GitHub's detector shows NOASSERTION, could not independently confirm the LICENSE file; verify before any commercial redistribution of the component code itself)"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -297,6 +315,7 @@ entries:
     source: "https://github.com/shadcn-ui/ui"
     forked_to: "https://github.com/riyanbeski2002/ui"
     local_path: "external/shadcn-ui-ui"
+    pinned_commit: "c2477f311c19982ef6e246085438e6cfec3e35ea"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -308,6 +327,7 @@ entries:
     source: "https://github.com/nilbuild/driver.js"
     forked_to: "https://github.com/riyanbeski2002/driver.js"
     local_path: "external/nilbuild-driverjs"
+    pinned_commit: "ca44ea064a8a57ab4acb197e57c6f514d2df4da1"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -319,6 +339,7 @@ entries:
     source: "https://github.com/assistant-ui/assistant-ui"
     forked_to: "https://github.com/riyanbeski2002/assistant-ui"
     local_path: "external/assistant-ui-assistant-ui"
+    pinned_commit: "e1fedc7673bb5071c04fb2b0478ccef80797d91d"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -330,6 +351,7 @@ entries:
     source: "https://github.com/tailark/blocks"
     forked_to: "https://github.com/riyanbeski2002/blocks"
     local_path: "external/tailark-blocks"
+    pinned_commit: "8139698115c1341bfd2e3e286c04bb4d8146f472"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -350,6 +372,7 @@ entries:
     source: "https://github.com/The-Art-of-Hacking/h4cker"
     forked_to: "https://github.com/riyanbeski2002/h4cker"
     local_path: "external/theartofhacking-h4cker"
+    pinned_commit: "cbf27e671daea238e9f05a81fb8354357437c08a"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -361,6 +384,7 @@ entries:
     source: "https://github.com/D4Vinci/Scrapling"
     forked_to: "https://github.com/riyanbeski2002/Scrapling"
     local_path: "external/d4vinci-scrapling"
+    pinned_commit: "7a684934907a8c7feaafe9ff1ccfd9d45cc26faf"
     license: "BSD-3-Clause"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -372,6 +396,7 @@ entries:
     source: "https://github.com/JCodesMore/ai-website-cloner-template"
     forked_to: "https://github.com/riyanbeski2002/ai-website-cloner-template"
     local_path: "external/jcodesmore-ai-website-cloner-template"
+    pinned_commit: "ee3f5a2f31fd549b9593fa4f7cf6d2955ee593bb"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -383,6 +408,7 @@ entries:
     source: "https://github.com/BerriAI/litellm"
     forked_to: "https://github.com/riyanbeski2002/litellm"
     local_path: "external/berriai-litellm"
+    pinned_commit: "0620f1a51586b5d0b0de2ab7653dc76de935ea0d"
     license: "MIT (core); enterprise/ subdirectory has a separate commercial license"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -394,6 +420,7 @@ entries:
     source: "https://github.com/KhazP/vibe-coding-prompt-template"
     forked_to: "https://github.com/riyanbeski2002/vibe-coding-prompt-template"
     local_path: "external/khazp-vibe-coding-prompt-template"
+    pinned_commit: "d26fb0d8a9cdac94cf99f004087620487e4da33d"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -404,6 +431,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/leonardomso/33-js-concepts"
     local_path: "external/leonardomso-33-js-concepts"
+    pinned_commit: "16d0d95c02b19df6a8c841f1a0012d7b7367a340"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -418,6 +446,7 @@ entries:
     trust_tier: T1
     source: "https://github.com/google/skills"
     local_path: "external/google-skills"
+    pinned_commit: "730939d15d6f026cbd29f7ea707d66aa320fb93a"
     license: "Apache-2.0"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -428,6 +457,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/aaif-goose/goose"
     local_path: "external/aaif-goose-goose"
+    pinned_commit: "44c2ed53b26e5b8ea087af2be1839ade2af7d57e"
     license: "Apache-2.0"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -438,6 +468,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/bytedance/deer-flow"
     local_path: "external/bytedance-deer-flow"
+    pinned_commit: "ec07de9618b4194533fea3d8bf8a2e4fbcca5385"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -448,6 +479,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/PrimeIntellect-ai/prime-agent"
     local_path: "external/primeintellect-ai-prime-agent"
+    pinned_commit: "a01c7923cfcb8d130b50d24332db1413b0e7479c"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -458,6 +490,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/coleam00/context-engineering-intro"
     local_path: "external/coleam00-context-engineering-intro"
+    pinned_commit: "a2d84b021cee1e2f4e77ba854bba0be8cb319035"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -468,6 +501,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/ByteByteGoHq/system-design-101"
     local_path: "external/bytebytegohq-system-design-101"
+    pinned_commit: "b28380a4710c5ec9638ec037d4168e288f334cba"
     license: "CC BY-NC-ND 4.0 — non-commercial, no derivatives"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -478,6 +512,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/denoland/celld"
     local_path: "external/denoland-celld"
+    pinned_commit: "90b43017241f81189453d326d05948f388b34652"
     license: "Apache-2.0"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -488,6 +523,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/coleam00/excalidraw-diagram-skill"
     local_path: "external/coleam00-excalidraw-diagram-skill"
+    pinned_commit: "8646fcc9f74f38539c6cdb4c969723336a96ddcd"
     license: "none detected — treat as all-rights-reserved until confirmed otherwise"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -498,6 +534,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/pipecat-ai/pipecat"
     local_path: "external/pipecat-ai-pipecat"
+    pinned_commit: "f7c191f743807dc9380d8201f387d6767f544a07"
     license: "BSD-2-Clause"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -508,6 +545,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/semantica-agi/semantica"
     local_path: "external/semantica-agi-semantica"
+    pinned_commit: "49742a49c5311d24b0d6ccba281fad08e392f97c"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -518,6 +556,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/daytonaio/daytona"
     local_path: "external/daytonaio-daytona"
+    pinned_commit: "ec4c21b2d597091ac09ecc278f3bcc172575a987"
     license: "AGPL-3.0 (confirmed via the actual LICENSE file at tag v0.190.0 — copyleft triggers on network/service use, a real compliance consideration if ever adopted)"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -536,6 +575,7 @@ entries:
     trust_tier: T1
     source: "https://github.com/juliangarnier/anime"
     local_path: "external/juliangarnier-anime"
+    pinned_commit: "01b81be1df6843ccfe0a71c0699a746bf740dd77"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -546,6 +586,7 @@ entries:
     trust_tier: T1
     source: "https://github.com/motiondivision/motion"
     local_path: "external/motiondivision-motion"
+    pinned_commit: "a7df1f379561f6b4030e94c1d93f4fcd25b3493a"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -556,6 +597,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/WatermelonCorp/watermellon-registry"
     local_path: "external/watermeloncorp-watermellon-registry"
+    pinned_commit: "86052b8fd12bc19bf3bac07625a7f93736c42b17"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -566,6 +608,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/serafimcloud/21st"
     local_path: "external/serafimcloud-21st"
+    pinned_commit: "b96d84dcf748d5e56f2f72f2bab9a4f7f33574cf"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -576,6 +619,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/bklit/bklit-ui"
     local_path: "external/bklit-bklit-ui"
+    pinned_commit: "7167844902bf81afd43c52f223a04f40f6b03159"
     license: "MIT (packages/ui only)"
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -586,6 +630,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/themesberg/neumorphism-ui-bootstrap"
     local_path: "external/themesberg-neumorphism-ui-free"
+    pinned_commit: "d17658d0fea92c140b508088f1fca8a50afdd7c4"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -596,6 +641,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/uiverse-io/galaxy"
     local_path: "external/uiverse-io-galaxy"
+    pinned_commit: "adbd2adde0a299a3956ea288fb444ec01891ca41"
     license: MIT
     approved_by: riyan
     approved_at: "2026-08-17"
@@ -643,6 +689,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/morluto/rea"
     local_path: "external/morluto-rea"
+    pinned_commit: "8ab5024397ddbd3b37ab68a13cabedc2eb7ce7dd"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -653,6 +700,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/tashfeenahmed/freellmapi"
     local_path: "external/tashfeenahmed-freellmapi"
+    pinned_commit: "53f01e871a817e29531e7cc2d06e7763c69260b8"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -663,6 +711,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/hassancs91/claude-image-generation"
     local_path: "external/hassancs91-claude-image-generation"
+    pinned_commit: "f53383149ae3dec1a6bda2527133e3741bd843b0"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -673,6 +722,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/digitalsamba/claude-code-video-toolkit"
     local_path: "external/digitalsamba-claude-code-video-toolkit"
+    pinned_commit: "959e0fc6c20210832078781e49daa7384cebb293"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -683,6 +733,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/yuvalsuede/agent-media-skill"
     local_path: "external/yuvalsuede-agent-media-skill"
+    pinned_commit: "3896eddbc527fd5031c7ebb9f787748f1c070d28"
     license: Apache-2.0
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -693,6 +744,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/imaginpro/imaginepro-claude-plugin"
     local_path: "external/imaginpro-imaginepro-claude-plugin"
+    pinned_commit: "1117424fc87f8510f1b2956e782ec576df57d958"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -703,6 +755,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/Anil-matcha/free-claude-ai-image-generator"
     local_path: "external/anil-matcha-free-claude-ai-image-generator"
+    pinned_commit: "a042521ada53d01e435369aab08b23078cdce82e"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -713,6 +766,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/multica-ai/andrej-karpathy-skills"
     local_path: "external/multica-ai-andrej-karpathy-skills"
+    pinned_commit: "2c606141936f1eeef17fa3043a72095b4765b9c2"
     license: "none declared — treat as all-rights-reserved until confirmed otherwise"
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -723,6 +777,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/affaan-m/ecc"
     local_path: "external/affaan-m-ecc"
+    pinned_commit: "76aaa77df6adc5b889e689007bf99b9a4f74af34"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -733,6 +788,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/freshtechbro/claudedesignskills"
     local_path: "external/freshtechbro-claudedesignskills"
+    pinned_commit: "1da73febff0c3e1dfefc07f8a5ef8f7d1dfdb6cd"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -743,6 +799,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/latent-spaces/brag"
     local_path: "external/latent-spaces-brag"
+    pinned_commit: "069432cac935ed1895859df201c31436c07fb74e"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -753,6 +810,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/hetpatel-11/adobe_premiere_pro_mcp"
     local_path: "external/hetpatel-11-adobe-premiere-pro-mcp"
+    pinned_commit: "4ad1d9515ed80c6e6938c379c1dba872f6823539"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -763,6 +821,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/diffusionstudio/core"
     local_path: "external/diffusionstudio-core"
+    pinned_commit: "4e784a7136b3b08e7b9b0c69504085897bf18647"
     license: MPL-2.0
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -773,6 +832,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/diffusionstudio/editor"
     local_path: "external/diffusionstudio-editor"
+    pinned_commit: "1ac2f5cc9ab7961d96ef1ea430168a332170f882"
     license: MPL-2.0
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -783,6 +843,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/fishaudio/fish-audio-plugin"
     local_path: "external/fishaudio-fish-audio-plugin"
+    pinned_commit: "30283d13f805afead6e0a9af172eff67cf8c141b"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -793,6 +854,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/magicpathai/agent-skills"
     local_path: "external/magicpathai-agent-skills"
+    pinned_commit: "a1ced96ad9da6c65d9f57d9fef79d944f7192dfe"
     license: "none declared — treat as all-rights-reserved until confirmed otherwise"
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -803,6 +865,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/Sunwood-ai-labs/hyperframes-motion-reel-skill"
     local_path: "external/sunwood-ai-labs-hyperframes-motion-reel-skill"
+    pinned_commit: "be78681a88a70f1f66c82275299fe569a9a9fcaa"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -813,6 +876,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/AbubakrChan/product-launch-motion"
     local_path: "external/abubakrchan-product-launch-motion"
+    pinned_commit: "b25b1630ecdebfe1fccf513256b2e7b8fd91a2c2"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -823,6 +887,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/higgsfield-ai/cli"
     local_path: "external/higgsfield-ai-cli"
+    pinned_commit: "dc7e2d2eac0b1fdad255de24d87552d1ba479037"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -833,6 +898,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/samuelgursky/davinci-resolve-mcp"
     local_path: "external/samuelgursky-davinci-resolve-mcp"
+    pinned_commit: "61bdde03a8b6f0c07a943fd4871b5f74e587e7eb"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -843,6 +909,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/hiteshK03/davinci-resolve-mcp"
     local_path: "external/hiteshk03-davinci-resolve-mcp"
+    pinned_commit: "f812df7ab5d376592a24fb94611473fdf3a1acb2"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -873,6 +940,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/0xsline/OpenChatCut"
     local_path: "external/0xsline-openchatcut"
+    pinned_commit: "72ddb3300cda4ed31cbd0bccbfc94fb29b8cffca"
     license: AGPL-3.0
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -883,6 +951,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/gztchan/awesome-design"
     local_path: "external/gztchan-awesome-design"
+    pinned_commit: "89f81119a482c9c49c399c481a78ff6d82fd974c"
     license: "none declared"
     approved_by: riyan
     approved_at: "2026-10-16"
@@ -893,6 +962,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/edenfunf/reelmimic"
     local_path: "external/edenfunf-reelmimic"
+    pinned_commit: "782a3ba3cfa455663127348dbfcbcfafada05d52"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-17"
@@ -903,6 +973,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/tuzhechen2005/painted-animation"
     local_path: "external/tuzhechen2005-painted-animation"
+    pinned_commit: "59744a69c7b916cfbe4c4ec84006b0c2f5e2fde1"
     license: "NOASSERTION -- check LICENSE file directly, do not assume terms"
     approved_by: riyan
     approved_at: "2026-10-17"
@@ -913,6 +984,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/google-labs-code/stitch-skills"
     local_path: "external/google-labs-code-stitch-skills"
+    pinned_commit: "0337446dadde6f8c94210444e2aa9d546126480f"
     license: Apache-2.0
     approved_by: riyan
     approved_at: "2026-10-17"
@@ -923,6 +995,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/google-labs-code/stitch-sdk"
     local_path: "external/google-labs-code-stitch-sdk"
+    pinned_commit: "e3f8ece5fee46d18fa621b716bfef1fe56661b10"
     license: Apache-2.0
     approved_by: riyan
     approved_at: "2026-10-17"
@@ -933,6 +1006,7 @@ entries:
     trust_tier: T3
     source: "https://github.com/yihui-dev/awesome-opus5-5-videos"
     local_path: "external/yihui-dev-awesome-opus5-5-videos"
+    pinned_commit: "92aee2f586ac0715cb3cbcb6384834f98a33383d"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-17"
@@ -943,6 +1017,7 @@ entries:
     trust_tier: T2
     source: "https://github.com/img2threejs/img2threejs"
     local_path: "external/img2threejs-img2threejs"
+    pinned_commit: "d508b596cb221f1509f6e50ab68fce275a5cfb44"
     license: Apache-2.0
     approved_by: riyan
     approved_at: "2026-10-17"
@@ -953,6 +1028,7 @@ entries:
     trust_tier: T1
     source: "https://github.com/darkroomengineering/lenis"
     local_path: "external/darkroomengineering-lenis"
+    pinned_commit: "e01eefb1f55cd08bc051521d74f5f8182b71ee9d"
     license: MIT
     approved_by: riyan
     approved_at: "2026-10-17"

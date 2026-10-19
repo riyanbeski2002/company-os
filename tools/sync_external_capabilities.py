@@ -11,17 +11,21 @@ Usage:
     tools/sync_external_capabilities.py --check    # report only, change nothing
     tools/sync_external_capabilities.py <id> [...] # sync only these entries
 
-KNOWN GAP (donor review, 2026-10-19, tasks/lessons.md): `sync_one` below
-tracks each fork's default branch (`git clone --depth 1`, `git pull
---ff-only`), not a pinned commit. A fork's owner pushing new commits changes
-what the next `--check`-less run pulls in, with no re-review required —
-paperclip's own skills-store requires a pinned 40-character commit SHA
-before import for exactly this reason. Not fixed here: pinning ~76 existing
-entries retroactively needs inspecting each fork's current HEAD, a real
-audit pass, not a mechanical edit. `tools/build_capability_index.py`'s
-`source_commit` field is the partial mitigation that *is* shipped — it makes
-a moved fork visible (compare two builds' `source_commit` for the same unit)
-even though nothing yet stops the move from happening unreviewed.
+CLOSED (donor review, 2026-10-19, tasks/lessons.md): `sync_one` used to
+track each fork's default branch (`git clone --depth 1`, `git pull
+--ff-only`) rather than a pinned commit, so a fork owner pushing new commits
+silently changed what the next `--check`-less run pulled in — paperclip's
+own skills-store requires a pinned 40-character commit SHA before import for
+exactly this reason. `tools/pin_external_commits.py` pinned all 76
+already-cloned entries to their then-current HEAD the same day; `sync_one`
+now checks out an entry's `pinned_commit` exactly (fetch, then checkout —
+never `pull`) when one is present, and only falls back to tracking the
+branch HEAD for an entry that genuinely has none yet (a brand-new adoption,
+before someone runs `pin_external_commits.py` on it — printed as
+"UNPINNED" by `--check` so that state stays visible, not silently normal).
+Updating a pin after a deliberate, reviewed upstream change is
+`pin_external_commits.py <id>` again, by hand — there is no automatic
+re-pin, the same way there is no automatic adoption.
 """
 import subprocess
 import sys
@@ -68,14 +72,27 @@ def sync_one(entry, check_only):
     id_ = entry["id"]
     url, is_fork = clone_url(entry)
     src_note = "fork" if is_fork else "UPSTREAM (fork pending)"
+    pinned = entry.get("pinned_commit")
     dest = EXTERNAL_DIR / id_
 
     if (dest / ".git").is_dir():
         if check_only:
-            print(f"  {id_:45s} present ({src_note})   {dest}")
+            trust_note = f"pinned @ {pinned[:12]}" if pinned else "UNPINNED (tracks branch HEAD)"
+            print(f"  {id_:45s} present ({src_note}, {trust_note})   {dest}")
             return True
-        r = run(["git", "-C", str(dest), "pull", "--ff-only"])
-        status = "pulled" if r.returncode == 0 else f"PULL FAILED: {r.stderr.strip()[:150]}"
+        if pinned:
+            # A pin means "this exact commit was reviewed" — fetch new
+            # history without moving the working tree, then land on exactly
+            # that commit. No `git pull`: that would move past the review
+            # the pin represents (tools/pin_external_commits.py, the gap
+            # this closes for the ~76 entries pinned 2026-10-19).
+            run(["git", "-C", str(dest), "fetch", "--quiet", "origin"])
+            r = run(["git", "-C", str(dest), "checkout", "--quiet", pinned])
+            status = (f"checked out pinned {pinned[:12]}" if r.returncode == 0
+                      else f"PIN CHECKOUT FAILED: {r.stderr.strip()[:150]}")
+        else:
+            r = run(["git", "-C", str(dest), "pull", "--ff-only"])
+            status = "pulled (UNPINNED)" if r.returncode == 0 else f"PULL FAILED: {r.stderr.strip()[:150]}"
         print(f"  {id_:45s} {status} ({src_note})")
         return r.returncode == 0
 
@@ -84,8 +101,18 @@ def sync_one(entry, check_only):
         return False
 
     EXTERNAL_DIR.mkdir(exist_ok=True)
-    r = run(["git", "clone", "--depth", "1", url, str(dest)])
-    status = "cloned" if r.returncode == 0 else f"CLONE FAILED: {r.stderr.strip()[:150]}"
+    # A pinned entry needs enough history to reach that commit — depth 1
+    # only ever has the branch tip, which the pin may no longer be. An
+    # unpinned entry keeps the original shallow, fast clone.
+    clone_cmd = ["git", "clone", url, str(dest)] if pinned else \
+        ["git", "clone", "--depth", "1", url, str(dest)]
+    r = run(clone_cmd, timeout=180 if pinned else 90)
+    if r.returncode == 0 and pinned:
+        r = run(["git", "-C", str(dest), "checkout", "--quiet", pinned])
+        status = (f"cloned, checked out pinned {pinned[:12]}" if r.returncode == 0
+                  else f"CHECKOUT OF PIN FAILED: {r.stderr.strip()[:150]}")
+    else:
+        status = "cloned" if r.returncode == 0 else f"CLONE FAILED: {r.stderr.strip()[:150]}"
     print(f"  {id_:45s} {status} ({src_note})")
     return r.returncode == 0
 
