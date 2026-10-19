@@ -1,6 +1,7 @@
 """Staffing engine (D4). Determinism is the whole point of the table."""
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -466,6 +467,56 @@ class TestSizeBands(unittest.TestCase):
 
     def test_trivial_has_no_tier2_budget(self):
         self.assertEqual(staffing.size_band(0)["tier2_cap"], 0)
+
+
+class TestConfigDrift(unittest.TestCase):
+    """`company doctor`'s self-hosted-only drift check — real incident,
+    2026-10-19: a plugin policy fix (restoring the baseline review gate)
+    never reached `.company/config/risk-triggers.yaml`, so company-os's own
+    repo ran without it for ~5 weeks while believing it was fixed."""
+
+    def _tree(self, tmp: Path, repo_files: dict, company_files: dict) -> tuple[Path, Path]:
+        repo = tmp / "repo"
+        (repo / "config").mkdir(parents=True)
+        for name, text in repo_files.items():
+            (repo / "config" / name).write_text(text)
+        root = tmp / "repo" / ".company"
+        (root / "config").mkdir(parents=True)
+        for name, text in company_files.items():
+            (root / "config" / name).write_text(text)
+        return repo, root
+
+    def test_identical_files_are_not_drifted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, root = self._tree(
+                Path(tmp),
+                {"staffing.yaml": "policy: a\n"},
+                {"staffing.yaml": "policy: a\n"})
+            self.assertEqual(staffing.config_drift(repo, root), [])
+
+    def test_a_diverged_file_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, root = self._tree(
+                Path(tmp),
+                {"risk-triggers.yaml": "baseline_gates: [review]\n"},
+                {"risk-triggers.yaml": "baseline_gates: []\n"})
+            self.assertEqual(staffing.config_drift(repo, root), ["risk-triggers.yaml"])
+
+    def test_a_file_with_no_repo_copy_is_not_flagged(self):
+        """Nothing to compare against -- not the same failure mode as a
+        stale copy that silently shadows a fix."""
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, root = self._tree(Path(tmp), {"new.yaml": "x: 1\n"}, {})
+            self.assertEqual(staffing.config_drift(repo, root), [])
+
+    def test_multiple_drifted_files_all_reported_sorted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo, root = self._tree(
+                Path(tmp),
+                {"staffing.yaml": "a: 1\n", "risk-triggers.yaml": "b: 1\n"},
+                {"staffing.yaml": "a: 2\n", "risk-triggers.yaml": "b: 2\n"})
+            self.assertEqual(staffing.config_drift(repo, root),
+                              ["risk-triggers.yaml", "staffing.yaml"])
 
 
 if __name__ == "__main__":

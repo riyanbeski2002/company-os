@@ -36,6 +36,7 @@ from pathlib import Path
 import staffing  # reuses the repo-config-wins-over-plugin-default loader
 
 _PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
+_EMBEDDED_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 
 
 class HarnessError(RuntimeError):
@@ -65,11 +66,27 @@ def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: st
                    effort: str | None = None, skip_permissions: bool = False) -> list[str]:
     """Fill the harness's command template.
 
-    A template token that is exactly a `{placeholder}` and resolves to None
-    (e.g. `{schema_json}` when no schema was requested) is dropped along with
-    the literal flag token immediately before it — this is what lets one
-    `claude` entry serve both the schema-bearing Tier-2 launch and the
-    schema-less readonly advisor launch without two near-duplicate templates.
+    A template token that is EXACTLY a `{placeholder}` (nothing else in the
+    token) and resolves to None (e.g. `{schema_json}` when no schema was
+    requested) is dropped along with the literal flag token immediately
+    before it — this is what lets one `claude` entry serve both the
+    schema-bearing Tier-2 launch and the schema-less readonly advisor launch
+    without two near-duplicate templates.
+
+    A placeholder embedded inside a larger token (e.g. `"{plugin_root}/
+    tools/foo.py"`, needed the first time a harness pointed at an adapter
+    script under the plugin root rather than passing `--plugin-dir
+    {plugin_root}` as Claude's own template does) is substituted the same
+    way but can't be "dropped" if unset — there's no flag pair to drop a
+    fragment of a larger string from. A real bug, caught live
+    (2026-10-19): the `codex` harness's first command template used
+    `"{plugin_root}/tools/company/adapters/codex_adapter.py"` as one token
+    assuming substring replacement, but this function originally only
+    matched a token that was a placeholder and nothing else — the literal
+    string `{plugin_root}` reached the shell unexpanded and the launch
+    failed with a file-not-found. Fixed here, not by rewriting the template
+    to avoid embedding — a harness author reaching for this is reasonable
+    and the function should support it.
     """
     subs = {
         "role": role,
@@ -77,21 +94,35 @@ def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: st
         "allowed_tools": allowed_tools,
         "schema_json": json.dumps(schema) if schema is not None else None,
     }
-    cmd: list[str] = []
-    for tok in spec.get("command") or []:
-        m = _PLACEHOLDER_RE.match(tok)
-        if not m:
-            cmd.append(tok)
-            continue
-        key = m.group(1)
+
+    def _fill(match: re.Match, tok: str) -> str:
+        key = match.group(1)
         if key not in subs:
             raise HarnessError(f"unknown placeholder {{{key}}} in harness {spec.get('_name')!r}")
         val = subs[key]
         if val is None:
-            if cmd:
-                cmd.pop()  # drop the flag that introduced this now-absent value
+            raise HarnessError(
+                f"{{{key}}} has no value for this launch and can't be dropped "
+                f"from inside a larger token ({tok!r}) the way a whole-token "
+                f"placeholder can — give {{{key}}} its own command-list entry "
+                f"instead if it needs to be optional")
+        return val
+
+    cmd: list[str] = []
+    for tok in spec.get("command") or []:
+        m = _PLACEHOLDER_RE.match(tok)
+        if m:
+            key = m.group(1)
+            if key not in subs:
+                raise HarnessError(f"unknown placeholder {{{key}}} in harness {spec.get('_name')!r}")
+            val = subs[key]
+            if val is None:
+                if cmd:
+                    cmd.pop()  # drop the flag that introduced this now-absent value
+                continue
+            cmd.append(val)
             continue
-        cmd.append(val)
+        cmd.append(_EMBEDDED_PLACEHOLDER_RE.sub(lambda m, t=tok: _fill(m, t), tok))
 
     if model and spec.get("model_flag"):
         cmd += [spec["model_flag"], translate_model(spec, model)]

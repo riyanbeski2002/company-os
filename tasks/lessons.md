@@ -150,3 +150,42 @@ review — not mechanisms to port, but named principles worth holding company-os
   ambiguous outcome becomes a flagged event, never a quiet default) — naming
   it as a principle means a future change can be checked against it
   directly instead of only against the specific bugs that produced it.
+
+## Validating a real-conditions run surfaced two real, unrelated bugs (2026-10-19)
+
+Staging the new `codex` harness onto a real role (`cfo-advisor`, temporarily,
+via `config/harness.yaml`'s `roles:` override) and actually running it,
+rather than trusting the earlier smoke tests, found two genuine bugs a
+synthetic test never would have:
+
+- **`.company/config/*.yaml` had silently drifted from `config/*.yaml` for
+  months.** `staffing.load_config`'s "repo config wins, plugin default is
+  the fallback" design is correct for any OTHER onboarded repo (deliberate
+  per-repo customization) but wrong for company-os's own self-hosted
+  checkout, where the two are supposed to be the same source of truth. The
+  first "real" validation run silently used `claude`, not `codex`, because
+  a stale `.company/config/harness.yaml` shadowed the edit — and digging
+  into why surfaced something much worse: `config/risk-triggers.yaml` got
+  "Restore review as a baseline gate" on 2026-09-15, a direct fix for
+  untriggered tasks shipping with zero independent review, and the
+  self-hosted copy never received it. **This repo ran with no baseline
+  review gate for roughly five weeks while believing the fix was live.**
+  Fixed by syncing the drifted files and adding a `company doctor` check
+  (`staffing.config_drift`) that catches this going forward, self-hosted
+  checkout only.
+- **`harness.build_command` only substituted a placeholder that was an
+  entire token**, not one embedded in a larger string. The `codex` entry's
+  own command template — `"{plugin_root}/tools/company/adapters/
+  codex_adapter.py"` — needed substring replacement, which the function
+  never supported; the literal, unexpanded string reached the shell and the
+  launch failed with a file-not-found. Every earlier harness test used a
+  placeholder as its own full token, so this gap had 100% test coverage of
+  the wrong case. Fixed, and the now-correct behavior is what let the real
+  validation run succeed and file two real findings via `company
+  advise-finding`.
+- **The lesson, not just the fixes**: "the smoke test passed" and "the real
+  thing works" are different claims, and the gap between them is exactly
+  where bugs live that no synthetic test happens to cover. Running the real
+  thing once, end to end, against production-shaped conditions, found two
+  bugs that a much larger synthetic test suite (500 tests passing
+  throughout both bugs' entire lifetime) never touched.

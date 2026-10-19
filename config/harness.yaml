@@ -9,7 +9,10 @@
 default: claude
 
 roles: {}
-  # Example override, left empty until a second harness is real and tested:
+  # Example override, left empty — codex was validated against a real
+  # cfo-advisor run (2026-10-19, see tasks/lessons.md) by staffing it here
+  # temporarily and reverting afterward; staffing a role onto a harness by
+  # default is a separate, later choice from proving the harness works.
   # backend-engineer: my-other-cli
 
 harnesses:

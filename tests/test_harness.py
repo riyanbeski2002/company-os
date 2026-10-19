@@ -179,6 +179,47 @@ class TestGenericHarnessTemplating(unittest.TestCase):
         self.assertEqual(env, {"KEEP": "1", "OTHER_CLI_MODE": "headless"})
 
 
+class TestEmbeddedPlaceholders(unittest.TestCase):
+    """Real bug, caught live 2026-10-19: config/harness.yaml's `codex` entry
+    used "{plugin_root}/tools/.../codex_adapter.py" as one token, assuming
+    substring replacement — build_command originally only matched a token
+    that was ENTIRELY a placeholder, so the literal string "{plugin_root}"
+    reached the shell unexpanded and the real launch failed with a
+    file-not-found. These pin the fix down."""
+
+    def test_a_placeholder_embedded_in_a_larger_token_is_substituted(self):
+        spec = {"_name": "x", "command": ["python3", "{plugin_root}/adapter.py"]}
+        cmd = harness.build_command(spec, role="r", plugin_root=Path("/repo"), allowed_tools="Read")
+        self.assertEqual(cmd, ["python3", "/repo/adapter.py"])
+
+    def test_multiple_embedded_placeholders_in_one_token_all_substitute(self):
+        spec = {"_name": "x", "command": ["{plugin_root}/{role}/run.sh"]}
+        cmd = harness.build_command(spec, role="backend-engineer",
+                                     plugin_root=Path("/repo"), allowed_tools="Read")
+        self.assertEqual(cmd, ["/repo/backend-engineer/run.sh"])
+
+    def test_unknown_embedded_placeholder_raises(self):
+        spec = {"_name": "x", "command": ["{nonsense}/adapter.py"]}
+        with self.assertRaises(harness.HarnessError):
+            harness.build_command(spec, role="r", plugin_root=Path("/repo"), allowed_tools="Read")
+
+    def test_an_unset_placeholder_embedded_in_a_larger_token_raises_rather_than_leaving_it_literal(self):
+        """Unlike the whole-token case, there's no flag pair to drop a
+        fragment of a larger string from — this must fail loudly, not
+        silently ship "{schema_json}" as a literal substring."""
+        spec = {"_name": "x", "command": ["--schema={schema_json}"]}
+        with self.assertRaises(harness.HarnessError):
+            harness.build_command(spec, role="r", plugin_root=Path("/repo"),
+                                   allowed_tools="Read", schema=None)
+
+    def test_whole_token_placeholder_behavior_is_unchanged(self):
+        """The exact-match case (today's `claude`/`codex` entries) must keep
+        working exactly as before this fix."""
+        spec = {"_name": "x", "command": ["--plugin-dir", "{plugin_root}"]}
+        cmd = harness.build_command(spec, role="r", plugin_root=Path("/repo"), allowed_tools="Read")
+        self.assertEqual(cmd, ["--plugin-dir", "/repo"])
+
+
 class TestPersonaInjectionContract(unittest.TestCase):
     """Only a harness without --agent-equivalent loading needs this."""
 

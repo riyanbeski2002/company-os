@@ -375,3 +375,29 @@ def size_band(tier2_count: int) -> dict:
         if tier2_count >= threshold:
             name, cap, shape = band_name, band_cap, band_shape
     return {"size": name, "shape": shape, "tier2_cap": cap}
+
+
+def config_drift(repo: Path, root: Path) -> list[str]:
+    """`company doctor`'s self-hosted-only check: `.company/config/<name>.yaml`
+    is this repo's own OPERATIVE copy (`load_config` above checks it before
+    falling back to the plugin's own `config/<name>.yaml`) — for any OTHER
+    onboarded repo that's deliberate per-repo customization, but for
+    company-os's own checkout the two are supposed to be the same source of
+    truth, and a silent divergence means a policy fix never actually took
+    effect here.
+
+    Real incident, found 2026-10-19: `config/risk-triggers.yaml` got
+    "Restore review as a baseline gate" on 2026-09-15 (a direct fix for
+    untriggered tasks shipping with zero review) — `.company/config/
+    risk-triggers.yaml` never received it, so this repo ran with no baseline
+    review gate for roughly five weeks after the fix was believed to be
+    live. Byte comparison only, not semantic — a reordered-but-equivalent
+    YAML file still counts as drifted, which is the conservative direction
+    to be wrong in here.
+    """
+    drifted = []
+    for cfg in sorted((repo / "config").glob("*.yaml")):
+        repo_copy = root / "config" / cfg.name
+        if repo_copy.is_file() and repo_copy.read_bytes() != cfg.read_bytes():
+            drifted.append(cfg.name)
+    return drifted

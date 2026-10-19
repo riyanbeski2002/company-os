@@ -1020,6 +1020,7 @@ def cmd_doctor(args):
     import subprocess
 
     import detect
+    import staffing
     root = company_root(args)
     repo = root.parent
     checks, problems = [], []
@@ -1107,6 +1108,17 @@ def cmd_doctor(args):
     check("baseline recorded", base is not None,
           f"exit {base['exit_code']}, green={base['green']}" if base else
           "none — run `company baseline` so red repos are judged fairly")
+
+    # Self-hosted only (see staffing.config_drift's own docstring for the
+    # real incident this check exists because of).
+    if repo == staffing.PLUGIN_CONFIG.parent:
+        drifted = staffing.config_drift(repo, root)
+        check("self-hosted config in sync", not drifted,
+              "in sync" if not drifted else
+              f"{', '.join(drifted)} differ(s) between config/ (maintained) and "
+              f".company/config/ (what actually governs launches here) — a plugin "
+              f"policy change did not take effect on this repo. Sync them; do not "
+              f"assume a fix to config/ is live until .company/config/ matches it.")
 
     emit({"ok": not problems, "repo": str(repo), "stack": detected["stack"],
           "checks": checks, "blocking": problems},
