@@ -73,12 +73,34 @@ docker compose -f docker/docker-compose.untrusted-review.yml run --rm \
 
 ## Verification status (be honest about this before trusting it)
 
-As of 2026-10-19: the Dockerfile's package names (`@anthropic-ai/claude-code`,
-`@openai/codex`) were confirmed real (`npm view @anthropic-ai/claude-code
-version` resolved), `entrypoint.sh` passed `bash -n`, and the embedded
-frontmatter-stripping logic was dry-run against a real `agents/*.md` file and
-produced the expected output. **The image itself was not built or run this
-session** — the local Docker daemon (OrbStack) would not come up headlessly.
-Build it and run it against a real small/low-stakes PR before trusting it for
-an actual untrusted review; don't take "the pieces are individually correct"
-as equivalent to "the whole pipeline works."
+Updated 2026-10-19 (same day, second pass, after OrbStack's daemon was
+started manually with `orbctl start` — it wasn't running, not unreachable):
+the image was built for real (`docker build`, clean) and the real, unmodified
+`entrypoint.sh` was run end to end inside it — via `bash -n`, via a
+stub-`claude`-on-PATH run, and against two genuinely external, public PRs on
+`octocat/Hello-World`:
+
+- **PR #11578** ("Create SECURITY.md") nets to an *empty* diff — its own
+  second commit deletes the file the first one added. The entrypoint
+  correctly resolved `origin/HEAD`, found the merge-base, computed the
+  triple-dot diff, got nothing, and exited 1 with "empty diff — nothing to
+  review" rather than either crashing or silently claiming it reviewed
+  something. This was initially suspicious (looked like a shallow-clone
+  depth bug) until `git log`/`git merge-base` inside the container showed
+  the PR genuinely nets to zero change — the tool was right, the PR was odd.
+- **PR #11577** ("add first open-source practice contribution") has a real
+  one-line diff. The full real `entrypoint.sh` — clone, PR fetch, checkout,
+  diff, frontmatter-stripped persona load, untrusted-data framing, prompt
+  assembly, and the final `claude` invocation over stdin — ran unmodified
+  end to end (with a stub `claude` substituted on `PATH` only because no
+  `ANTHROPIC_API_KEY` was available in this session to pay for a real model
+  call) and `tee`'d its output to `/work/output/review.txt`, confirmed
+  present and correct via the compose file's output volume.
+
+What's still not verified: a real model actually producing a real security
+finding (needs a real API key or OAuth token, supplied at invocation time per
+the Usage section below — not something to generate or store on this
+machine on the tool's behalf). Everything upstream of that one model call —
+the entire isolation and data pipeline this document is actually about — is
+now proven, not just individually plausible, against real external PRs on a
+real public repo.
