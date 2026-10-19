@@ -313,6 +313,19 @@ Treat the guards as protection against *mistakes*, not against an adversary.
 If you need a real boundary, run workers under Claude Code sandboxing or in a
 container.
 
+## Residual gap: the guards only apply inside a spawned Tier-2 worker
+
+`guard_paths.py`/`guard_secrets.py`/`protect_branches.py` all start with
+`task_id = os.environ.get("COMPANY_TASK"); if not task_id: allow()` —
+deliberate, not an oversight: gating the main session the same way would
+block legitimate human-directed work. But it means the main `company-pm`
+session, an officer advisor session, and any plain Claude Code session you
+run in this repo by hand have **no deterministic guard at all** — only
+model judgment, the same as any other repo. If a prompt-injection payload
+reaches one of those sessions (a file it reads, WebFetch content), nothing
+here stops it structurally. Only a headless Tier-2 worker, launched by
+`worker.py`, gets `$COMPANY_TASK` set and the guards activated.
+
 ## Layout
 
 ```

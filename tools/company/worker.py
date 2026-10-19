@@ -344,11 +344,31 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
     override_reason is required whenever either override is set and is
     written into WORKER_STARTED so the escalation is visible in the event
     log, not a silent one-off.
+
+    Also refuses to start at all if this exact task has an open, blocking
+    escalation (donor review, 2026-10-19 — real incident: VIDEO-LAUNCH-01
+    was relaunched three times against the same unresolved environment
+    blocker, ESC-009, each relaunch paying to reproduce the same failure
+    with no new information). override_reason lets a caller who has
+    confirmed the blocker is actually clear proceed anyway without first
+    formally resolving the escalation — same discipline as the model/effort
+    override above, not a separate mechanism.
     """
     if (model_override or effort_override or skip_permissions) and not override_reason:
         raise WorkerError(
             "model/effort/skip-permissions override requires --why (the reason is "
             "recorded in WORKER_STARTED, per D11's escalation-needs-a-reason discipline)")
+    import escalations
+    blocker = escalations.blocking_escalation_for_task(EventLog(company_root).read(), task["id"])
+    if blocker and not override_reason:
+        raise WorkerError(
+            f"{blocker['id']} is an open, blocking escalation on {task['id']!r} "
+            f"({blocker.get('need')!r}) — relaunching against the same unresolved "
+            f"blocker just pays to reproduce the same failure. Resolve it first "
+            f"(`company resolve {blocker['id']}`), or pass --why if you've confirmed "
+            f"the blocker is actually clear and want to proceed without formally "
+            f"resolving it yet."
+        )
     if not claim_task(company_root, task["id"], actor):
         busy = live_worker_on(company_root, task["id"]) or "another worker"
         raise WorkerError(

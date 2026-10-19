@@ -81,6 +81,55 @@ class TestEscalationLifecycle(unittest.TestCase):
         self.assertIn("company gallery --open", text)
 
 
+class TestBlockingEscalationForTask(unittest.TestCase):
+    """worker.py's launch() refuses to relaunch a task against an open,
+    blocking escalation — real incident, 2026-10-19: VIDEO-LAUNCH-01 was
+    relaunched three times against the same unresolved ESC-009 environment
+    blocker, each relaunch paying to reproduce the identical failure."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _raise(self, **kw):
+        kw.setdefault("project", "p")
+        kw.setdefault("actor", "company-pm")
+        kw.setdefault("kind", "human_action")
+        kw.setdefault("need", "fix the environment")
+        return escalations.raise_escalation(self.root, **kw)
+
+    def test_a_blocking_escalation_on_this_task_is_found(self):
+        self._raise(task="TASK-1", blocking=True)
+        blocker = escalations.blocking_escalation_for_task(
+            EventLog(self.root).read(), "TASK-1")
+        self.assertIsNotNone(blocker)
+        self.assertEqual(blocker["id"], "ESC-001")
+
+    def test_a_non_blocking_escalation_does_not_count(self):
+        self._raise(task="TASK-1", blocking=False)
+        self.assertIsNone(escalations.blocking_escalation_for_task(
+            EventLog(self.root).read(), "TASK-1"))
+
+    def test_an_escalation_on_a_different_task_does_not_count(self):
+        self._raise(task="TASK-OTHER", blocking=True)
+        self.assertIsNone(escalations.blocking_escalation_for_task(
+            EventLog(self.root).read(), "TASK-1"))
+
+    def test_a_resolved_escalation_no_longer_blocks(self):
+        self._raise(task="TASK-1", blocking=True)
+        escalations.resolve(self.root, "ESC-001", actor="riyan", project="p",
+                            resolution="fixed")
+        self.assertIsNone(escalations.blocking_escalation_for_task(
+            EventLog(self.root).read(), "TASK-1"))
+
+    def test_no_escalations_at_all_returns_none(self):
+        self.assertIsNone(escalations.blocking_escalation_for_task([], "TASK-1"))
+
+
 class TestEscalationsAreSurfaced(unittest.TestCase):
     """A blocking ask nobody notices is the same as being stuck."""
 

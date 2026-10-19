@@ -111,6 +111,21 @@ def fold(events: list[dict]) -> dict[str, dict]:
     return open_escalations
 
 
+def blocking_escalation_for_task(events: list[dict], task_id: str) -> dict | None:
+    """The open, blocking escalation for this exact task, if any — None
+    otherwise. Donor review, 2026-10-19 (CFO finding, tasks/lessons.md):
+    VIDEO-LAUNCH-01's video-editor worker was relaunched three times against
+    the same unresolved environment blocker (ESC-009, still open), each
+    relaunch paying for a probe that could only reproduce the same failure,
+    not add new information. worker.py's launch() calls this before
+    starting a new run so that pattern needs an explicit override to repeat,
+    not a default."""
+    for esc in fold(events).values():
+        if esc.get("task") == task_id and esc.get("blocking"):
+            return esc
+    return None
+
+
 def all_escalations(events: list[dict]) -> dict[str, dict]:
     """Every escalation, open or resolved, for the audit trail."""
     everything: dict[str, dict] = {}

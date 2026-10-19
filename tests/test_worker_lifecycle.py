@@ -270,5 +270,55 @@ class TestGateNoVerdict(unittest.TestCase):
         self.assertIsNone(worker.gave_no_verdict([], "T-1", "be-1", "backend-engineer"))
 
 
+class TestLaunchRefusesAnOpenBlockingEscalation(unittest.TestCase):
+    """Real incident, 2026-10-19: VIDEO-LAUNCH-01 was relaunched three times
+    against the same unresolved ESC-009 environment blocker — each relaunch
+    paid to reproduce the identical failure, not to learn anything new.
+    This check happens before claim_task/subprocess spawn, so it's testable
+    without a real harness binary."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+        self.repo = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_refuses_without_an_override_reason(self):
+        import escalations
+        escalations.raise_escalation(self.root, project="p", actor="company-pm",
+                                     kind="human_action", need="fix the env",
+                                     task="TASK-1", blocking=True)
+        with self.assertRaises(worker.WorkerError):
+            worker.launch(self.repo, self.root, {"id": "TASK-1", "project": "p"},
+                          "packet", "video-editor", "video-editor-1")
+
+    def test_proceeds_past_the_escalation_check_with_an_override_reason(self):
+        """Doesn't assert the whole launch succeeds (that needs a real
+        subprocess) — only that THIS check is what an override_reason
+        actually bypasses, by confirming the failure moves past it (claim_task
+        succeeds, so the next real failure is the harness spawn itself, not
+        the escalation refusal)."""
+        import escalations
+        escalations.raise_escalation(self.root, project="p", actor="company-pm",
+                                     kind="human_action", need="fix the env",
+                                     task="TASK-1", blocking=True)
+        try:
+            worker.launch(self.repo, self.root, {"id": "TASK-1", "project": "p"},
+                          "packet", "video-editor", "video-editor-1",
+                          override_reason="confirmed the blocker is clear")
+        except worker.WorkerError as e:
+            self.assertNotIn("blocking escalation", str(e))
+
+    def test_no_blocking_escalation_is_unaffected(self):
+        try:
+            worker.launch(self.repo, self.root, {"id": "TASK-1", "project": "p"},
+                          "packet", "video-editor", "video-editor-1")
+        except worker.WorkerError as e:
+            self.assertNotIn("blocking escalation", str(e))
+
+
 if __name__ == "__main__":
     unittest.main()

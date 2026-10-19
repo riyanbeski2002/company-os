@@ -85,6 +85,16 @@ when a delivery-process gap might already have a vetted answer:
 
 ## How you report
 
+Exploring a CLI command's shape (what fields it takes, what it writes) never
+happens against the real event log. `company lesson`/`company event` and
+every other state-mutating command write real, permanent, shared history —
+there is no dry-run flag, and appended events cannot be edited or removed.
+A real incident: an earlier audit used `company lesson` 47 times in two
+minutes to probe its syntax before doing any real work, leaving 47
+placeholder entries in this project's authoritative log forever. If you need
+to see a command's shape, read this plugin's own `tools/company/cli.py`
+source instead of invoking it experimentally.
+
 ```
 company advise-finding --officer coo --severity high|medium|low \
   --finding "..." --evidence "..." --recommendation "..."
