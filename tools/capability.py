@@ -2,6 +2,7 @@
 """The "at command" loader for config/capability-index.yaml.
 
     tools/capability.py list [--type skill|tool|reference]
+    tools/capability.py search <keyword> [<keyword> ...]
     tools/capability.py show <unit_id>
     tools/capability.py load <unit_id>     # activates it
     tools/capability.py unload <unit_id>   # deactivates it
@@ -125,7 +126,8 @@ def cmd_unload(args):
         print(f"'{link_name}' was not loaded")
 
 
-COMMANDS = {"list": cmd_list, "show": cmd_show, "load": cmd_load, "unload": cmd_unload}
+COMMANDS = {"list": cmd_list, "search": cmd_search, "show": cmd_show,
+            "load": cmd_load, "unload": cmd_unload}
 
 
 def main():

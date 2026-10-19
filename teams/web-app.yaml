@@ -1,0 +1,27 @@
+name: web-app
+description: A typical customer-facing web app project — real UI with user-facing flows, not an internal tool or a pure API.
+roles:
+  - product-designer
+  - frontend-engineer
+  - backend-engineer
+  - code-reviewer
+  - qa-engineer
+  - security-reviewer
+suggested_skills:
+  - id: motion-vocabulary
+    why: Lets frontend-engineer justify a motion choice with a named easing and a stated reason, instead of by taste alone.
+  - id: scroll-animation
+    why: Covers the real production pipelines for scroll-driven narrative instead of defaulting to one by habit.
+  - id: leonxlnx-taste-skill
+    why: Anti-pattern/taste check for frontend work, pairs with motion-vocabulary and greensock-gsap-skills.
+  - id: greensock-gsap-skills
+    why: The actual animation engine most of the motion-vocabulary/scroll-animation guidance assumes.
+  - id: darkroomengineering-lenis
+    why: Default smooth-scroll layer when the project needs inertial scroll at all.
+seed_tasks:
+  - title: UX flow for the core user journey
+    notes: Staff product-designer before frontend-engineer when the flow has real, unresolved ambiguity (agents/company-pm.md's own rule) — a copy fix doesn't need this, a new page usually does.
+  - title: CI wired to the repo's real test/lint commands
+    notes: Confirm what `company doctor`'s "green" check actually runs for this stack before assuming a gate will catch a regression.
+  - title: Auth/permission boundary review
+    notes: Likely fires security-reviewer automatically via the risk table (config/risk-triggers.yaml) the first time a task touches it — don't staff it manually if the trigger will.

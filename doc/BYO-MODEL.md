@@ -50,6 +50,17 @@ needed. Every other role keeps using `default:` unless it has its own entry.
    it sends on stdin, so the role's actual instructions still reach the
    model. Leaving this `true` on a harness that can't do native agent
    loading means the model never sees its own job description.
+4. **Never push.** A worker's whole world is its worktree (see `worker.py`'s
+   `build_env`), and nothing about company-os's event-log-is-truth design
+   expects a Tier-2 worker to reach outside it onto the network. An adapter
+   script that can shell out arbitrary commands (the `codex` adapter below
+   can — Codex runs shell commands inside its own sandbox) must not let a
+   `git push` (or any other network-reaching git operation) happen from
+   inside a worker's turn. This is paperclip's own rule for its adapters
+   (`packages/adapters/AUTHORING.md`, enforced there by a static scanner);
+   company-os has no scanner for it yet — treat it as a manual review point
+   when writing a new adapter script, the way the sandbox flags below are a
+   manual review point for `codex`.
 
 A CLI that can't natively satisfy (1)/(2) — most can satisfy (1), fewer
 emit exactly the right JSON shape unprompted — gets wrapped in a thin adapter
@@ -107,22 +118,44 @@ optional flag+value pair.
 An unrecognized `{placeholder}` raises `HarnessError` at launch time rather
 than silently keeping the literal braces in the command.
 
-## Worked (unverified) example
+## Worked example: `codex` (real, as of 2026-10-19)
 
-The commented `generic-example` entry in `config/harness.yaml` is a template,
-not a tested integration — company-os ships zero alternate harnesses today.
-Wiring in a second backend (Codex, Cursor, Gemini CLI, OpenCode, ...) means:
+`config/harness.yaml`'s `codex` entry is company-os's second real harness —
+not a template. Its invocation was read from paperclip's own codex-local
+adapter source (`packages/adapters/codex-local/src/server/{codex-args.ts,
+parse.ts}`, github.com/paperclipai/paperclip, MIT), then live-smoke-tested
+end to end on this machine (codex-cli 0.163.0) before being committed, and
+one correction the live test caught: the research pass that read the
+paperclip source reported no cache-write usage field; the real, running
+`codex exec --json` output has one (`cache_write_input_tokens`), and
+`tools/company/adapters/codex_adapter.py` reads it. Confirm-by-running beats
+confirm-by-reading-someone-else's-source, even when that source is real and
+MIT-licensed — this is why.
+
+It is **not staffed to any role** — it exists, passes
+`tests/test_harness.py`/`tests/test_codex_adapter.py`, and a real
+`codex exec` invocation was verified to work, but pointing a live role's
+`roles:` entry at it is a deliberate staffing choice for later, and
+`model_flag` is deliberately left unset (see the comment in
+`config/harness.yaml`: a plausible-looking model id was rejected outright by
+this account when live-tested, so no `model_map` is shipped rather than one
+that would silently misroute every launch).
+
+Wiring in a **third** backend (Cursor, Gemini CLI, OpenCode, ...) means
+repeating the same discipline:
 
 1. Confirm its actual non-interactive invocation syntax from that project's
-   own current docs — don't copy flags from memory or from another tool's
-   convention.
+   own current docs or source — don't copy flags from memory or from
+   another tool's convention.
 2. Write (or point at) an adapter script if it doesn't natively emit the
    `RESULT_SCHEMA` JSON shape.
-3. Add a `harnesses:` entry, point one role at it via `roles:`, and run that
-   role's gate/task path for real before trusting it broadly.
-4. Extend `tests/test_harness.py` with the same pinning-test treatment
-   `TestClaudeHarnessIsUnchanged` gets for `claude`, so the new entry can't
-   silently drift either.
+3. **Live-smoke-test the exact invocation** before trusting anything read
+   about it, the same way `codex`'s flags were confirmed by actually running
+   them, not just by reading paperclip's source.
+4. Add a `harnesses:` entry, and extend `tests/test_harness.py` with the
+   same pinning-test treatment `TestClaudeHarnessIsUnchanged`/
+   `TestCodexHarnessIsReal` get, so the new entry can't silently drift.
+5. Only then point a real role's `roles:` entry at it.
 
 ## What this does *not* solve
 

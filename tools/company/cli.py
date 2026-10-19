@@ -1364,6 +1364,20 @@ def cmd_resolve(args):
     emit({"ok": True, **out})
 
 
+def cmd_team(args):
+    """`company team show <name>` — print a team bundle (teams/<name>.yaml).
+    Read-only and advisory: never creates a task, loads a skill, or writes
+    to the event log (see teams/README.md for why)."""
+    import teams
+    try:
+        team = teams.load_team(args.name)
+    except teams.TeamError as e:
+        die(str(e), 1)
+    problems = teams.validate(team)
+    print(teams.render(team, problems))
+    raise SystemExit(0)
+
+
 def cmd_gallery(args):
     """Plan the tmux gallery, or open it. Display only — never the bus."""
     import gallery
@@ -1392,6 +1406,17 @@ def cmd_stop(args):
     stopped = worker_mod.stop_all(root, args.project)
     emit({"ok": True, "stopped": stopped,
           "note": "worktrees preserved — nothing was deleted"})
+
+
+def cmd_pause(args):
+    import worker as worker_mod
+    root = company_root(args)
+    paused = worker_mod.pause_task(root, args.task_id)
+    if paused is None:
+        emit({"ok": False, "task": args.task_id,
+              "note": "no live worker is running this task — nothing to pause"}, exit_code=1)
+    emit({"ok": True, "paused": paused,
+          "note": "worktree preserved; every other worker keeps running"})
 
 
 def _session_actor(args) -> str | None:
@@ -1682,6 +1707,12 @@ def build_parser():
     rs.add_argument("--actor")
     rs.set_defaults(fn=cmd_resolve)
 
+    tm = sub.add_parser("team", help="read-only team-bundle info (teams/<name>.yaml)")
+    tmsub = tm.add_subparsers(dest="teamcmd", required=True)
+    tms = tmsub.add_parser("show", help="print a team bundle, flagging any stale references")
+    tms.add_argument("name")
+    tms.set_defaults(fn=cmd_team)
+
     gl = sub.add_parser("gallery", help="plan or open the tmux viewing gallery")
     gl.add_argument("--project")
     gl.add_argument("--script", action="store_true", help="print the tmux script")
@@ -1691,6 +1722,10 @@ def build_parser():
     st = sub.add_parser("stop", help="halt every worker; preserve every worktree")
     st.add_argument("--project")
     st.set_defaults(fn=cmd_stop)
+
+    pu = sub.add_parser("pause", help="halt the one worker on a task; every other worker keeps running")
+    pu.add_argument("task_id")
+    pu.set_defaults(fn=cmd_pause)
 
     se = sub.add_parser("session", help="who else is active on this checkout, and doing what")
     sesub = se.add_subparsers(dest="sessioncmd", required=True)

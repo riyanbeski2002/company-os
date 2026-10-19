@@ -72,6 +72,46 @@ class TestClaudeHarnessIsUnchanged(unittest.TestCase):
         self.assertEqual(env, {"KEEP_ME": "yes"})
 
 
+class TestCodexHarnessIsReal(unittest.TestCase):
+    """The second real harness (2026-10-19) — invocation verified against
+    paperclip's own codex-local adapter source and live-smoke-tested on this
+    machine, not guessed. These tests pin the resulting command shape down;
+    tests/test_codex_adapter.py covers the adapter script's own stdin/stdout
+    translation."""
+
+    def test_codex_harness_is_defined(self):
+        config = harness.load_config(REPO)
+        self.assertIn("codex", config["harnesses"])
+
+    def test_not_native_agent_loading(self):
+        spec = harness.load_config(REPO)["harnesses"]["codex"]
+        self.assertFalse(spec.get("native_agent_loading"))
+
+    def test_command_points_at_the_adapter_script_not_codex_directly(self):
+        spec = harness.load_config(REPO)["harnesses"]["codex"]
+        cmd = harness.build_command(spec, role="backend-engineer", plugin_root=REPO,
+                                     allowed_tools="Read,Grep,Glob,Edit,Write,Bash")
+        self.assertEqual(cmd[0], "python3")
+        self.assertTrue(cmd[1].endswith("tools/company/adapters/codex_adapter.py"))
+        self.assertIn("--skip-git-repo-check", cmd)
+
+    def test_model_flag_is_deliberately_unset(self):
+        """Shipping a guessed model_map would silently fail real launches —
+        this account rejected a plausible-looking model id outright when
+        live-tested. No model_flag means staffing.yaml's model policy is
+        silently ignored for this harness rather than silently wrong."""
+        spec = harness.load_config(REPO)["harnesses"]["codex"]
+        cmd = harness.build_command(spec, role="backend-engineer", plugin_root=REPO,
+                                     allowed_tools="Read", model="sonnet")
+        self.assertNotIn("--model", cmd)
+
+    def test_effort_is_translated_to_the_dash_c_form(self):
+        spec = harness.load_config(REPO)["harnesses"]["codex"]
+        cmd = harness.build_command(spec, role="backend-engineer", plugin_root=REPO,
+                                     allowed_tools="Read", effort="high")
+        self.assertIn("model_reasoning_effort=high", cmd)
+
+
 class TestRoleResolution(unittest.TestCase):
     def test_unconfigured_role_falls_back_to_default(self):
         config = {"default": "claude", "harnesses": {"claude": {"command": ["claude"]}}}

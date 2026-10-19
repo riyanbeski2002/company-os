@@ -10,6 +10,18 @@ Usage:
     tools/sync_external_capabilities.py            # clone missing, pull present
     tools/sync_external_capabilities.py --check    # report only, change nothing
     tools/sync_external_capabilities.py <id> [...] # sync only these entries
+
+KNOWN GAP (donor review, 2026-10-19, tasks/lessons.md): `sync_one` below
+tracks each fork's default branch (`git clone --depth 1`, `git pull
+--ff-only`), not a pinned commit. A fork's owner pushing new commits changes
+what the next `--check`-less run pulls in, with no re-review required —
+paperclip's own skills-store requires a pinned 40-character commit SHA
+before import for exactly this reason. Not fixed here: pinning ~76 existing
+entries retroactively needs inspecting each fork's current HEAD, a real
+audit pass, not a mechanical edit. `tools/build_capability_index.py`'s
+`source_commit` field is the partial mitigation that *is* shipped — it makes
+a moved fork visible (compare two builds' `source_commit` for the same unit)
+even though nothing yet stops the move from happening unreviewed.
 """
 import subprocess
 import sys

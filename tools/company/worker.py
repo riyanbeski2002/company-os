@@ -711,3 +711,32 @@ def stop_all(company_root: Path, project: str | None = None) -> list[dict]:
         except (ValueError, OSError, ProcessLookupError):
             continue
     return stopped
+
+
+def pause_task(company_root: Path, task_id: str) -> dict | None:
+    """`company pause <task>` — halt the one worker running `task_id`,
+    leaving every other running worker untouched. The deliberate complement
+    of `stop_all`'s "halt everything": useful now that several workers can
+    run concurrently and stopping all of them to hold back one is real
+    collateral damage (donor review, 2026-10-19 — paperclip distinguishes
+    Stop/Pause/Cancel as separate actions; this is company-os's version,
+    scoped to what's actually true here: SIGTERM and worktree preservation,
+    same as `stop_all`, just aimed at one actor instead of every actor).
+
+    Returns None if no live worker is running that task — same "nothing to
+    do" signal `live_worker_on` already uses elsewhere, not an error.
+    """
+    workers = Path(company_root) / "state" / "workers"
+    if not workers.is_dir():
+        return None
+    for pidfile in sorted(workers.glob("*/pid")):
+        started = pidfile.parent / "started_task"
+        if not started.exists() or started.read_text().strip() != task_id:
+            continue
+        try:
+            pid = int(pidfile.read_text().strip())
+            os.kill(pid, signal.SIGTERM)
+            return {"actor": pidfile.parent.name, "pid": pid, "signal": "TERM", "task": task_id}
+        except (ValueError, OSError, ProcessLookupError):
+            return None
+    return None

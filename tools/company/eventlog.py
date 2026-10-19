@@ -32,6 +32,12 @@ def utcnow() -> str:
 
 # --- event vocabulary -------------------------------------------------------
 # Extend as needed; never rename. Renaming breaks replay of historical logs.
+# Extending isn't free either: state a one-line reason for a new event type
+# in its commit message (what fact needs recording that an existing event
+# can't carry), the same discipline paperclip's own telemetry pipeline
+# requires for a new event name (doc/TELEMETRY_WORKFLOW.md) — this set is
+# permanent once shipped, so it's worth the same one-line justification a
+# new gate or risk trigger already gets.
 EVENTS = {
     "TASK_CREATED", "TASK_ASSIGNED", "WORKER_STARTED", "WORKER_HEARTBEAT",
     "DEPENDENCY_WAITING", "CONTRACT_PUBLISHED", "IMPLEMENTATION_READY",

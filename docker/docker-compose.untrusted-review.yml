@@ -1,0 +1,37 @@
+services:
+  review:
+    build:
+      context: ..
+      dockerfile: docker/untrusted-review/Dockerfile
+    init: true
+    environment:
+      REVIEW_REPO_URL: "${REVIEW_REPO_URL:?set REVIEW_REPO_URL}"
+      REVIEW_PR: "${REVIEW_PR:-}"
+      REVIEW_REF: "${REVIEW_REF:-}"
+      REVIEW_ROLE: "${REVIEW_ROLE:-security-reviewer}"
+      REVIEW_BASE: "${REVIEW_BASE:-origin/HEAD}"
+      # Only a harness's OWN credential reaches the container — never the
+      # host's git credentials, SSH agent, or a bind-mounted repo. Pass
+      # ANTHROPIC_API_KEY (or CLAUDE_CODE_OAUTH_TOKEN, however the chosen
+      # harness authenticates) at invocation time, e.g.
+      # `ANTHROPIC_API_KEY=... docker compose -f docker/docker-compose.untrusted-review.yml run review`.
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    # No host bind mounts at all, deliberately — review-output is the only
+    # volume, and it is write-only from the container's point of view (the
+    # host reads it after the run, the container never reads the host's
+    # copy back in).
+    volumes:
+      - review-output:/work/output
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:mode=1777,size=512m
+    network_mode: bridge  # needs the network to clone the target and reach
+                           # the model provider — everything else here is
+                           # what keeps that network access from becoming
+                           # host access.
+
+volumes:
+  review-output:

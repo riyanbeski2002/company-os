@@ -124,3 +124,29 @@ hard governance/lifecycle problems — does transfer, selectively:
   second — not a second hardcoded backend with invented flag names for a
   CLI I hadn't verified. A wrong guess shipped with confidence is worse than
   an honestly-unfinished integration point; see `doc/BYO-MODEL.md`.
+
+## Engineering-discipline principles worth stating, not just following
+
+Pulled from paperclip's own internal `rules/*.mdc` during the same donor
+review — not mechanisms to port, but named principles worth holding company-os
+(and whoever works on it, human or agent) to explicitly:
+
+- **Pick evidence that could disprove the change, not evidence that confirms
+  it.** Before trusting a fix, name the consequential assumption it rests on
+  and check specifically whether that assumption holds — including whether a
+  test's own mocks quietly removed the behavior being relied on. A test that
+  can only pass is not evidence.
+- **If the system already has the authority and the information to take the
+  next step safely, it should take it — not turn the gap into a question for
+  Riyan.** Escalating a decision he's already delegated (via a gate, a
+  staffing rule, an existing policy) just to be safe is its own kind of
+  laziness; the Evidence Rule and the risk table exist so most "should I ask
+  first" moments already have a recorded answer.
+- **Ownership must be explicit, completion has more than one independent
+  obligation, and uncertainty stays visible rather than silently resolved
+  one way.** This is already how `worker.py`'s claim-file mechanism and
+  `GATE_NO_VERDICT` behave in practice (a claim names its owner; a gate's
+  "done" requires a verdict event AND a clean exit, not either alone; an
+  ambiguous outcome becomes a flagged event, never a quiet default) — naming
+  it as a principle means a future change can be checked against it
+  directly instead of only against the specific bugs that produced it.

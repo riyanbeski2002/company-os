@@ -1,6 +1,6 @@
 ---
 name: capability-curator
-description: Use when you suspect your standing knowledge in your own discipline may be stale — a newer library, a new CVE class, a changed best practice, a better-reviewed component source — and before recommending or adopting anything from outside this repo. Covers the trust-tier model, the discover-then-propose flow, and how to check what is already vetted. Triggers on - is there a better way to do this, what's new in, is this still the recommended approach, should we use this library/tool/skill.
+description: Use when you suspect your standing knowledge in your own discipline may be stale — a newer library, a new CVE class, a changed best practice, a better-reviewed component source — and before recommending or adopting anything from outside this repo, OR before writing a brand-new first-party skill from a pattern you noticed mid-task. Covers the trust-tier model, the discover-then-propose flow, staging a new skill draft for approval, and how to check what is already vetted. Triggers on - is there a better way to do this, what's new in, is this still the recommended approach, should we use this library/tool/skill, should this be its own skill.
 ---
 
 # Capability Curator
@@ -160,6 +160,37 @@ npx skills use <owner>/<repo> | claude     # or use it once, without installing
 This is the mechanism, not a new proposal target — cite it when telling
 Riyan or another role how to actually get a registered skill loaded, don't
 re-explain installation from scratch each time.
+
+## Authoring a NEW first-party skill (not adopting an external one)
+
+Everything above is about vetting something that already exists elsewhere.
+A different, equally real situation: a task surfaces a genuinely reusable
+procedure that doesn't exist as a skill anywhere — not "adopt X," but "write
+a new skill capturing this." That still goes through staging and approval,
+never straight into `skills/`:
+
+```
+tools/propose_skill.py <slug> <path-to-your-draft-SKILL.md>
+```
+
+validates the draft (real frontmatter with `name`/`description`, a body
+substantial enough to be a procedure, not a stub) and stages it at
+`.company/proposed_skills/<slug>/` — not live, not loadable, not discoverable
+by Claude Code's own skill search. It prints the exact `company escalate`
+command to file. Riyan approves (`company resolve`); only then does
+`company-pm` run:
+
+```
+tools/promote_skill.py <slug> --approved-by riyan
+```
+
+which moves the draft into `skills/<slug>/` and appends a `trust_tier: T0,
+source: "authored in this repo"` entry to `capability-registry.yaml` —
+mirroring `scroll-animation`'s own entry, the existing pattern for a
+first-party skill. You are never the one who runs `promote_skill.py`
+yourself; staging a draft is not the same thing as making it live, same
+discipline as never editing `capability-registry.yaml` directly for an
+external adoption.
 
 ## What never needs a proposal
 

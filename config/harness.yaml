@@ -54,12 +54,63 @@ harnesses:
       - CLAUDE_CODE_CHILD_SESSION
       - CLAUDE_CODE_ENTRYPOINT
 
-  # Template for a second backend — commented out rather than guessed-and-
-  # shipped, because getting another vendor's CLI flags wrong and shipping it
-  # anyway is worse than leaving the seam undemonstrated. Copy this, point
-  # `command` at the real CLI (or a thin adapter script if it can't natively
-  # satisfy harness.py's output contract), and flip `native_agent_loading` to
-  # false unless that CLI has its own `--agent`-equivalent persona loader.
+  # Second real harness (2026-10-19). The invocation and event shapes below
+  # were read from paperclip's own codex-local adapter source (packages/
+  # adapters/codex-local/src/server/{codex-args.ts,parse.ts}), then
+  # smoke-tested end-to-end on this machine (codex-cli 0.163.0) before being
+  # committed — not guessed. See tools/company/adapters/codex_adapter.py for
+  # why an adapter script is required at all: `codex exec --json` streams
+  # JSONL events, not one final RESULT_SCHEMA-shaped object, and has no
+  # --json-schema equivalent to force the model's reply into that shape.
+  #
+  # Not yet staffed to any role (see `roles:` above) — it exists, is real,
+  # and is covered by tests/test_harness.py, but switching a real role onto
+  # it is a deliberate choice for later, not a default this commit makes.
+  codex:
+    # No --agent equivalent exists; worker.py folds agents/<role>.md into
+    # the packet itself (same as any other native_agent_loading: false
+    # harness). One thing to watch that doesn't apply to any harness
+    # before this one: Codex ALSO auto-loads a worktree's own AGENTS.md if
+    # one exists, on top of whatever persona text worker.py prepended
+    # (paperclip's own comment, execute.ts:1136) — a role whose worktree
+    # happens to contain an AGENTS.md could pick up unintended extra
+    # instructions. Not guarded against here; watch for it if this harness
+    # gets staffed to a role whose repo has one.
+    native_agent_loading: false
+    command:
+      - python3
+      - "{plugin_root}/tools/company/adapters/codex_adapter.py"
+      - --skip-git-repo-check
+      - -c
+      - sandbox_mode="workspace-write"
+      - -c
+      - sandbox_workspace_write.network_access=false
+    # model_flag is deliberately UNSET. staffing.yaml's tier policy names
+    # Claude model families (sonnet/opus/haiku); this account's valid Codex
+    # model catalog is not confirmed (live-tested 2026-10-19: `gpt-5.1-codex`
+    # was rejected outright as "not supported... with a ChatGPT account").
+    # Shipping a guessed model_map here would silently fail real launches —
+    # worse than this harness always using Codex's own account-default
+    # model regardless of tier. Confirm the real catalog (`codex doctor`, or
+    # reading a live rejection's error text) before adding model_flag back.
+    effort_flag: -c
+    # staffing.yaml's low/medium/high effort names already match Codex's own
+    # vocabulary (minimal/low/medium/high/xhigh) — no renaming needed, just
+    # the `-c model_reasoning_effort=<value>` wrapping. "low" was live-tested
+    # or confirmed effective 2026-10-19; medium/high were not separately
+    # exercised.
+    effort_map:
+      low: model_reasoning_effort=low
+      medium: model_reasoning_effort=medium
+      high: model_reasoning_effort=high
+    strip_env: []
+
+  # Template for a THIRD backend — commented out rather than guessed-and-
+  # shipped, same discipline as `codex` above was held to before it was
+  # real. Copy this, point `command` at the real CLI (or a thin adapter
+  # script if it can't natively satisfy harness.py's output contract), and
+  # flip `native_agent_loading` to false unless that CLI has its own
+  # `--agent`-equivalent persona loader.
   #
   # generic-example:
   #   native_agent_loading: false

@@ -355,6 +355,15 @@ scope beyond the table, and only with a recorded reason. You may never subtract.
 The point is that identical requests produce identical mandatory staffing, and
 that Riyan never has to remember to ask for a security review.
 
+**A plan step deserves its own task only when one of these is true**: it needs
+a different owner or a different permission than the step around it; it
+produces an independently useful output that something else can start
+consuming before the rest finishes; it is a real prerequisite another step
+can't start without; or it needs its own independent review. Otherwise it
+stays inline inside the task it belongs to. Splitting a step out anyway is the
+same defect as tier-inflation — it buys worktree/branch/coordination overhead
+for a boundary that was never real.
+
 Hire the smallest team that can safely deliver the outcome. Every extra agent
 costs context, coordination, latency, merge risk, and money. Add a management
 layer only when it *reduces* coordination complexity — never for organisational

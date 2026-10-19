@@ -133,6 +133,60 @@ class TestWorktreeCollision(unittest.TestCase):
         self.assertNotEqual("be-1", "be-2")
 
 
+class TestPauseTask(unittest.TestCase):
+    """`company pause <task>` — the deliberate complement of `stop_all`'s
+    halt-everything: hold back one task without touching any other running
+    worker (donor review, 2026-10-19 — paperclip treats Stop/Pause/Cancel as
+    distinct actions; `company stop` alone was always the Stop-everything
+    case)."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / ".company"
+        self.workers = self.root / "state" / "workers"
+        self.workers.mkdir(parents=True)
+        self.procs = []
+
+    def tearDown(self):
+        for p in self.procs:
+            p.kill()
+            p.wait()
+        self.tmp.cleanup()
+
+    def _worker(self, actor, task_id):
+        d = self.workers / actor
+        d.mkdir()
+        p = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"])
+        self.procs.append(p)
+        (d / "pid").write_text(str(p.pid))
+        (d / "started_task").write_text(task_id)
+        return p
+
+    def test_pausing_one_task_leaves_the_other_worker_running(self):
+        held = self._worker("be-1", "TASK-1")
+        other = self._worker("be-2", "TASK-2")
+
+        result = worker.pause_task(self.root, "TASK-1")
+
+        self.assertEqual(result["actor"], "be-1")
+        self.assertEqual(result["task"], "TASK-1")
+        held.wait(timeout=5)
+        self.assertIsNotNone(held.poll())        # TASK-1's worker is gone
+        time.sleep(0.2)
+        self.assertIsNone(other.poll())           # TASK-2's worker is untouched
+
+    def test_pausing_a_task_with_no_live_worker_returns_none(self):
+        self.assertIsNone(worker.pause_task(self.root, "TASK-NOT-RUNNING"))
+
+    def test_pausing_preserves_the_worktree_same_as_stop(self):
+        """pause_task never touches the worktree on disk — only the process."""
+        self._worker("be-1", "TASK-1")
+        worktree_marker = Path(self.tmp.name) / "worktrees" / "TASK-1"
+        worktree_marker.mkdir(parents=True)
+        worker.pause_task(self.root, "TASK-1")
+        self.assertTrue(worktree_marker.exists())
+
+
 class TestWorkerEnvironment(unittest.TestCase):
     """The env a worker gets decides whether it can run at all."""
 
