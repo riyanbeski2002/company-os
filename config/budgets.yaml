@@ -23,3 +23,11 @@ max_turns: 60
 # process is gone. Liveness first, elapsed time second — long-running but
 # productive work is never killed.
 heartbeat_stall_s: 900
+
+# Per-goal spend (ADR-006 §7). The amount for each goal lives on its
+# GOAL_DEFINED event (`data.budget`), never here — this is only the policy.
+# Spend is costs.aggregate()'s by_task, summed over the goal's linked tasks.
+goal_budgets:
+  unit: output_tokens      # what a goal budget is denominated in
+  warn_at_ratio: 0.8       # `goal show`/`gaps` flag spend at 80% of budget
+  enforce: false           # v1 is report-only, no launch is ever refused

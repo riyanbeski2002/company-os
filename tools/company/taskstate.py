@@ -72,6 +72,10 @@ FIELDS_FROM_DATA = (
     # Rule check is unchanged either way, each task still needs its own
     # verdict event.
     "gate_group",
+    # goal (ADR-006 §3): the goal this task serves, set at plan time. Only
+    # copied when present — absence means ungoaled, so no historical task
+    # view gains a key it never had.
+    "goal",
 )
 
 
@@ -100,6 +104,15 @@ def fold(events: list[dict]) -> dict[str, dict]:
                     if member in tasks:
                         tasks[member].setdefault(
                             "worker_roles", {})[ev.get("actor")] = data["role"]
+            # GOAL_LINKED (ADR-006 §3) has the same members-in-data shape, so
+            # a misspelled id can never create a phantom DRAFT task; goals.py
+            # reports unknown ids as `unknown_tasks`. It deliberately leaves
+            # `updated_at` alone: relinking is classification, not work, and
+            # bumping it would reset detect_stale_tasks/detect_resting_tasks.
+            elif ev.get("event") == "GOAL_LINKED" and "goal" in data:
+                for member in data.get("tasks") or []:
+                    if member in tasks:
+                        tasks[member]["goal"] = data["goal"]
             continue
         name = ev.get("event")
         data = ev.get("data") or {}
@@ -259,9 +272,15 @@ def rebuild(company_root: Path, verify: bool = False) -> tuple[int, list[str]]:
     files on disk cannot be reproduced from the event log, which invalidates
     the entire state model.
     """
-    tasks = fold(EventLog(company_root).read())
+    import goals
+    events = EventLog(company_root).read()
+    tasks = fold(events)
+    # Goal views are a second projection over the same log, taking this
+    # fold's links as input, and get the same byte-identical-replay rules.
+    goal_views = goals.fold(events, tasks)
     if not verify:
         write_views(company_root, tasks)
+        goals.write_views(company_root, goal_views)
         return len(tasks), []
 
     mismatches = []
@@ -279,6 +298,7 @@ def rebuild(company_root: Path, verify: bool = False) -> tuple[int, list[str]]:
         for stray in sorted(tdir.glob("*.json")):
             if stray.name not in known:
                 mismatches.append(f"{stray}: on disk but no events produce it")
+    mismatches += goals.verify_views(company_root, goal_views)
     return len(tasks), mismatches
 
 

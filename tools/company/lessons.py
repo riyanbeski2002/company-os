@@ -19,6 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from eventlog import EventLog, make_event
+from quarantine import quarantined_seqs as _quarantined_seqs
 
 
 def record(company_root: Path, *, project: str, pattern: str, evidence: str,
@@ -59,10 +60,19 @@ def fold(events: list[dict], project: str | None = None,
     `skill` filters to lessons tagged with that skill/agent name — this is
     the query that turns repeated lessons into a concrete signal a skill
     needs patching, instead of accumulating unread.
+
+    A seq named by a LESSONS_QUARANTINED correction is skipped (quarantine.py):
+    test-fixture lessons that leaked into the real log aren't deleted from the
+    append-only log, they're disregarded here — so the unfiltered fold used by
+    cross-project listing and `skills_with_repeated_lessons` stops counting
+    them, which a project filter alone never did for a fold across all projects.
     """
+    quarantined = _quarantined_seqs(events)
     out = []
     for ev in events:
         if ev.get("event") != "LESSON_RECORDED":
+            continue
+        if ev.get("seq") in quarantined:
             continue
         if project and ev.get("project") != project:
             continue

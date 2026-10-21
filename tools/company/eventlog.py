@@ -53,6 +53,15 @@ EVENTS = {
     # producer didn't record (KNOWN_ISSUES #1), so the reconstruction is its
     # own event, pointing back at the original by seq (backfill.py).
     "TOKENS_BACKFILLED",
+    # Test-fixture LESSON_RECORDED events that leaked into the real log can't
+    # be deleted from an append-only log, so a correction event names the seqs
+    # to disregard; lessons.fold() then skips them (quarantine.py).
+    "LESSONS_QUARANTINED",
+    # ADR-006 goals (goals.py). No existing event records business intent
+    # (`request` never reaches the log); a task's goal must be correctable
+    # after TASK_CREATED; nothing records whether intent was *achieved*; and
+    # an abandoned goal would otherwise sit "unassessed" forever.
+    "GOAL_DEFINED", "GOAL_LINKED", "OUTCOME_ASSESSED", "GOAL_CLOSED",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event
@@ -72,7 +81,23 @@ REQUIRES_EVIDENCE = {
     "LESSON_RECORDED",
     # Reconstructed tokens are only as good as the stdout.json they came from.
     "TOKENS_BACKFILLED",
+    # A quarantine disregards recorded history, so it must point at the
+    # investigation/commit that proved those entries were test-fixture leakage.
+    "LESSONS_QUARANTINED",
+    # Whether intent was achieved is the one goal fact that is a claim about
+    # the world; defining, linking and closing are decisions.
+    "OUTCOME_ASSESSED",
 }
+
+# ADR-006: one goal entity, three levels. Goal events are not project-scoped
+# (an objective can span projects), so they carry this reserved project.
+GOAL_EVENTS = {"GOAL_DEFINED", "GOAL_LINKED", "OUTCOME_ASSESSED", "GOAL_CLOSED"}
+ORG_PROJECT = "_org"
+GOAL_LEVELS = {"mission", "objective", "key_result"}
+GOAL_PARENT_LEVEL = {"mission": None, "objective": "mission", "key_result": "objective"}
+OUTCOME_VERDICTS = {"achieved", "not_achieved", "inconclusive"}
+GOAL_DISPOSITIONS = {"abandoned", "superseded"}
+MEASURE_DIRECTIONS = {"increase", "decrease"}
 
 # Gate name -> the event that satisfies it. Used by the Evidence Rule.
 GATE_EVENT = {
@@ -135,6 +160,90 @@ def validate(event: dict) -> None:
     if name == "IMPLEMENTATION_READY":
         if not (event.get("evidence") or {}).get("commit"):
             raise EvidenceError("IMPLEMENTATION_READY requires evidence.commit (a SHA)")
+    if name in GOAL_EVENTS:
+        _validate_goal_event(event)
+
+
+def _is_number(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _validate_goal_event(event: dict) -> None:
+    """The shape rules ADR-006 §2 fixes at append time. Rules that need the
+    rest of the log (does the parent exist, is it the right level, is there
+    already an open mission) live in goals.check_against_history."""
+    name = event["event"]
+    data = event.get("data") or {}
+    if event["project"] != ORG_PROJECT:
+        raise ValueError(f"{name} is not project-scoped and must carry project {ORG_PROJECT!r}")
+    if event.get("task"):
+        # Members go in data.tasks; a top-level `task` would make
+        # taskstate.fold() create a phantom DRAFT task for a misspelled id.
+        raise ValueError(f"{name} must not carry a top-level 'task'")
+
+    if name == "GOAL_DEFINED":
+        level = data.get("level")
+        if not str(data.get("id") or "").startswith("G-"):
+            raise ValueError("GOAL_DEFINED requires data.id of the form G-NNN")
+        if level not in GOAL_LEVELS:
+            raise ValueError(f"GOAL_DEFINED level {level!r} is not one of {sorted(GOAL_LEVELS)}")
+        if not str(data.get("title") or "").strip():
+            raise ValueError("GOAL_DEFINED requires a non-empty data.title")
+        if level == "mission" and data.get("parent"):
+            raise ValueError("a mission has no parent")
+        if level != "mission" and not data.get("parent"):
+            raise ValueError(f"a {level} requires data.parent (a {GOAL_PARENT_LEVEL[level]})")
+        measure = data.get("measure")
+        if level == "key_result" and not isinstance(measure, dict):
+            raise ValueError("a key_result requires data.measure — a key result "
+                             "without a number is just a second objective")
+        if measure is not None:
+            if not isinstance(measure, dict) or not str(measure.get("metric") or "").strip() \
+                    or measure.get("target") is None:
+                raise ValueError("data.measure requires a 'metric' and a 'target'")
+            if measure.get("direction") not in (None, *MEASURE_DIRECTIONS):
+                raise ValueError(f"measure.direction must be one of {sorted(MEASURE_DIRECTIONS)}")
+        budget = data.get("budget")
+        if budget is not None and not (isinstance(budget, dict) and budget
+                                       and all(_is_number(v) and v >= 0 for v in budget.values())):
+            raise ValueError("data.budget must map a unit to a non-negative number")
+
+    elif name == "GOAL_LINKED":
+        if "goal" not in data or not (data["goal"] is None or isinstance(data["goal"], str)):
+            raise ValueError("GOAL_LINKED requires data.goal (a goal id, or null to unlink)")
+        tasks = data.get("tasks")
+        if not (isinstance(tasks, list) and tasks and all(isinstance(t, str) and t for t in tasks)):
+            raise ValueError("GOAL_LINKED requires a non-empty data.tasks list of task ids")
+
+    elif name == "OUTCOME_ASSESSED":
+        if not data.get("goal"):
+            raise ValueError("OUTCOME_ASSESSED requires data.goal")
+        if data.get("verdict") not in OUTCOME_VERDICTS:
+            raise ValueError(f"OUTCOME_ASSESSED verdict {data.get('verdict')!r} is not "
+                             f"one of {sorted(OUTCOME_VERDICTS)}")
+        measured = data.get("measured")
+        if measured is not None and not (isinstance(measured, dict) and "value" in measured):
+            raise ValueError("data.measured, when given, requires a 'value'")
+        evidence = event.get("evidence")
+        if isinstance(evidence, dict) and set(evidence) == {"commit"}:
+            # A commit proves a deliverable exists. This event records
+            # something different, and accepting a merge SHA as proof of an
+            # outcome would let "shipped" pass for "achieved" again.
+            raise EvidenceError(
+                "OUTCOME_ASSESSED refuses a bare commit as evidence — a commit proves "
+                "something shipped, not that the outcome was achieved. Point at the "
+                "measurement itself (a report, an export, a log).")
+
+    elif name == "GOAL_CLOSED":
+        if not data.get("goal"):
+            raise ValueError("GOAL_CLOSED requires data.goal")
+        if data.get("disposition") not in GOAL_DISPOSITIONS:
+            raise ValueError(f"GOAL_CLOSED disposition {data.get('disposition')!r} is not "
+                             f"one of {sorted(GOAL_DISPOSITIONS)}")
+        if data["disposition"] == "superseded" and not data.get("superseded_by"):
+            raise ValueError("a superseded goal requires data.superseded_by")
+        if not str(data.get("reason") or "").strip():
+            raise ValueError("GOAL_CLOSED requires a data.reason")
 
 
 def _rejects_stale_gate_verdict(event: dict, history: list[dict]) -> None:

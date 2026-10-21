@@ -29,19 +29,23 @@ This changes where real Phase 1 work starts: not re-fixing already-fixed
 defects, but the one real open item plus the regression-proofing the
 master prompt's section 4 asks for.
 
-## Phase 1 — Reliability foundation (in progress)
+## Phase 1 — Reliability foundation (done)
 
-- [ ] Backfill historical `WORKER_EXITED` token events from
+- [x] Backfill historical `WORKER_EXITED` token events from
       `.company/state/workers/*/stdout.json` as an append-only
       correction/migration event (never mutate historical events in
-      place) — closes KNOWN_ISSUES.md #1's last open item.
-- [ ] Add regression tests proving: (a) the exclusive-lease fix actually
-      rejects a second launch on the same owned globs, (b) a gate worker
-      ending `end_turn` with no verdict event always produces
-      `GATE_NO_VERDICT` and never silently re-runs under a new actor name,
-      (c) token backfill is idempotent and never double-counts on re-run.
-- [ ] Re-run full suite, confirm zero regressions, record before/after
-      counts here.
+      place) — closes KNOWN_ISSUES.md #1's last open item. Shipped as
+      `company backfill-tokens`; run against the real log: 1 of 35
+      tokenless runs reconstructed, 34 honestly unreconstructable
+      (overwritten/missing stdout.json), 28 already had tokens.
+- [x] Also fixed, same commit: a live-blocking `NameError: reasons` in
+      `cmd_integrate` from commit 6cdd62d (deleted assignment, kept the
+      read) — found via a real bug report, verified independently,
+      fixed, regression test added (`test_cmd_integrate_regression.py`).
+- [x] Regression tests proving: (a) exclusive lease, (b) `GATE_NO_VERDICT`
+      fail-closed, (c) backfill idempotency — `test_backfill.py`,
+      `test_launch_regressions.py`, `test_cmd_integrate_regression.py`.
+- [x] Committed `baf0d74`. 594/594 passing at the time.
 
 ## Phase 2 — Universal execution core (done, scoped down from the master prompt)
 
@@ -60,29 +64,48 @@ master prompt's section 4 asks for.
       attribution — deferred to whenever Phase 3's org/budget work makes
       it load-bearing, rather than built speculatively now.
 
-## Phase 3 — Organizational operating system (approved, implementing)
+## Phase 3 — Organizational operating system (core shipped)
 
 - [x] ADR-006 (`.company/decisions/ADR-006-organization-goal-hierarchy.md`)
       — goal entity (mission/objective/key_result), 4 new event types,
       task-goal linking inside `taskstate.fold()`, delivery/outcome split,
-      report-only per-goal budgets. Approved as written (Riyan, 2026-10-21)
-      — the 10-repo/cross-log question is a per-device onboarding detail,
-      not an architecture concern, so it stays correctly deferred as the
-      ADR already scoped it.
-- [ ] Implement ADR-006: `tools/company/goals.py`, 4 new event types in
-      `eventlog.py`, `company goal` CLI group, launcher-only guard +
-      worker-actor guard, golden test proving the existing log replays
-      byte-identical.
-- [ ] Side fix (Riyan, 2026-10-21): extend `governance-mechanism` trigger
-      in `config/risk-triggers.yaml` to cover `taskstate.py`/`eventlog.py`
-      — same class of gap ADR-002 closed for `staffing.py`, now closed
-      before ADR-006's implementation touches those exact files.
-- [ ] Side fix (Riyan, 2026-10-21): investigate and fix the test-isolation
-      bug that leaked 278 `LESSON_RECORDED` events (project `p`, patterns
-      `"x"`/`"a repeated pattern"`) into the real `.company/events/
-      events.jsonl`; decide with Riyan how to handle the already-leaked
-      entries (event-sourcing discipline forbids silently rewriting
-      history — needs an explicit decision, not a unilateral delete).
+      report-only per-goal budgets. Approved as written (Riyan, 2026-10-21).
+- [x] Implemented ADR-006 in full (§1-§7): `tools/company/goals.py`
+      (pure `fold(events, tasks)`, history checks, id assignment, tree/
+      gaps/budget rendering), 4 event types + validation in `eventlog.py`,
+      `company goal define|link|assess|close|tree|show|gaps`, raw-event
+      guard + worker-actor guard, `goal_budgets` in `budgets.yaml`
+      (report-only), `agents/company-pm.md` staffing instruction. Migration
+      safety verified on copies of the real log: all 12 existing task
+      views replay byte-identical, no `goal` key added, `.company/goals/`
+      stays absent, `rebuild --verify`/`status`/`costs`/`report` output
+      unchanged. 48 new tests (`test_goals.py`).
+- [x] Side fix: extended `governance-mechanism` trigger in
+      `config/risk-triggers.yaml` to cover `taskstate.py`/`eventlog.py` —
+      same class of gap ADR-002 closed for `staffing.py` — done before
+      ADR-006's implementation touched those exact files.
+- [x] Side fix: root-caused and fixed the test-isolation bug that leaked
+      278 `LESSON_RECORDED` events (project `p`) into the real event log
+      (`tests/test_lessons.py`/`test_onboard.py` invoked the CLI via
+      subprocess with only `cwd=`, which doesn't override an inherited
+      `COMPANY_ROOT` — worker.py exports that into every worker's env, so
+      running the suite inside a worker leaked fixtures into the live
+      log). Fixed going forward; audited every other subprocess-based
+      test and confirmed none else was exposed.
+- [x] The 278 already-leaked entries: quarantined via a new append-only
+      `LESSONS_QUARANTINED` event (modeled on `backfill.py`'s
+      `TOKENS_BACKFILLED` pattern), run for real against the live log
+      (Riyan's decision — "append a quarantine event"). `lessons.fold()`
+      now skips them; nothing deleted, history stays intact. New module
+      `tools/company/quarantine.py`, `company quarantine-lessons`
+      CLI, 10 tests (`test_quarantine.py`).
+- [x] Full suite 655/655 passing after both pieces of work landed
+      together (both touched `cli.py`/`eventlog.py` in disjoint,
+      non-conflicting hunks — verified by diff before committing).
+- [ ] Not yet done: no README entry for `company goal`/
+      `company quarantine-lessons`. Riyan hasn't yet defined any real
+      mission/objective/key_result — the system is ready, nothing is
+      populated.
 
 ## Phase 4 — Intelligence, skills, memory (not started)
 

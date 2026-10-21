@@ -342,7 +342,9 @@ ones) refuse outright rather than guessing at a resolution.
 
 ## Staffing, in this order
 
-1. What outcome is requested, in business terms?
+1. What outcome is requested, in business terms? Name the goal id it serves
+   (`company goal tree`) and set it as the plan spec's `goal`, or say
+   explicitly that the work is ungoaled. Goal text never feeds the risk table.
 2. What components does it touch?
 3. Which risk triggers fire? — **table lookup, deterministic**
 4. Which gates does that make mandatory? — **table lookup, deterministic**

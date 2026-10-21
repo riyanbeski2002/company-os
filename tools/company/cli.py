@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from eventlog import EventLog, EvidenceError, canonical, make_event  # noqa: E402
+from eventlog import GOAL_EVENTS, EventLog, EvidenceError, canonical, make_event  # noqa: E402
 import taskstate  # noqa: E402
 
 SCAFFOLD = [
@@ -151,7 +151,10 @@ def _ensure_line(path: Path, line: str):
 LAUNCHER_ONLY_EVENTS = {"WORKER_STARTED", "WORKER_EXITED", "WORKER_HEARTBEAT",
                         # Supplies a WORKER_EXITED's tokens to costs.py, so a
                         # forged one is a forged WORKER_EXITED by another name.
-                        "TOKENS_BACKFILLED"}
+                        "TOKENS_BACKFILLED",
+                        # Disregards recorded lessons: a worker that could forge
+                        # one could quarantine its own real lessons to hide them.
+                        "LESSONS_QUARANTINED"}
 # Scoped tightly to the events the actor-role binding in taskstate.check_done
 # actually trusts. TASK_CREATED/TASK_ASSIGNED/BASELINE_RECORDED are also only
 # ever written in-process by staff/baseline today, but blocking them here too
@@ -179,6 +182,13 @@ def cmd_event(args):
         die(f"{args.type!r} may only be recorded by the trusted launcher, "
            f"never by a worker's own `company event` call — that distinction "
            f"is what makes it trustworthy evidence.", 2)
+    if args.type in GOAL_EVENTS:
+        # ADR-006 §5: works like LAUNCHER_ONLY_EVENTS, but the one writer is
+        # `company goal`, which owns these events' history-dependent rules
+        # (parent level, one open mission, retro-link reasons) and refuses
+        # to run inside a launched worker.
+        die(f"{args.type!r} may only be recorded through `company goal`, never "
+           f"through raw `company event` — that command owns its validation.", 2)
     data = json.loads(args.data) if args.data else None
     evidence = None
     if args.evidence:
@@ -387,6 +397,10 @@ def cmd_plan(args):
         else json.loads(sys.stdin.read())
     project = spec.get("project") or die("plan spec needs a 'project'")
     request = spec.get("request", "")
+    # ADR-006 §3: a spec-level `goal` is stamped onto every task lacking one,
+    # the same way `project` is. Never an input to staffing.evaluate() (§6):
+    # "grow payments revenue" must not fire the payments trigger.
+    goal = spec.get("goal")
     tasks = spec.get("tasks") or die("plan spec needs a non-empty 'tasks' list")
 
     planned, forced, unreasoned_escalations = [], [], []
@@ -418,6 +432,8 @@ def cmd_plan(args):
         task = dict(task)
         task["gates"] = staffing.order_gates(final, qg)
         task["project"] = project
+        if goal and not task.get("goal"):
+            task["goal"] = goal
         task["triggers_fired"] = [t["trigger"] for t in verdict["triggers_fired"]]
         task["fast_path"] = verdict["fast_path"]
         if verdict["downgraded_triggers"]:
@@ -429,6 +445,18 @@ def cmd_plan(args):
         if additions:
             task["gates_added_by_pm"] = additions
         planned.append(task)
+
+    linked_goals = sorted({t["goal"] for t in planned if t.get("goal")})
+    if linked_goals:
+        import goals as goals_mod
+        defs = goals_mod.definitions(EventLog(root).read())
+        for gid in linked_goals:
+            d = defs.get(gid)
+            if not d or d["closed"] or d.get("level") == "mission":
+                die(f"plan links tasks to {gid!r}, which is "
+                    + ("not a defined goal" if not d else "closed" if d["closed"]
+                       else "the mission — link an objective or key_result")
+                    + " (see `company goal tree`)", 1)
 
     tier2 = [t for t in planned if t.get("tier") == 2]
     parallel = [t for t in tier2 if not t.get("depends_on")]
@@ -1259,6 +1287,28 @@ def cmd_backfill_tokens(args):
     emit({"ok": True, **result})
 
 
+def cmd_quarantine_lessons(args):
+    """Disregard test-fixture LESSON_RECORDED events that leaked into the real
+    log (project "p", via test_lessons.py/test_onboard.py running inside a
+    worker session) by appending one LESSONS_QUARANTINED correction — never by
+    editing the original lines. Safe to re-run; see quarantine.py.
+
+    Seqs are re-derived from the live log, not hardcoded. `--expect N` refuses
+    to proceed if the log doesn't hold exactly N contaminated entries, so a log
+    that has drifted since the count was taken is reported, not quarantined
+    blindly.
+    """
+    import quarantine
+    root = company_root(args)
+    try:
+        result = quarantine.run(root, project=args.project,
+                                evidence_commit=args.evidence_commit,
+                                expect=args.expect, dry_run=args.dry_run)
+    except ValueError as exc:
+        die(str(exc), 2)
+    emit({"ok": True, **result})
+
+
 def cmd_advise(args):
     """Run the executive panel: expertise the CEO does not have to supply."""
     import advise
@@ -1444,6 +1494,157 @@ def cmd_team(args):
     problems = teams.validate(team)
     print(teams.render(team, problems))
     raise SystemExit(0)
+
+
+# --- goals (ADR-006) -------------------------------------------------------
+
+def _refuse_inside_worker(verb: str):
+    """A launched Tier-2 worker defining its own objective, or grading its own
+    outcome, is self-certification. $COMPANY_ACTOR is set only by the
+    launcher, so its presence is the one actor boundary enforceable today."""
+    actor = os.environ.get("COMPANY_ACTOR")
+    if actor:
+        die(f"`company goal {verb}` refuses to run inside a launched worker "
+            f"($COMPANY_ACTOR={actor!r}) — goals are set and assessed by Riyan or "
+            f"the PM, never by the work being measured.", 2)
+
+
+def _json_arg(name: str, raw: str | None):
+    if raw is None:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as exc:
+        die(f"{name} is not valid JSON: {exc}")
+
+
+def _goal_policy(root: Path) -> dict:
+    """budgets.yaml's goal_budgets. A repo onboarded before ADR-006 has a
+    copied budgets.yaml without the block, so the plugin default fills in."""
+    import staffing
+    import yaml
+    policy = staffing.load_config(root, "budgets.yaml").get("goal_budgets")
+    default = staffing.PLUGIN_CONFIG / "budgets.yaml"
+    if policy is None and default.exists():
+        policy = (yaml.safe_load(default.read_text(encoding="utf-8")) or {}).get("goal_budgets")
+    return policy or {}
+
+
+def _goal_views(root: Path) -> tuple[dict, dict]:
+    import goals as goals_mod
+    events = EventLog(root).read()
+    tasks = taskstate.fold(events)
+    return goals_mod.fold(events, tasks), tasks
+
+
+def _goal_append(root: Path, args, event: str, data: dict, evidence: dict | None = None) -> dict:
+    import goals as goals_mod
+    try:
+        written = goals_mod.append(root, event=event, actor=args.actor or "company-pm",
+                                   data=data, evidence=evidence)
+    except EvidenceError as exc:
+        die(str(exc), 2)
+    except ValueError as exc:
+        die(str(exc), 1)
+    taskstate.rebuild(root)
+    return written
+
+
+def cmd_goal_define(args):
+    import goals as goals_mod
+    _refuse_inside_worker("define")
+    root = company_root(args)
+    events = EventLog(root).read()
+    if args.id:
+        prior = goals_mod.definitions(events).get(args.id) or die(
+            f"no goal {args.id!r} to revise — omit --id to define a new one")
+        # A revision is written as a complete definition, so the fold's
+        # "last wins" never has to merge partial events.
+        data = {k: v for k, v in prior.items() if k not in ("closed", "reason")}
+    else:
+        if not args.level or not args.title:
+            die("--level and --title are required to define a new goal")
+        data = {"id": goals_mod.next_id(events)}
+    for field, value in (("level", args.level), ("title", args.title), ("parent", args.parent),
+                         ("measure", _json_arg("--measure", args.measure)),
+                         ("budget", _json_arg("--budget", args.budget)),
+                         ("reason", args.reason)):
+        if value is not None:
+            data[field] = value
+    written = _goal_append(root, args, "GOAL_DEFINED", data)
+    emit({"ok": True, "seq": written["seq"], "goal": data["id"], "revised": bool(args.id),
+          "file": str(goals_mod.goal_path(root, data["id"]))})
+
+
+def cmd_goal_link(args):
+    _refuse_inside_worker("link")
+    root = company_root(args)
+    if bool(args.goal) == bool(args.unlink):
+        die("give a goal id to link to, or --unlink — not both, not neither")
+    data = {"goal": None if args.unlink else args.goal, "tasks": args.tasks}
+    if args.reason:
+        data["reason"] = args.reason
+    known = taskstate.fold(EventLog(root).read())
+    for tid in args.tasks:
+        if tid not in known:
+            print(f"warning: {tid!r} is not a task in this log — it will show as "
+                  f"unknown_tasks, not be linked", file=sys.stderr)
+    written = _goal_append(root, args, "GOAL_LINKED", data)
+    emit({"ok": True, "seq": written["seq"], **data})
+
+
+def cmd_goal_assess(args):
+    _refuse_inside_worker("assess")
+    root = company_root(args)
+    data = {"goal": args.goal, "verdict": args.verdict}
+    if args.measured_value is not None:
+        try:
+            value = json.loads(args.measured_value)
+        except json.JSONDecodeError:
+            value = args.measured_value
+        data["measured"] = {"value": value, **({"as_of": args.as_of} if args.as_of else {})}
+    if args.method:
+        data["method"] = args.method
+    written = _goal_append(root, args, "OUTCOME_ASSESSED", data, _parse_evidence(args.evidence))
+    emit({"ok": True, "seq": written["seq"], **data, "evidence": written.get("evidence")})
+
+
+def cmd_goal_close(args):
+    _refuse_inside_worker("close")
+    root = company_root(args)
+    data = {"goal": args.goal, "disposition": args.disposition, "reason": args.reason}
+    if args.superseded_by:
+        data["superseded_by"] = args.superseded_by
+    written = _goal_append(root, args, "GOAL_CLOSED", data)
+    emit({"ok": True, "seq": written["seq"], **data})
+
+
+def cmd_goal_tree(args):
+    import goals as goals_mod
+    root = company_root(args)
+    views, _ = _goal_views(root)
+    if args.json:
+        emit({"goals": goals_mod.tree(views)})
+    print(goals_mod.render_tree(views, _goal_policy(root)))
+    raise SystemExit(0)
+
+
+def cmd_goal_show(args):
+    import goals as goals_mod
+    root = company_root(args)
+    views, tasks = _goal_views(root)
+    goal = views.get(args.goal) or die(f"no goal {args.goal!r} in the event log")
+    emit({**goal,
+          "linked_tasks": [{k: tasks[t].get(k) for k in ("id", "status", "project", "title")}
+                           for t in goal["tasks"]],
+          "budget_status": goals_mod.budget_status(goal, _goal_policy(root))})
+
+
+def cmd_goal_gaps(args):
+    import goals as goals_mod
+    root = company_root(args)
+    views, tasks = _goal_views(root)
+    emit(goals_mod.gaps(views, tasks, _goal_policy(root)))
 
 
 def cmd_gallery(args):
@@ -1715,6 +1916,17 @@ def build_parser():
     bf.add_argument("--dry-run", action="store_true", help="report what would be appended")
     bf.set_defaults(fn=cmd_backfill_tokens)
 
+    ql = sub.add_parser("quarantine-lessons",
+                        help="disregard leaked test-fixture lessons via an append-only correction")
+    ql.add_argument("--project", default="p",
+                    help="the fixture project the leaked lessons were recorded under (default: p)")
+    ql.add_argument("--evidence-commit",
+                    help="commit SHA that root-caused the leak (recorded as evidence)")
+    ql.add_argument("--expect", type=int,
+                    help="refuse unless the log holds exactly this many contaminated entries")
+    ql.add_argument("--dry-run", action="store_true", help="report what would be quarantined")
+    ql.set_defaults(fn=cmd_quarantine_lessons)
+
     dr = sub.add_parser("doctor", help="preflight a repo before pointing workers at it")
     dr.add_argument("--project")
     dr.set_defaults(fn=cmd_doctor)
@@ -1786,6 +1998,52 @@ def build_parser():
     tms = tmsub.add_parser("show", help="print a team bundle, flagging any stale references")
     tms.add_argument("name")
     tms.set_defaults(fn=cmd_team)
+
+    go = sub.add_parser("goal", help="mission -> objectives -> key results, and outcomes (ADR-006)")
+    gosub = go.add_subparsers(dest="goalcmd", required=True)
+    gd = gosub.add_parser("define", help="define a goal, or revise one with --id and --reason")
+    gd.add_argument("--id", help="revise this existing goal (default: assign the next G-NNN)")
+    gd.add_argument("--level", choices=["mission", "objective", "key_result"])
+    gd.add_argument("--title")
+    gd.add_argument("--parent", help="the mission (for an objective) or an objective (for a key_result)")
+    gd.add_argument("--measure", help='JSON, required for a key_result: {"metric","unit",'
+                                      '"baseline","target","direction","how"}')
+    gd.add_argument("--budget", help='JSON, e.g. {"output_tokens": 3000000} — report-only')
+    gd.add_argument("--reason", help="required when revising")
+    gd.add_argument("--actor", help="default: company-pm")
+    gd.set_defaults(fn=cmd_goal_define)
+    gk = gosub.add_parser("link", help="link tasks to a goal (or --unlink)")
+    gk.add_argument("goal", nargs="?")
+    gk.add_argument("--tasks", nargs="+", required=True)
+    gk.add_argument("--unlink", action="store_true", help="clear these tasks' goal")
+    gk.add_argument("--reason", help="required when any task is already terminal (retro-linking)")
+    gk.add_argument("--actor", help="default: company-pm")
+    gk.set_defaults(fn=cmd_goal_link)
+    ga = gosub.add_parser("assess", help="record whether a goal's outcome was achieved, with evidence")
+    ga.add_argument("goal")
+    ga.add_argument("--verdict", required=True, choices=["achieved", "not_achieved", "inconclusive"])
+    ga.add_argument("--evidence", required=True,
+                    help="the measurement: a path or JSON object — a bare commit SHA is refused")
+    ga.add_argument("--measured-value", help="required for a key_result unless inconclusive")
+    ga.add_argument("--as-of", help="when the measurement was taken")
+    ga.add_argument("--method", help="how it was measured")
+    ga.add_argument("--actor", help="default: company-pm")
+    ga.set_defaults(fn=cmd_goal_assess)
+    gc = gosub.add_parser("close", help="close an abandoned or superseded goal")
+    gc.add_argument("goal")
+    gc.add_argument("--disposition", required=True, choices=["abandoned", "superseded"])
+    gc.add_argument("--superseded-by")
+    gc.add_argument("--reason", required=True)
+    gc.add_argument("--actor", help="default: company-pm")
+    gc.set_defaults(fn=cmd_goal_close)
+    gt = gosub.add_parser("tree", help="the goal tree with delivery / outcome / spend")
+    gt.add_argument("--json", action="store_true")
+    gt.set_defaults(fn=cmd_goal_tree)
+    gs = gosub.add_parser("show", help="one goal: tasks, assessments, flags, budget vs. spend")
+    gs.add_argument("goal")
+    gs.set_defaults(fn=cmd_goal_show)
+    gg2 = gosub.add_parser("gaps", help="ungoaled tasks, unassessed and suspect outcomes")
+    gg2.set_defaults(fn=cmd_goal_gaps)
 
     gl = sub.add_parser("gallery", help="plan or open the tmux viewing gallery")
     gl.add_argument("--project")
