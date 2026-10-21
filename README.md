@@ -174,6 +174,14 @@ files. Explicitly **not** to check less — only to carry less.
 | `company integrate [--task T]` | Rebase into `integration`, run the suite there, merge **only** on green. |
 | `company rebuild [--verify]` | Replay events into views; `--verify` compares instead of writing. |
 | `company backfill-tokens [--dry-run]` | Reconstruct pre-capture runs' tokens from their `stdout.json` as appended `TOKENS_BACKFILLED` events. Idempotent; unreconstructable runs are listed, never zero-filled. |
+| `company quarantine-lessons [--project P] [--dry-run]` | Mark contaminated `LESSON_RECORDED` events (e.g. a test-isolation leak) as `LESSONS_QUARANTINED` so `lessons.fold()` skips them. Append-only — the original events are never edited or deleted. |
+| `company goal define --level mission\|objective\|key_result --title "..." [--parent G] [--measure JSON] [--id G-NNN --reason "..."]` | Define or revise a goal (ADR-006). A mission has no parent; a key result requires a numeric `measure`. |
+| `company goal link <goal> --tasks T1,T2 [--unlink] [--reason "..."]` | Link tasks to a goal, or unlink. A reason is required to retro-link a task that's already terminal. |
+| `company goal assess <goal> --verdict achieved\|not_achieved\|inconclusive --evidence ... [--measured JSON]` | Record an outcome assessment, independent of task status. A bare commit SHA is not accepted as evidence. |
+| `company goal close <goal> --disposition abandoned\|superseded --reason "..."` | Close a goal so it stops showing as unassessed. |
+| `company goal tree [--json]` | The mission → objectives → key results tree, each node with delivery, outcome, and spend. |
+| `company goal show <goal>` | One goal: linked tasks, assessment history, flags, budget vs. spend. |
+| `company goal gaps` | Ungoaled tasks, `awaiting_assessment`, `stale`, `self_assessed`, and other goal-hygiene flags — information, not a gate. |
 | `company status [--json]` | Derived state only. Never estimated. |
 | `company report` | Executive summary: outcomes, not activity. |
 | `company escalate --kind K --need "..."` | Ask the CEO for something the PM cannot do or decide. |
