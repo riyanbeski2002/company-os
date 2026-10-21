@@ -25,11 +25,12 @@ __pycache__/
 external/*/
 !external/README.md
 
-# Derived task-state views, rebuilt from .company/events/events.jsonl (which
-# is itself ignored above) — never hand-edit, never commit; same rationale
-# as events.jsonl.
+# Derived task-state and goal-state views, rebuilt from
+# .company/events/events.jsonl (which is itself ignored above) — never
+# hand-edit, never commit; same rationale as events.jsonl.
 .company/projects/
 .company/tasks/
+.company/goals/
 
 # Rendered video output (launch-video iterations etc.) — large binaries,
 # disposable creative output, not source. Keep locally, never in history.
