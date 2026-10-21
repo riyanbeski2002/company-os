@@ -43,26 +43,46 @@ master prompt's section 4 asks for.
 - [ ] Re-run full suite, confirm zero regressions, record before/after
       counts here.
 
-## Phase 2 — Universal execution core (not started)
+## Phase 2 — Universal execution core (done, scoped down from the master prompt)
 
-- [ ] Formalize the existing `harness.py` contract into a documented
-      adapter interface (identity, capabilities, input, tool permissions,
-      execution, streaming, cancellation, usage, errors, health) — most
-      of this already exists implicitly; make it explicit and testable.
-- [ ] Add one more live-tested adapter beyond `claude`/`codex` (candidate:
-      Antigravity CLI — blocked earlier this session on exact JSON field
-      names; needs a live session to confirm before any code is written).
+- [x] Formalize the existing `harness.py` contract into a documented
+      adapter interface — found already real and sufficient on inspection:
+      3-point contract documented in `doc/BYO-MODEL.md` (171 lines), 26
+      conformance tests in `test_harness.py` against both live backends
+      (`claude`, `codex`). Did NOT add the master prompt's speculative
+      extras (streaming, cancellation, checkpointing, health checks) —
+      no backend needs them yet; same judgment call as this session's
+      earlier rejection of a speculative capability-flag vocabulary.
+- [ ] Antigravity adapter — SKIPPED for now (Riyan's call, 2026-10-21).
+      Still blocked on exact JSON field names (cost key, usage shape);
+      revisit only with a live `agy -p ... --output-format json` sample.
 - [ ] Extend `config/budgets.yaml`'s V1 kill-switch with per-role/per-task
-      attribution, building on this session's cost-attribution tooling.
+      attribution — deferred to whenever Phase 3's org/budget work makes
+      it load-bearing, rather than built speculatively now.
 
-## Phase 3 — Organizational operating system (not started)
+## Phase 3 — Organizational operating system (approved, implementing)
 
-- [ ] Design (ADR first, before code) an organization/goal/program/project
-      hierarchy as events + projections, consistent with the existing
-      event-sourcing model — never a second source of truth.
-- [ ] Roles, permissions, budgets at the org/department level, reusing
-      `config/risk-triggers.yaml`'s deterministic-table pattern rather
-      than inventing a parallel policy engine.
+- [x] ADR-006 (`.company/decisions/ADR-006-organization-goal-hierarchy.md`)
+      — goal entity (mission/objective/key_result), 4 new event types,
+      task-goal linking inside `taskstate.fold()`, delivery/outcome split,
+      report-only per-goal budgets. Approved as written (Riyan, 2026-10-21)
+      — the 10-repo/cross-log question is a per-device onboarding detail,
+      not an architecture concern, so it stays correctly deferred as the
+      ADR already scoped it.
+- [ ] Implement ADR-006: `tools/company/goals.py`, 4 new event types in
+      `eventlog.py`, `company goal` CLI group, launcher-only guard +
+      worker-actor guard, golden test proving the existing log replays
+      byte-identical.
+- [ ] Side fix (Riyan, 2026-10-21): extend `governance-mechanism` trigger
+      in `config/risk-triggers.yaml` to cover `taskstate.py`/`eventlog.py`
+      — same class of gap ADR-002 closed for `staffing.py`, now closed
+      before ADR-006's implementation touches those exact files.
+- [ ] Side fix (Riyan, 2026-10-21): investigate and fix the test-isolation
+      bug that leaked 278 `LESSON_RECORDED` events (project `p`, patterns
+      `"x"`/`"a repeated pattern"`) into the real `.company/events/
+      events.jsonl`; decide with Riyan how to handle the already-leaked
+      entries (event-sourcing discipline forbids silently rewriting
+      history — needs an explicit decision, not a unilateral delete).
 
 ## Phase 4 — Intelligence, skills, memory (not started)
 

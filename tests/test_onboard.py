@@ -47,9 +47,12 @@ class TestOnboardFreshRepo(unittest.TestCase):
         git(self.repo, "add", "-A")
         git(self.repo, "commit", "-q", "-m", "init")
 
-    def _run(self, *args):
-        return subprocess.run([sys.executable, str(CLI), *args],
-                              cwd=self.repo, capture_output=True, text=True)
+    def _run(self, *args, repo=None):
+        # --root, not cwd alone: an inherited COMPANY_ROOT (every worker
+        # session has one) beats cwd in company_root() — see test_lessons.
+        repo = repo or self.repo
+        return subprocess.run([sys.executable, str(CLI), "--root", str(repo / ".company"), *args],
+                              cwd=repo, capture_output=True, text=True)
 
     def test_baseline_no_longer_requires_a_project(self):
         """A brand-new repo has zero .company/projects/*.json — baseline must
@@ -154,8 +157,7 @@ class TestOnboardFreshRepo(unittest.TestCase):
         git(no_verify_repo, "add", "-A")
         git(no_verify_repo, "commit", "-q", "-m", "init")
 
-        result = subprocess.run([sys.executable, str(CLI), "onboard"],
-                                cwd=no_verify_repo, capture_output=True, text=True)
+        result = self._run("onboard", repo=no_verify_repo)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("stopped_at", result.stdout)
 

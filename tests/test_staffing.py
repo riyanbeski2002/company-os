@@ -85,6 +85,21 @@ class TestRiskTable(unittest.TestCase):
         r = staffing.evaluate(CFG, "add a flag to gates", ["tools/company/cli.py"])
         self.assertIn("security", r["gates"])
 
+    def test_editing_the_evidence_rule_forces_security_unasked(self):
+        """2026-10-21, found scoping ADR-006: check_done() in taskstate.py
+        decides whether any task can reach DONE, yet an edit there matched
+        no trigger — the same gap ADR-002 closed for staffing.py/cli.py."""
+        r = staffing.evaluate(CFG, "tidy up a fold branch", ["tools/company/taskstate.py"])
+        self.assertIn("review", r["gates"])
+        self.assertIn("security", r["gates"])
+        self.assertIn("governance-mechanism", [t["trigger"] for t in r["triggers_fired"]])
+
+    def test_editing_event_log_validation_forces_security_unasked(self):
+        r = staffing.evaluate(CFG, "allow a new event type", ["tools/company/eventlog.py"])
+        self.assertIn("review", r["gates"])
+        self.assertIn("security", r["gates"])
+        self.assertIn("governance-mechanism", [t["trigger"] for t in r["triggers_fired"]])
+
     def test_dependency_manifest_edit_forces_security_unasked(self):
         """CTO audit, 2026-08-24: a version bump in a lockfile is the
         dominant small-diff supply-chain attack shape and previously matched

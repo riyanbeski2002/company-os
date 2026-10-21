@@ -152,11 +152,35 @@ class TestCLI(unittest.TestCase):
         subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=self.repo, check=True, capture_output=True)
         self._run("init")
 
-    def _run(self, *args):
+    def _run(self, *args, env=None):
+        import os
         import subprocess
+        if env is None:
+            env = dict(os.environ)
+            env.pop("COMPANY_ACTOR", None)
+        # --root, not cwd: cwd only decides where `init` scaffolds. Every
+        # other command resolves company_root(), where an inherited
+        # COMPANY_ROOT (every worker session has one, pointing at the real
+        # .company/) beats cwd — that leaked 278 fixture lessons into the
+        # live log before 2026-10-21.
         return subprocess.run(
-            [sys.executable, str(HERE.parent / "tools" / "company" / "cli.py"), *args],
-            cwd=self.repo, capture_output=True, text=True)
+            [sys.executable, str(HERE.parent / "tools" / "company" / "cli.py"),
+             "--root", str(self.repo / ".company"), *args],
+            cwd=self.repo, capture_output=True, text=True, env=env)
+
+    def test_an_inherited_company_root_is_never_written(self):
+        """The leak, reproduced: a suite run from inside a worker session
+        inherits that session's COMPANY_ROOT and COMPANY_ACTOR."""
+        import os
+        decoy = Path(self.tmp.name) / "live" / ".company"
+        (decoy / "events").mkdir(parents=True)
+        (decoy / "events" / "events.jsonl").touch()
+        env = dict(os.environ, COMPANY_ROOT=str(decoy), COMPANY_ACTOR="backend-engineer-1")
+        rec = self._run("lesson", "--pattern", "a repeated pattern", "--evidence", "e",
+                        "--fix", "f", "--project", "p", env=env)
+        self.assertEqual(rec.returncode, 0, rec.stderr)
+        self.assertEqual(EventLog(decoy).read(), [])
+        self.assertEqual(len(EventLog(self.repo / ".company").read()), 1)
 
     def test_record_then_list(self):
         rec = self._run("lesson", "--pattern", "a repeated pattern", "--evidence", "e",
@@ -204,8 +228,10 @@ class TestReadOnlyRolesCannotRecord(unittest.TestCase):
             env["COMPANY_ACTOR"] = actor
         else:
             env.pop("COMPANY_ACTOR", None)
+        # --root for the same reason as TestCLI._run: never the inherited one.
         return subprocess.run(
-            [sys.executable, str(HERE.parent / "tools" / "company" / "cli.py"), *args],
+            [sys.executable, str(HERE.parent / "tools" / "company" / "cli.py"),
+             "--root", str(self.repo / ".company"), *args],
             cwd=self.repo, capture_output=True, text=True, env=env)
 
     def test_a_pure_advisor_cannot_record(self):

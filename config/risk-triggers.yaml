@@ -100,12 +100,19 @@ triggers:
   # tier policy, matched no trigger and would have shipped ungated. This is
   # the same class of gap ESC-002 (item 2) already named for hooks/worker.py;
   # this closes the newer files the addendum itself added to the mechanism.
+  # 2026-10-21: extended to cover taskstate.py/eventlog.py — the Evidence
+  # Rule itself (check_done) and the event log's validate/append, i.e. what
+  # decides whether any task can reach DONE at all. Same class of gap
+  # ADR-002 closed, found while scoping ADR-006, which is about to add new
+  # logic to exactly these two files: an edit there matched no trigger and
+  # would have shipped ungated.
   - name: governance-mechanism
     keywords: [pretooluse hook, guard_paths, guard_secrets, protect_branches,
               quality-gates.yaml, risk-triggers.yaml, staffing.yaml,
               allowedtools, role_tools, fast_path, baseline_gates]
     paths: ["hooks/**", "config/quality-gates.yaml", "config/risk-triggers.yaml",
-           "config/staffing.yaml", "**/worker.py", "**/staffing.py", "**/cli.py"]
+           "config/staffing.yaml", "**/worker.py", "**/staffing.py", "**/cli.py",
+           "**/taskstate.py", "**/eventlog.py"]
     gates: [review, security]
 
   # 2026-08-24, CTO audit: a version bump in a dependency manifest is the
