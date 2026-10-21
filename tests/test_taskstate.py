@@ -239,5 +239,38 @@ class TestTerminalStatusIsNotReopenedByAnImpliedEvent(unittest.TestCase):
         self.assertEqual(taskstate.fold(events)["TASK-1"]["status"], "IN_PROGRESS")
 
 
+class TestCheckDoneActorRoleMismatchReason(unittest.TestCase):
+    """2026-10-21: cmd_integrate (cli.py) used to only treat a check_done
+    reason as merge-blocking if it contained one of a hardcoded set of
+    substrings ("diff"/"test"/"self-certified"/"not satisfied"), written
+    before gate_roles existed. The actor-role-verification reason added
+    later (commit a7674b1) doesn't contain any of those substrings, so a
+    forged-actor gate bypass that check_done correctly detects was never
+    actually blocking a real merge -- a fail-open gap check_done itself was
+    innocent of. cli.py's fix was to stop filtering and treat ANY non-empty
+    check_done output as blocking; this test documents the exact reason
+    shape that made the old filter wrong, so a future refactor can't
+    reintroduce an allowlist without noticing why that's unsafe."""
+
+    def test_actor_role_mismatch_reason_does_not_contain_any_old_filter_substring(self):
+        task = {
+            "id": "T-1", "owner": "be-1", "gates": ["review"],
+            "evidence": {"diff": "abc123", "tests": "exit 0", "review": "ev1",
+                         "review_actor": "wrong-actor"},
+            "worker_roles": {"wrong-actor": "backend-engineer"},  # not code-reviewer
+        }
+        reasons = taskstate.check_done(task, gate_roles={"review": "code-reviewer"})
+        self.assertTrue(reasons, "expected the actor-role mismatch to be flagged at all")
+        mismatch_reasons = [r for r in reasons if "has no verified" in r]
+        self.assertTrue(mismatch_reasons, "check_done should still detect the forged actor")
+        old_filter_substrings = ("diff", "test", "self-certified", "not satisfied")
+        for reason in mismatch_reasons:
+            self.assertFalse(
+                any(s in reason for s in old_filter_substrings),
+                f"this reason would have been silently ignored by the old "
+                f"cli.py filter: {reason!r}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -257,5 +257,73 @@ class TestDetectRestingTasks(unittest.TestCase):
         self.assertNotIn("T-1", render.detect_resting_tasks(tasks, max_age_s=10 * 3600))
 
 
+class TestClassifyStaleness(unittest.TestCase):
+    """Paperclip donation (2026-10-21): tiered silence-since-last-event
+    classification, sitting between "fine" and detect_stale_tasks' own
+    "critical" cutoff."""
+
+    @staticmethod
+    def _iso(hours_ago: float) -> str:
+        from datetime import datetime, timedelta, timezone
+        then = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+        return then.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    @staticmethod
+    def _now():
+        from datetime import datetime, timezone
+        return datetime.now(timezone.utc)
+
+    def test_recent_activity_is_ok(self):
+        task = {"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(1)}
+        self.assertEqual(render.classify_staleness(task, self._now()), "ok")
+
+    def test_one_day_silent_is_suspicious_not_critical(self):
+        task = {"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(30)}
+        self.assertEqual(render.classify_staleness(task, self._now()), "suspicious")
+
+    def test_two_days_silent_is_critical(self):
+        task = {"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(50)}
+        self.assertEqual(render.classify_staleness(task, self._now()), "critical")
+
+    def test_off_path_status_is_always_ok(self):
+        task = {"id": "T-1", "status": "DONE", "updated_at": self._iso(100 * 24)}
+        self.assertEqual(render.classify_staleness(task, self._now()), "ok")
+
+    def test_an_open_blocking_escalation_suppresses_critical_to_suspicious(self):
+        """Silent because it's legitimately waiting on a human decision is
+        not the same failure as silent because nobody noticed."""
+        task = {"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(50)}
+        blocker = {"id": "ESC-1", "task": "T-1", "blocking": True}
+        self.assertEqual(render.classify_staleness(task, self._now(), blocking_escalation=blocker),
+                          "suspicious")
+
+    def test_suppression_never_hides_a_task_that_is_still_actually_ok(self):
+        task = {"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(1)}
+        blocker = {"id": "ESC-1", "task": "T-1", "blocking": True}
+        self.assertEqual(render.classify_staleness(task, self._now(), blocking_escalation=blocker), "ok")
+
+
+class TestDetectEarlyWarningTasks(unittest.TestCase):
+    @staticmethod
+    def _iso(hours_ago: float) -> str:
+        from datetime import datetime, timedelta, timezone
+        then = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+        return then.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def test_flags_a_suspicious_but_not_yet_critical_task(self):
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(30)}]
+        self.assertIn("T-1", render.detect_early_warning_tasks(tasks, {}))
+
+    def test_does_not_flag_an_already_critical_task(self):
+        """That's detect_stale_tasks' job -- cmd_status filters this overlap
+        out itself, but the function stays correct even called standalone."""
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(50)}]
+        self.assertNotIn("T-1", render.detect_early_warning_tasks(tasks, {}))
+
+    def test_does_not_flag_a_fresh_task(self):
+        tasks = [{"id": "T-1", "status": "IN_PROGRESS", "updated_at": self._iso(1)}]
+        self.assertNotIn("T-1", render.detect_early_warning_tasks(tasks, {}))
+
+
 if __name__ == "__main__":
     unittest.main()

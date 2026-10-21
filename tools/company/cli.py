@@ -871,6 +871,8 @@ def _escalations(root: Path, project: str | None = None) -> list[dict]:
 
 def cmd_status(args):
     import render
+    import escalations as esc_mod
+
     root = company_root(args)
     project = args.project or os.environ.get("COMPANY_PROJECT")
     tasks = _project_tasks(root, project)
@@ -879,10 +881,24 @@ def cmd_status(args):
              **render.detect_stalls(root, tasks, events),
              **render.detect_resting_tasks(tasks),
              **render.gates_with_no_verdict(events, tasks)}
+
+    # Tiered early warning (paperclip donation, 2026-10-21): "suspicious"
+    # (1-2 days silent) surfaces here even when a task hasn't yet crossed
+    # detect_stale_tasks's 48h "critical" cutoff into `stalls` above -- the
+    # whole point is catching it before it needs the stronger label.
+    blockers = {t["id"]: esc_mod.blocking_escalation_for_task(events, t["id"]) for t in tasks}
+    early_warning = {k: v for k, v in render.detect_early_warning_tasks(tasks, blockers).items()
+                      if k not in stalls}
+
     if args.json:
         emit({"project": project, "progress": render.project_progress(tasks),
-              "tasks": tasks, "escalations": _escalations(root, project), "stalled": stalls})
+              "tasks": tasks, "escalations": _escalations(root, project),
+              "stalled": stalls, "early_warning": early_warning})
     print(render.status(project or "all projects", tasks, _escalations(root, project), stalls))
+    if early_warning:
+        print("\nEarly warning (not yet critical):")
+        for task_id, reason in early_warning.items():
+            print(f"  {task_id}: {reason}")
     raise SystemExit(0)
 
 
@@ -923,12 +939,33 @@ def cmd_integrate(args):
     results = []
     for tid in sorted(targets):
         task = tasks.get(tid) or die(f"no such task {tid!r}")
-        reasons = taskstate.check_done(task, _baseline(root, task.get("project")), gate_roles)
-        blocking = [r for r in reasons if "diff" in r or "test" in r or "self-certified" in r
-                    or "not satisfied" in r]
-        if blocking and not args.force:
+        # Fail-closed on ANY check_done reason, not a substring allowlist
+        # (2026-10-21, ECC donation -- `orch-review.workflow.js`'s pattern:
+        # a review dimension that errors/returns nothing forces
+        # CHANGES_REQUESTED, never a silent pass). The allowlist this
+        # replaced was written before gate_roles existed and was never
+        # updated when the actor-role-verification reason was added later
+        # (commit a7674b1) -- that reason's wording doesn't contain "diff",
+        # "test", "self-certified", or "not satisfied", so a forged-actor
+        # gate bypass that check_done correctly detects was silently NOT
+        # blocking a real merge. Treating check_done's output as
+        # authoritative, rather than re-deriving which of its reasons
+        # "count," is what makes a future new reason type block by
+        # construction instead of needing this list kept in sync forever.
+        if reasons and not args.force:
             results.append({"task": tid, "merged": False,
-                            "reason": "gates not satisfied", "detail": blocking})
+                            "reason": "gates not satisfied", "detail": reasons})
+            continue
+
+        conflicts = integrate_mod.detect_concurrent_glob_conflicts(tasks, tid)
+        if conflicts and not args.force:
+            EventLog(root).append(make_event(
+                event="TASK_BLOCKED", actor=args.actor, project=task["project"], task=tid,
+                data={"stage": "integration", "reason": "concurrent owned-glob conflict",
+                      "detail": conflicts}))
+            results.append({"task": tid, "merged": False,
+                            "reason": "another task is still active in an overlapping "
+                                      "owned path", "detail": conflicts})
             continue
         try:
             results.append(integrate_mod.integrate(

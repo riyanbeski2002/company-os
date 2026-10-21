@@ -13,7 +13,15 @@ Bash is covered separately in protect_branches.py's ESCAPE_PATTERNS-style
 check, because `cat .env` bypasses the Read tool entirely; tool-level denial
 alone is not a sandbox, same caveat as everywhere else in this system.
 
-Inert outside a Company OS worker ($COMPANY_TASK unset).
+Fires in EVERY session, not just a spawned worker (2026-10-21, ECC donation:
+its hooks.json registers PreToolUse unconditionally rather than scoping to a
+"worker" concept company-os's own README had flagged as a residual gap --
+the PM's or an advisor's own session reading a secret is exactly as bad as a
+worker's). $COMPANY_TASK is read only to attribute the event-log record to a
+real actor when one exists; its absence no longer short-circuits the guard.
+When no git repo can be found at all (a tool call made outside any project
+checkout) there is nothing to protect, so this allows rather than denying a
+question that doesn't apply.
 """
 
 from __future__ import annotations
@@ -55,9 +63,7 @@ def deny(reason: str) -> None:
 
 
 def main() -> None:
-    task_id = os.environ.get("COMPANY_TASK")
-    if not task_id:
-        allow()
+    task_id = os.environ.get("COMPANY_TASK")  # optional now — see module docstring
 
     try:
         payload = json.load(sys.stdin)
@@ -74,8 +80,16 @@ def main() -> None:
 
     import pathrules
 
-    company_root = Path(os.environ.get("COMPANY_ROOT", ""))
-    repo_root = os.environ.get("COMPANY_REPO") or str(company_root.parent)
+    if os.environ.get("COMPANY_ROOT"):
+        company_root = Path(os.environ["COMPANY_ROOT"])
+        repo_root = os.environ.get("COMPANY_REPO") or str(company_root.parent)
+    else:
+        repo = pathrules.resolve_repo_context()
+        if repo is None:
+            allow()  # not inside any repo — nothing to protect
+        company_root = repo / ".company"
+        repo_root = str(repo)
+
     rel = pathrules.relative_to_repo(target, repo_root)
     # Outside the repo entirely (e.g. reading /tmp scratch) is not this guard's
     # concern — the ownership guard already governs the repo boundary for
@@ -97,15 +111,19 @@ def main() -> None:
     )
 
 
-def record(company_root: Path, task_id: str, path: str, glob: str) -> None:
+def record(company_root: Path, task_id: str | None, path: str, glob: str) -> None:
     try:
         from eventlog import EventLog, make_event
-        task = json.loads((company_root / "tasks" / f"{task_id}.json").read_text(encoding="utf-8"))
+        actor, project = os.environ.get("COMPANY_ACTOR", "unknown"), "unknown"
+        if task_id:
+            task = json.loads((company_root / "tasks" / f"{task_id}.json").read_text(encoding="utf-8"))
+            actor = os.environ.get("COMPANY_ACTOR", task.get("owner", "unknown"))
+            project = task.get("project", "unknown")
         EventLog(company_root).append(make_event(
             event="SECRET_READ_BLOCKED",
-            actor=os.environ.get("COMPANY_ACTOR", task.get("owner", "unknown")),
-            project=task.get("project", "unknown"),
-            task=task_id,
+            actor=actor,
+            project=project,
+            task=task_id,  # None for a non-worker (PM/advisor) session
             data={"path": path, "glob": glob},
         ))
     except Exception:

@@ -5,7 +5,14 @@ Blocks the small set of commands that are irreversible or exfiltrating, in a
 worker that cannot be talked out of them. Natural-language instructions are
 not a mechanism for things that MUST NOT happen.
 
-Inert outside a Company OS worker ($COMPANY_TASK unset).
+The RULES below (force-push, protected-branch checkout, secret exfiltration
+via shell, etc.) fire in EVERY session, not just a spawned worker (2026-10-21,
+ECC donation — see guard_secrets.py's docstring for the same reasoning: a
+force-push from the PM's own session is exactly as destructive as one from a
+worker's). The worktree-escape check (find_escape) stays worker-scoped on
+purpose: "worktree" is a concept that only exists for a spawned worker — a
+PM/advisor session operates on the repo directly, not a disposable worktree,
+so there is no equivalent escape to check for there.
 """
 
 from __future__ import annotations
@@ -120,9 +127,7 @@ def find_escape(command: str, worktree: str, company_root: str, main_repo: str =
 
 
 def main() -> None:
-    task_id = os.environ.get("COMPANY_TASK")
-    if not task_id:
-        sys.exit(0)
+    task_id = os.environ.get("COMPANY_TASK")  # optional now — see module docstring
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
@@ -132,18 +137,22 @@ def main() -> None:
 
     command = (payload.get("tool_input") or {}).get("command") or ""
 
-    worktree = os.path.normpath(os.environ.get("COMPANY_REPO", "")) if os.environ.get("COMPANY_REPO") else ""
-    croot = os.path.normpath(os.environ.get("COMPANY_ROOT", "")) if os.environ.get("COMPANY_ROOT") else ""
-    main_repo = os.path.normpath(os.environ.get("COMPANY_MAIN_REPO", "")) if os.environ.get("COMPANY_MAIN_REPO") else ""
-    escaped = find_escape(command, worktree, croot, main_repo)
-    if escaped:
-        record(task_id, command, "shell write outside the worktree")
-        deny(
-            f"Company OS worktree guard: this command writes to {escaped}, which is "
-            f"outside your worktree ({worktree}). Your entire working copy is the "
-            f"worktree; use a path inside it, or /tmp for scratch. This block is "
-            f"recorded in the event log."
-        )
+    # The worktree-escape check only applies when there IS a worktree
+    # (a spawned worker) — a PM/advisor session has no worktree concept to
+    # escape from, so it's skipped there rather than comparing against "".
+    if task_id:
+        worktree = os.path.normpath(os.environ.get("COMPANY_REPO", "")) if os.environ.get("COMPANY_REPO") else ""
+        croot = os.path.normpath(os.environ.get("COMPANY_ROOT", "")) if os.environ.get("COMPANY_ROOT") else ""
+        main_repo = os.path.normpath(os.environ.get("COMPANY_MAIN_REPO", "")) if os.environ.get("COMPANY_MAIN_REPO") else ""
+        escaped = find_escape(command, worktree, croot, main_repo)
+        if escaped:
+            record(task_id, command, "shell write outside the worktree")
+            deny(
+                f"Company OS worktree guard: this command writes to {escaped}, which is "
+                f"outside your worktree ({worktree}). Your entire working copy is the "
+                f"worktree; use a path inside it, or /tmp for scratch. This block is "
+                f"recorded in the event log."
+            )
 
     for pattern, label in RULES:
         if pattern.search(command):
@@ -157,16 +166,27 @@ def main() -> None:
     sys.exit(0)
 
 
-def record(task_id: str, command: str, label: str) -> None:
+def record(task_id: str | None, command: str, label: str) -> None:
     try:
         from eventlog import EventLog, make_event
-        root = Path(os.environ["COMPANY_ROOT"])
-        task = json.loads((root / "tasks" / f"{task_id}.json").read_text(encoding="utf-8"))
+        import pathrules
+        if os.environ.get("COMPANY_ROOT"):
+            root = Path(os.environ["COMPANY_ROOT"])
+        else:
+            repo = pathrules.resolve_repo_context()
+            if repo is None:
+                return
+            root = repo / ".company"
+        actor, project = os.environ.get("COMPANY_ACTOR", "unknown"), "unknown"
+        if task_id:
+            task = json.loads((root / "tasks" / f"{task_id}.json").read_text(encoding="utf-8"))
+            actor = os.environ.get("COMPANY_ACTOR", task.get("owner", "unknown"))
+            project = task.get("project", "unknown")
         EventLog(root).append(make_event(
             event="BRANCH_GUARD_BLOCKED",
-            actor=os.environ.get("COMPANY_ACTOR", task.get("owner", "unknown")),
-            project=task.get("project", "unknown"),
-            task=task_id,
+            actor=actor,
+            project=project,
+            task=task_id,  # None for a non-worker (PM/advisor) session
             data={"rule": label, "command": command[:500]},
         ))
     except Exception:

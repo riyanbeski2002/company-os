@@ -172,6 +172,67 @@ def detect_stale_tasks(tasks: list[dict], max_age_s: int = STALE_TASK_AGE_S) -> 
     return out
 
 
+SUSPICIOUS_TASK_AGE_S = 24 * 3600  # 1 day silent on an active task: not yet
+# "almost certainly dead" (that's STALE_TASK_AGE_S/detect_stale_tasks's 48h),
+# but worth a look before it gets there.
+
+
+def classify_staleness(task: dict, now, blocking_escalation: dict | None = None,
+                        suspicious_age_s: int = SUSPICIOUS_TASK_AGE_S,
+                        critical_age_s: int = STALE_TASK_AGE_S) -> str:
+    """Tiered silence-since-last-event classification (paperclip donation,
+    2026-10-21 -- paperclip's active-run-watchdog classifies ok/suspicious/
+    critical by time since a run's last output, rather than detect_stale_tasks'
+    single binary cutoff here). Returns "ok", "suspicious", or "critical".
+
+    `now` is always passed in, never read internally, so this stays a pure
+    function testable without mocking the clock -- same discipline as every
+    other fold/evaluate function in this codebase.
+
+    `blocking_escalation`, when given, is this system's own real suppression
+    signal (escalations.blocking_escalation_for_task), scoped down from
+    paperclip's four-way snoozed/recovery-origin/blocked-source/dismissed
+    gate to the one bucket company-os actually has data for: a task silent
+    because it is legitimately waiting on a human decision never escalates
+    past "suspicious", because reaching that wait was correct, not a failure.
+    """
+    if task.get("status") not in ("IN_PROGRESS", "REVIEW", "QA", "SECURITY_REVIEW"):
+        return "ok"
+    ts = task.get("updated_at")
+    try:
+        then = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return "ok"
+    age_s = (now - then).total_seconds()
+    if age_s <= suspicious_age_s:
+        return "ok"
+    if blocking_escalation is not None:
+        return "suspicious"
+    return "critical" if age_s > critical_age_s else "suspicious"
+
+
+def detect_early_warning_tasks(tasks: list[dict], blocking_escalations: dict, now=None) -> dict[str, str]:
+    """The "suspicious" tier of classify_staleness, surfaced as its own
+    dict — same shape as detect_stale_tasks/detect_resting_tasks above, so
+    cmd_status can treat it identically. Deliberately excludes anything
+    classify_staleness would call "critical": that's detect_stale_tasks'
+    job, this one is strictly the earlier warning.
+
+    `blocking_escalations` maps task id -> blocking escalation dict (or
+    absent/None), the caller's job since it already has the event log.
+    """
+    out = {}
+    now = now or datetime.now(timezone.utc)
+    for task in tasks:
+        tier = classify_staleness(task, now, blocking_escalation=blocking_escalations.get(task["id"]))
+        if tier == "suspicious":
+            out[task["id"]] = (
+                f"no event in {_age(task.get('updated_at'))} while status is "
+                f"{task['status']!r} — not yet critical, worth a look before it is."
+            )
+    return out
+
+
 RESTING_TASK_AGE_S = 24 * 3600  # 1 day with no revisit while deliberately off-path.
 # detect_stale_tasks/detect_stalls above only ever fire on IN_PROGRESS/REVIEW/
 # QA/SECURITY_REVIEW — work that is SUPPOSED to be actively running, so

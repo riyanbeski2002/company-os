@@ -165,5 +165,32 @@ class DynamicRouteBracketsTest(unittest.TestCase):
         self.assertFalse(pathrules.matches("app/id/page.tsx", "app/[id]/page.tsx"))
 
 
+class TestGlobsOverlap(unittest.TestCase):
+    """Pre-merge worktree-conflict check (2026-10-21, ECC donation)."""
+
+    def test_identical_globs_overlap(self):
+        self.assertTrue(pathrules.globs_overlap("services/auth/**", "services/auth/**"))
+
+    def test_a_subtree_overlaps_its_parent(self):
+        self.assertTrue(pathrules.globs_overlap("services/auth/**", "services/**"))
+        self.assertTrue(pathrules.globs_overlap("services/**", "services/auth/**"))
+
+    def test_sibling_subtrees_do_not_overlap(self):
+        self.assertFalse(pathrules.globs_overlap("services/auth/**", "services/billing/**"))
+
+    def test_a_concrete_file_under_a_tree_overlaps_it(self):
+        self.assertTrue(pathrules.globs_overlap("services/auth/login.py", "services/auth/**"))
+
+    def test_unrelated_top_level_trees_do_not_overlap(self):
+        self.assertFalse(pathrules.globs_overlap("frontend/**", "backend/**"))
+
+
+class TestResolveRepoContext(unittest.TestCase):
+    def test_returns_none_with_no_repo_anywhere_in_the_chain(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(pathrules.resolve_repo_context(Path(tmp) / "a" / "b"))
+
+
 if __name__ == "__main__":
     unittest.main()

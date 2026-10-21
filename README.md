@@ -313,18 +313,27 @@ Treat the guards as protection against *mistakes*, not against an adversary.
 If you need a real boundary, run workers under Claude Code sandboxing or in a
 container.
 
-## Residual gap: the guards only apply inside a spawned Tier-2 worker
+## Fixed: the guards used to only apply inside a spawned Tier-2 worker
 
-`guard_paths.py`/`guard_secrets.py`/`protect_branches.py` all start with
-`task_id = os.environ.get("COMPANY_TASK"); if not task_id: allow()` —
-deliberate, not an oversight: gating the main session the same way would
-block legitimate human-directed work. But it means the main `company-pm`
-session, an officer advisor session, and any plain Claude Code session you
-run in this repo by hand have **no deterministic guard at all** — only
-model judgment, the same as any other repo. If a prompt-injection payload
-reaches one of those sessions (a file it reads, WebFetch content), nothing
-here stops it structurally. Only a headless Tier-2 worker, launched by
-`worker.py`, gets `$COMPANY_TASK` set and the guards activated.
+`guard_paths.py`/`guard_secrets.py`/`protect_branches.py` all used to start
+with `task_id = os.environ.get("COMPANY_TASK"); if not task_id: allow()` —
+meaning the main `company-pm` session, an officer advisor session, and any
+plain Claude Code session run in this repo by hand had **no deterministic
+guard at all**, only model judgment, the same as any other repo. If a
+prompt-injection payload reached one of those sessions (a file it read,
+WebFetch content), nothing stopped it structurally.
+
+**2026-10-21 (ECC donation):** `guard_secrets.py` and the command-pattern
+rules in `protect_branches.py` (force-push, protected-branch checkout,
+destructive deletes, secret exfiltration via shell) now fire in **every**
+session — `$COMPANY_TASK` is read only to attribute the event-log record to
+a real actor, and its absence falls back to `pathrules.resolve_repo_context()`
+(walk up from cwd to find the repo) instead of short-circuiting. `guard_paths.py`'s
+ownership check, and `protect_branches.py`'s worktree-escape check, are the
+one piece that stays worker-only on purpose: "ownership" (`owned_globs`) and
+"worktree" are concepts that only exist for a spawned worker — the PM
+session operates on the real repo directly, with no owned-globs/worktree
+boundary to enforce in the first place. See `tests/test_hook_guards.py`.
 
 ## Layout
 

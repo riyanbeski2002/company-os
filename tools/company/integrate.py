@@ -12,8 +12,46 @@ import subprocess
 from pathlib import Path
 
 from eventlog import EventLog, make_event
+import pathrules
 
 INTEGRATION_BRANCH = "integration"
+
+# Pre-merge worktree-conflict check (2026-10-21, ECC donation). ECC's own
+# session daemon polls per-session file-activity live and pauses one side
+# the moment two concurrent sessions touch the same path; company-os has no
+# daemon, so the adapted version is a check at the one moment that already
+# exists for it -- just before a task's branch is actually merged -- rather
+# than something continuously watching while workers run. A git merge
+# conflict (handled separately above, by the real `git merge` attempt) only
+# tells you AFTER the fact that two branches touched the same lines; this
+# tells a human BEFORE attempting the merge that another task still running
+# right now owns an overlapping subtree, so they can judge whether to wait.
+_CONCURRENT_STATUSES = {"IN_PROGRESS", "REVIEW", "QA", "SECURITY_REVIEW"}
+
+
+def detect_concurrent_glob_conflicts(tasks: dict, target_id: str) -> list[dict]:
+    """Other currently-active tasks whose owned_globs overlap `target_id`'s.
+
+    `tasks` is a fold()-shaped dict of task_id -> task view. Pure function,
+    no I/O -- the caller already has the task list from taskstate.fold().
+    """
+    target = tasks.get(target_id)
+    if not target:
+        return []
+    conflicts = []
+    seen_pairs = set()
+    for other_id, other in tasks.items():
+        if other_id == target_id or other.get("status") not in _CONCURRENT_STATUSES:
+            continue
+        for ours in target.get("owned_globs") or ():
+            for theirs in other.get("owned_globs") or ():
+                if pathrules.globs_overlap(ours, theirs):
+                    key = (other_id, ours, theirs)
+                    if key not in seen_pairs:
+                        seen_pairs.add(key)
+                        conflicts.append({"task": other_id, "status": other.get("status"),
+                                          "ours": ours, "theirs": theirs})
+    return conflicts
 
 
 def _git(repo: Path, *args, cwd: Path | None = None):
