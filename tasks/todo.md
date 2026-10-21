@@ -127,13 +127,41 @@ master prompt's section 4 asks for.
       surfaced informationally in `company plan`'s JSON output, never a
       new blocking gate. 13 new tests, 668/668 passing.
 
-## Phase 5 — Control plane and business workflows (not started)
+## Phase 5 — Control plane and business workflows (scoped down — real conflict found)
 
-- [ ] Backend APIs over the event log's projections.
-- [ ] Departmental workflow packs (non-engineering) reusing one
-      orchestration engine, not duplicating it per department.
-- [ ] Web dashboard — only after the backend state it would display is
-      itself trustworthy (explicit master-prompt constraint).
+- [x] Found a genuine architectural conflict before building anything:
+      the master prompt's Phase 5 ask (backend API, web dashboard inside
+      company-os) directly contradicts `doc/GOAL.md` ("not a hosted
+      product... no server, no UI"), `NORTH_STAR.md` ("a dashboard before
+      the loop is trusted" / "anything whose first user does not exist
+      yet" are both refused outright), and ADR-006's own scope section
+      (no web dashboard/API — that's `cmd-center`'s job). Surfaced to
+      Riyan rather than silently picking a side.
+- [x] Riyan's decision (2026-10-21): keep GOAL.md as-is. No server or UI
+      inside company-os, ever.
+- [x] Real scoped output instead: `doc/integrations/cli-json-contract.md`
+      documents the CLI's existing `--json`/default-JSON output (56
+      `emit()` call sites, `canonical()`-serialized) as a stable,
+      versioned contract for `cmd-center` (a separate, plan-only project)
+      to consume — scoped to exactly what cmd-center's own GUI-01..05
+      requirements need. `test_cli_json_contract.py` locks the current
+      key shapes so a future refactor can't silently break the contract
+      — verified to actually catch drift. Zero new runtime code, no
+      server, no behavior change. 680/680 passing.
+- [ ] Not done, deliberately: departmental non-engineering EXECUTION
+      (cfo/ciso/coo/cto-advisor already exist and are used, but
+      finance-analyst/legal-analyst/product-designer have never run an
+      actual task end-to-end through the evidence loop — 0 events each
+      in the real log). Connectors (GitHub API, CRM, etc.) — zero exist,
+      and no ADR/lesson names an actual near-term need for one; building
+      ahead of a real use case would repeat the exact mistake ADR-006
+      explicitly avoided.
+- [ ] 3 findings surfaced, not fixed (each is a real behavior change, not
+      a free fix): `costs.aggregate()`'s deliberate by-token ranking is
+      lost in JSON because `canonical()`'s `sort_keys=True` re-sorts
+      alphabetically; `status --json`'s `progress` is a string ("42%"),
+      not a number; only `status`/`goal tree` take `--json`, the rest are
+      always-JSON (inconsistent flag surface).
 
 ## Phase 6 — Production hardening (not started)
 
