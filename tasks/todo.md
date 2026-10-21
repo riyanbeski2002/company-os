@@ -107,13 +107,25 @@ master prompt's section 4 asks for.
       mission/objective/key_result — the system is ready, nothing is
       populated.
 
-## Phase 4 — Intelligence, skills, memory (not started)
+## Phase 4 — Intelligence, skills, memory (done, scoped down from the master prompt)
 
-- [ ] Context-efficient skill loading (selective, not load-everything) —
-      the capability-registry/category work from this session is the
-      foundation; build real selective retrieval on top.
-- [ ] Derived memory/retrieval layer, explicitly subordinate to the event
-      log — never an alternate source of operational truth.
+- [x] Context-efficient skill loading — found already real and mature on
+      inspection: no agent bulk-loads skills (`tools:` lists are tool
+      names, not skill preloads), `worker.py` never folds skill bodies
+      into a packet, `capability.py`'s `search`/`load` is already
+      on-demand, `capability-curator`'s SKILL.md already documents the
+      discover-then-load flow. No gap, no code change.
+- [x] Derived memory — found already correctly subordinate to the event
+      log: `lessons.py`/`escalations.py`/`advise.py` are pure folds with
+      no independent state, `capability-index.yaml` is header-marked
+      "auto-generated... do not hand-edit" and rebuildable.
+- [x] The one real gap: `find_duplicate_staffing()` only ever considered
+      LIVE tasks, so resolved/completed work was invisible at staffing
+      time. Added `find_similar_resolved_work()` and
+      `find_matching_lessons()` (both reusing the existing deterministic
+      Jaccard/keyword machinery, no vector search/embeddings/ML),
+      surfaced informationally in `company plan`'s JSON output, never a
+      new blocking gate. 13 new tests, 668/668 passing.
 
 ## Phase 5 — Control plane and business workflows (not started)
 
