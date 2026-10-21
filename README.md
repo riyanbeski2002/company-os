@@ -173,6 +173,7 @@ files. Explicitly **not** to check less — only to carry less.
 | `company task show\|advance <id>` | Inspect, or transition (enforces the Evidence Rule). |
 | `company integrate [--task T]` | Rebase into `integration`, run the suite there, merge **only** on green. |
 | `company rebuild [--verify]` | Replay events into views; `--verify` compares instead of writing. |
+| `company backfill-tokens [--dry-run]` | Reconstruct pre-capture runs' tokens from their `stdout.json` as appended `TOKENS_BACKFILLED` events. Idempotent; unreconstructable runs are listed, never zero-filled. |
 | `company status [--json]` | Derived state only. Never estimated. |
 | `company report` | Executive summary: outcomes, not activity. |
 | `company escalate --kind K --need "..."` | Ask the CEO for something the PM cannot do or decide. |

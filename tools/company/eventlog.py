@@ -49,6 +49,10 @@ EVENTS = {
     "STATUS_CHANGED", "OWNERSHIP_BLOCKED", "BRANCH_GUARD_BLOCKED",
     "BASELINE_RECORDED", "ADVISORY_FINDING", "ADVISORY_RESOLVED",
     "SECRET_READ_BLOCKED", "LESSON_RECORDED", "GATE_NO_VERDICT",
+    # A historical WORKER_EXITED can't be edited to add the tokens its
+    # producer didn't record (KNOWN_ISSUES #1), so the reconstruction is its
+    # own event, pointing back at the original by seq (backfill.py).
+    "TOKENS_BACKFILLED",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event
@@ -66,6 +70,8 @@ REQUIRES_EVIDENCE = {
     # A lesson without evidence of what actually happened is a vague feeling,
     # not a pattern — the exact thing this event exists to be more than.
     "LESSON_RECORDED",
+    # Reconstructed tokens are only as good as the stdout.json they came from.
+    "TOKENS_BACKFILLED",
 }
 
 # Gate name -> the event that satisfies it. Used by the Evidence Rule.

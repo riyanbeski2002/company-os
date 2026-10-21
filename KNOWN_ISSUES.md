@@ -28,9 +28,13 @@ reads.**
 overrun go unnoticed until a human found it by accident.
 
 **Fix.** `worker.py` now writes `_usage()` into `WORKER_EXITED` as `tokens`, so
-new runs are covered. Still outstanding: **backfill the historical events from
-the `stdout.json` files**, so existing projects get a real baseline instead of
-starting from zero. Adds no runtime cost and removes no checks.
+new runs are covered. Historical events are backfilled by `company
+backfill-tokens`: it appends a `TOKENS_BACKFILLED` event per reconstructable
+run (the original `WORKER_EXITED` line is never edited), keyed by that run's
+`seq` and checked against its `session_id`, and `company costs` folds it in.
+A run whose `stdout.json` is missing, corrupt, or was overwritten by a later
+launch of the same actor is listed as unreconstructable, not zero-filled.
+Adds no runtime cost and removes no checks.
 
 ---
 

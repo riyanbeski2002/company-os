@@ -20,6 +20,20 @@ thorough one can land on the same aggregate ratio for different reasons.
 from __future__ import annotations
 
 
+def _backfilled_tokens(events: list[dict]) -> dict:
+    """WORKER_EXITED seq -> reconstructed tokens, from TOKENS_BACKFILLED
+    (backfill.py). First one per seq wins, so a backfill appended twice by
+    two concurrent runs still can't count a run twice."""
+    out = {}
+    for ev in events:
+        if ev.get("event") != "TOKENS_BACKFILLED":
+            continue
+        data = ev.get("data") or {}
+        if data.get("backfills_seq") is not None and data.get("tokens"):
+            out.setdefault(data["backfills_seq"], data)
+    return out
+
+
 def aggregate(events: list[dict], project: str | None = None) -> dict:
     by_actor: dict[str, dict] = {}
     by_task: dict[str, dict] = {}
@@ -29,6 +43,8 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
     estimate = 0.0
     seconds = 0.0
     runs_with_unestimated_cost = 0
+    runs_with_backfilled_tokens = 0
+    backfilled = _backfilled_tokens(events)
 
     for ev in events:
         if ev.get("event") != "WORKER_EXITED":
@@ -39,6 +55,14 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
         # `cost_usd` is the pre-V2 field name; read both so old logs still fold.
         cost = data.get("cost_usd_estimate", data.get("cost_usd"))
         tokens = data.get("tokens") or {}
+        fill = backfilled.get(ev.get("seq"))
+        # Only for a run whose producer never wrote `tokens` at all, and only
+        # if the backfill names this run's own actor and session — a seq that
+        # points at some other event is a broken reference, not a fact.
+        if "tokens" not in data and fill and fill.get("actor") == ev.get("actor") \
+                and fill.get("session_id") == data.get("session_id"):
+            tokens = fill["tokens"]
+            runs_with_backfilled_tokens += 1
         if cost is None and not tokens:
             continue
         num_turns = data.get("num_turns")
@@ -128,6 +152,7 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
         "wall_clock_minutes": round(seconds / 60, 1),
         "api_equivalent_usd": round(estimate, 2),
         "runs_with_unestimated_cost": runs_with_unestimated_cost,
+        "runs_with_backfilled_tokens": runs_with_backfilled_tokens,
         "by_actor": dict(sorted(by_actor.items(), key=lambda kv: -kv[1]["output_tokens"])),
         "by_task": dict(sorted(by_task.items(), key=lambda kv: -kv[1]["cache_read_tokens"])),
         "untasked": untasked,

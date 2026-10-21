@@ -1,93 +1,104 @@
-# Paperclip donation catalog — phased execution
+# Universal AI operating system transformation — phased execution
 
-Source: full donation inventory across skills/agents/orchestrators/policy/evals
-(2026-10-19). User confirmed: don't skip self-service skill authoring or visual
-persona identity (scoped to cmd-center); proceed through the rest in phases.
+Source: Riyan's master prompt (2026-10-21) to evolve company-os toward a
+universal, organization-wide AI operating system, selectively porting
+Ruflo/ECC/Paperclip strengths without replacing company-os's event-sourced,
+evidence-first core. Riyan confirmed: go all-in, phased, steady, no missed
+steps, don't rush — and route all actual engineering/design work through
+Opus 5.5 subagents, not Sonnet.
 
-## Phase A — independent, no dependency on the adapters/ research fork
+**Grounding pass (done before writing this plan, not assumed):** several
+things the master prompt's Phase 0/1 ask for already exist for real,
+discovered by reading code, not docs:
+- `KNOWN_ISSUES.md` issues #2 (duplicate concurrent execution) and #3
+  (silent gate-verdict loss) already have real, committed fixes
+  (`worker.py`'s exclusive-lease `started_task` marker; `GATE_NO_VERDICT`
+  wired through `worker.py`/`render.py`/`packet.py`/`eventlog.py`).
+- Issue #1 (blind cost reporting) is fixed for new runs (`worker.py`
+  writes `_usage()` into `WORKER_EXITED`) — only the historical backfill
+  is still open, exactly as `KNOWN_ISSUES.md` itself flags.
+- A real BYO-model harness seam already exists (`harness.py`,
+  `config/harness.yaml`) with two live-tested backends (`claude`, `codex`)
+  — a working slice of the master prompt's "universal agent runtime" ask,
+  not zero as the prompt's framing might suggest.
+- `config/budgets.yaml` already implements a V1 budget/kill-switch.
+- No organization/department/goal/program hierarchy exists anywhere —
+  genuinely MISSING, matches the master prompt's section 7.1/7.2 ask.
 
-- [x] `doc/GOAL.md` — company-os's missing top-level "what and why"
-- [x] `tasks/lessons.md` — paperclip's engineering-discipline principles,
-      added as text
-- [x] `agents/company-pm.md` — task-splitting heuristic added
-- [x] `tools/company/eventlog.py` — new-event-needs-a-rationale convention
-      comment added
-- [x] Untrusted-review container profile (`docker/untrusted-review/`,
-      `doc/UNTRUSTED-REVIEW.md`) — built and documented; image itself was
-      NOT build-tested (OrbStack daemon wouldn't come up headlessly this
-      session) — pieces validated individually (bash -n, frontmatter-strip
-      dry run, real npm package names), full pipeline is not yet proven
-- [x] Capability-registry hardening — `source_commit` + `content_shape`
-      added to every `capability-index.yaml` unit (tools/
-      build_capability_index.py), with a T3/T4-vs-scripts-executables
-      mismatch warning printed at build time; `sync_external_
-      capabilities.py`'s unpinned-branch gap is documented, not fixed
-      (retroactively pinning ~76 existing entries needs a real audit pass,
-      not a mechanical edit — scoped out deliberately, not forgotten)
-- [x] `company pause <task>` — shipped, tested (3 new tests in
-      test_worker_lifecycle.py)
-- [x] Team bundle manifest — `teams/README.md`, `teams/web-app.yaml` (real,
-      validated example), `tools/company/teams.py`, `company team show
-      <name>` CLI, 9 tests
-- [x] Self-service skill authoring — `tools/propose_skill.py` +
-      `tools/promote_skill.py`, documented in `skills/capability-curator/
-      SKILL.md`, 13 tests (caught one real bug pre-ship: promote_skill.py
-      crashed instead of raising a clean error on a malformed append)
-- [x] cmd-center `PROJECT.md` — visual persona identity (Phase 10) and the
-      memory-landscape two-layer contract (Phase 4) flagged, plus a note
-      connecting company-os's new `company pause` to the Phase 7
-      lifecycle-state discussion already there
+This changes where real Phase 1 work starts: not re-fixing already-fixed
+defects, but the one real open item plus the regression-proofing the
+master prompt's section 4 asks for.
 
-## Phase B — depends on the adapters/ research fork
+## Phase 1 — Reliability foundation (in progress)
 
-- [x] Second real harness: `codex` in `config/harness.yaml` +
-      `tools/company/adapters/codex_adapter.py`. Invocation read from
-      paperclip's own codex-local adapter source, then LIVE smoke-tested
-      end to end on this machine (codex-cli 0.163.0) — not shipped on
-      reading alone. The live test caught one thing the research pass
-      missed (`cache_write_input_tokens` is real, not absent) and one thing
-      worth knowing (a plausible-looking model id was rejected outright by
-      this account) — `model_flag` is deliberately left unset rather than
-      shipping a guessed mapping. Not staffed to any role yet — a real,
-      tested, unused harness, by design.
-- [ ] Extend `native_agent_loading` into a wider capability-flag vocabulary
-      — SKIPPED. `codex` didn't need a second flag; inventing one with no
-      real backend requiring it would be speculative, the same mistake
-      flagged elsewhere in this review (don't build for a backend that
-      doesn't exist yet).
-- [ ] Generated per-harness agent definition files (e.g. a `.codex/agents/
-      <role>.toml`) — SKIPPED, and now believed unnecessary rather than
-      just deferred: company-os's persona-injection design (worker.py
-      folds agents/<role>.md into the packet for any non-native-loading
-      harness) already solves what paperclip's generated-static-file
-      pattern solves, without needing a generated file per harness at all.
-      Revisit only if a future harness turns out to need something a
-      dynamic packet can't provide.
+- [ ] Backfill historical `WORKER_EXITED` token events from
+      `.company/state/workers/*/stdout.json` as an append-only
+      correction/migration event (never mutate historical events in
+      place) — closes KNOWN_ISSUES.md #1's last open item.
+- [ ] Add regression tests proving: (a) the exclusive-lease fix actually
+      rejects a second launch on the same owned globs, (b) a gate worker
+      ending `end_turn` with no verdict event always produces
+      `GATE_NO_VERDICT` and never silently re-runs under a new actor name,
+      (c) token backfill is idempotent and never double-counts on re-run.
+- [ ] Re-run full suite, confirm zero regressions, record before/after
+      counts here.
 
-## Drive-by fixes (found while reading code for the above, fixed on the spot)
+## Phase 2 — Universal execution core (not started)
 
-- `tools/capability.py`: `search` was defined (`cmd_search`) but never
-  wired into `COMMANDS` — a previously-identified bug, fixed, 3 new tests.
+- [ ] Formalize the existing `harness.py` contract into a documented
+      adapter interface (identity, capabilities, input, tool permissions,
+      execution, streaming, cancellation, usage, errors, health) — most
+      of this already exists implicitly; make it explicit and testable.
+- [ ] Add one more live-tested adapter beyond `claude`/`codex` (candidate:
+      Antigravity CLI — blocked earlier this session on exact JSON field
+      names; needs a live session to confirm before any code is written).
+- [ ] Extend `config/budgets.yaml`'s V1 kill-switch with per-role/per-task
+      attribution, building on this session's cost-attribution tooling.
+
+## Phase 3 — Organizational operating system (not started)
+
+- [ ] Design (ADR first, before code) an organization/goal/program/project
+      hierarchy as events + projections, consistent with the existing
+      event-sourcing model — never a second source of truth.
+- [ ] Roles, permissions, budgets at the org/department level, reusing
+      `config/risk-triggers.yaml`'s deterministic-table pattern rather
+      than inventing a parallel policy engine.
+
+## Phase 4 — Intelligence, skills, memory (not started)
+
+- [ ] Context-efficient skill loading (selective, not load-everything) —
+      the capability-registry/category work from this session is the
+      foundation; build real selective retrieval on top.
+- [ ] Derived memory/retrieval layer, explicitly subordinate to the event
+      log — never an alternate source of operational truth.
+
+## Phase 5 — Control plane and business workflows (not started)
+
+- [ ] Backend APIs over the event log's projections.
+- [ ] Departmental workflow packs (non-engineering) reusing one
+      orchestration engine, not duplicating it per department.
+- [ ] Web dashboard — only after the backend state it would display is
+      itself trustworthy (explicit master-prompt constraint).
+
+## Phase 6 — Production hardening (not started)
+
+- [ ] Threat model, multi-tenant isolation tests, failure injection,
+      restore testing — deferred until Phases 1-5 exist to harden.
+
+## Operating notes
+
+- Every phase ships as small, reviewable, tested increments — no
+  big-bang rewrite, per the master prompt's own Phase 14 and this
+  session's standing simplicity/minimal-blast-radius instructions.
+- All actual engineering/design/architecture work for this initiative
+  runs through Agent calls with `model: opus` per Riyan's explicit
+  instruction — this top-level session remains the Sonnet 5 orchestrator/
+  PM, not the implementer.
+- `.company/escalations/ESC-004.md`..`ESC-008.md` and
+  `.company/config/authorized-targets.yaml` remain untouched/unstaged in
+  every commit (standing "ignore anything related to hyperverge"
+  instruction).
 
 ## Review
 
-- 480 tests passing (411 at the start of this conversation), zero
-  regressions throughout — every change above was run against the full
-  suite before moving to the next.
-- What's genuinely NEW capability vs. documentation-only: harness/codex
-  (real, tested, unstaffed), `company pause`, `company team show`,
-  `propose_skill.py`/`promote_skill.py`, capability-index content_shape/
-  source_commit, `capability.py search` fix. Everything else this pass is
-  docs/comments/config (GOAL.md, lessons.md, AGENT-PERMISSIONS.md,
-  BYO-MODEL.md updates, cmd-center PROJECT.md notes, eventlog.py comment).
-- What's deliberately left undone, and why: the untrusted-review Docker
-  image wasn't build-tested (daemon unavailable, not a design gap);
-  `sync_external_capabilities.py` still tracks moving branches, not pinned
-  SHAs, for all ~76 existing entries (a real audit, not a mechanical fix);
-  the two Phase B capability-flag/generated-file items were judged
-  unnecessary rather than deferred.
-- Nothing here was staffed into default use — `codex` harness, `teams/
-  web-app.yaml`, and the skill-authoring scripts all exist and are tested,
-  but none of them changed what actually runs by default today. That's a
-  deliberate choice for all of them: proving a seam works is different from
-  deciding to rely on it.
+(updated as each phase completes)

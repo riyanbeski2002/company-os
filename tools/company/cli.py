@@ -148,7 +148,10 @@ def _ensure_line(path: Path, line: str):
             fh.write(line + "\n")
 
 
-LAUNCHER_ONLY_EVENTS = {"WORKER_STARTED", "WORKER_EXITED", "WORKER_HEARTBEAT"}
+LAUNCHER_ONLY_EVENTS = {"WORKER_STARTED", "WORKER_EXITED", "WORKER_HEARTBEAT",
+                        # Supplies a WORKER_EXITED's tokens to costs.py, so a
+                        # forged one is a forged WORKER_EXITED by another name.
+                        "TOKENS_BACKFILLED"}
 # Scoped tightly to the events the actor-role binding in taskstate.check_done
 # actually trusts. TASK_CREATED/TASK_ASSIGNED/BASELINE_RECORDED are also only
 # ever written in-process by staff/baseline today, but blocking them here too
@@ -939,6 +942,7 @@ def cmd_integrate(args):
     results = []
     for tid in sorted(targets):
         task = tasks.get(tid) or die(f"no such task {tid!r}")
+        reasons = taskstate.check_done(task, _baseline(root, task.get("project")), gate_roles)
         # Fail-closed on ANY check_done reason, not a substring allowlist
         # (2026-10-21, ECC donation -- `orch-review.workflow.js`'s pattern:
         # a review dimension that errors/returns nothing forces
@@ -1201,6 +1205,7 @@ def cmd_costs(args):
         "by_task": result["by_task"],
         "untasked": result["untasked"],
         "runs_with_unestimated_cost": result["runs_with_unestimated_cost"],
+        "runs_with_backfilled_tokens": result["runs_with_backfilled_tokens"],
         "notes": [
             "api_equivalent_usd is Claude Code's CLIENT-SIDE ESTIMATE of what this "
             "work would have cost through the API. It is not a bill and nothing "
@@ -1215,7 +1220,9 @@ def cmd_costs(args):
             "costs one implementation plus one run per gate. Watch the ratio over "
             "time, not its absolute value.",
             "Runs logged before token capture existed report zero tokens; only "
-            "the api_equivalent_usd figure survives for those.",
+            "the api_equivalent_usd figure survives for those, unless "
+            "`company backfill-tokens` reconstructed them from their stdout.json "
+            f"({result['runs_with_backfilled_tokens']} runs here were).",
             "by_task splits a gate-group run's cost evenly across every task it "
             "covered — an explicit estimate, not a measured per-task split; "
             "'split_across_tasks' on an entry names how many tasks shared that run.",
@@ -1231,6 +1238,25 @@ def cmd_costs(args):
             "nothing happened.",
         ],
     })
+
+
+def cmd_backfill_tokens(args):
+    """KNOWN_ISSUES #1's outstanding half: give pre-capture WORKER_EXITED
+    events real tokens from their stdout.json, by appending TOKENS_BACKFILLED
+    — never by editing the original line. Safe to re-run; see backfill.py.
+
+    A run that can't be reconstructed is warned about on stderr, one line
+    each, as well as listed in the JSON: nothing is filled with a guess, and
+    a project with gaps should be able to see exactly which runs and why.
+    """
+    import backfill
+    root = company_root(args)
+    project = args.project or os.environ.get("COMPANY_PROJECT")
+    result = backfill.run(root, project, dry_run=args.dry_run)
+    for miss in result["unreconstructable"]:
+        print(f"warning: cannot reconstruct tokens for WORKER_EXITED seq={miss['seq']} "
+              f"({miss['actor']}): {miss['reason']}", file=sys.stderr)
+    emit({"ok": True, **result})
 
 
 def cmd_advise(args):
@@ -1682,6 +1708,12 @@ def build_parser():
     ct = sub.add_parser("costs", help="what this cost and what it delivered")
     ct.add_argument("--project")
     ct.set_defaults(fn=cmd_costs)
+
+    bf = sub.add_parser("backfill-tokens",
+                        help="reconstruct pre-capture runs' tokens from stdout.json (append-only)")
+    bf.add_argument("--project")
+    bf.add_argument("--dry-run", action="store_true", help="report what would be appended")
+    bf.set_defaults(fn=cmd_backfill_tokens)
 
     dr = sub.add_parser("doctor", help="preflight a repo before pointing workers at it")
     dr.add_argument("--project")
