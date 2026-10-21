@@ -38,6 +38,7 @@
 entries:
   - id: motion-vocabulary
     type: skill
+    category: "design.motion"
     purpose: "Precise motion/animation terminology and defaults for frontend-engineer, so a motion choice can be justified concretely (a named easing, a stated reason) instead of by taste alone."
     trust_tier: T2
     source: "https://motion-vocabulary.vercel.app/ (terminology adapted from animations.dev)"
@@ -47,6 +48,7 @@ entries:
     checked_at: "2026-08-17"
   - id: scroll-animation
     type: skill
+    category: "design.motion"
     purpose: "Research and present multiple scroll-driven-narrative production pipelines (frame-sequenced video, CSS scroll-timeline, JS scroll-linked libraries, Lottie, WebGL, SVG morph) instead of defaulting to one, and split delegated work into autonomous vs. Riyan-needed steps."
     trust_tier: T0
     source: "authored in this repo, requested by riyan"
@@ -100,6 +102,7 @@ entries:
     checked_at: "2026-08-17"
   - id: greensock-gsap-skills
     type: skill
+    category: "design.motion"
     purpose: "Official GSAP implementation guidance for frontend-engineer — use once an animation is decided on, not for deciding whether to use GSAP."
     trust_tier: T1
     source: "https://github.com/greensock/gsap-skills"
@@ -571,6 +574,7 @@ entries:
   # options-research step, never as something to scrape assets from. ---
   - id: juliangarnier-anime
     type: skill
+    category: "design.motion"
     purpose: "Long-established, actively maintained JS animation engine for frontend-engineer — real named maintainer, huge adoption, complements GSAP/motion for lighter-weight animation needs."
     trust_tier: T1
     source: "https://github.com/juliangarnier/anime"
@@ -582,6 +586,7 @@ entries:
     checked_at: "2026-08-17"
   - id: motiondivision-motion
     type: skill
+    category: "design.motion"
     purpose: "Motion (formerly Framer Motion) for frontend-engineer — the standard React/JS animation library, actively maintained, real named org."
     trust_tier: T1
     source: "https://github.com/motiondivision/motion"
@@ -782,6 +787,28 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-16"
     checked_at: "2026-10-16"
+  - id: paperclipai-paperclip
+    type: tool
+    purpose: "Multi-harness agent-orchestration platform (any model, any agent, one org chart). Already the source of company-os's codex harness adapter (2026-10-19). Re-cloned 2026-10-21 per Riyan's instruction to compare orchestration/execution reliability against company-os/ECC/ruflo and port concrete mechanisms (active-run-watchdog staleness classification, run-dispatch retry-gate codes)."
+    trust_tier: T3
+    source: "https://github.com/paperclipai/paperclip"
+    local_path: "external/paperclipai-paperclip"
+    pinned_commit: "53732c811bb69655eb43d3d12f2063ae4ca5ad67"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-21"
+    checked_at: "2026-10-21"
+  - id: ruvnet-ruflo
+    type: tool
+    purpose: "Agent-orchestration tool (rebrand of claude-flow). Cloned 2026-10-21 per Riyan's instruction to compare against company-os/ECC/paperclip; investigation found most headline claims (consensus voting, HNSW vector memory) are stubbed or fake on inspection -- treat trust tier accordingly, mine only for the few verified-real parts (WorkflowEngine dependency+rollback DAG)."
+    trust_tier: T4
+    source: "https://github.com/ruvnet/ruflo"
+    local_path: "external/ruvnet-ruflo"
+    pinned_commit: "33c3e15d57210142233fb4458dc70d7e9cc964fa"
+    license: MIT
+    approved_by: riyan
+    approved_at: "2026-10-21"
+    checked_at: "2026-10-21"
   - id: freshtechbro-claudedesignskills
     type: skill
     purpose: "Claude Code skills for 3D graphics/animation/interactive web (Three.js/WebGL-adjacent). Wired as an ACTUAL first-class skill for frontend-engineer, same tier as emilkowalski-skills/leonxlnx-taste-skill/pbakaus-impeccable/nextlevelbuilder-ui-ux-pro-max-skill — not reference-only, per Riyan's explicit instruction."
@@ -795,6 +822,7 @@ entries:
     checked_at: "2026-10-16"
   - id: latent-spaces-brag
     type: skill
+    category: "design.motion"
     purpose: "Turns a finished project into a shareable launch video with one command. No owning agent — register as available, reach for it whenever a project wrap genuinely wants a launch video (pairs with heygen-com-hyperframes for the render step)."
     trust_tier: T2
     source: "https://github.com/latent-spaces/brag"
@@ -861,6 +889,7 @@ entries:
     checked_at: "2026-10-16"
   - id: sunwood-ai-labs-hyperframes-motion-reel-skill
     type: skill
+    category: "design.motion"
     purpose: "Claude Code skill for showreel-grade, beat-synced motion graphics built specifically on HyperFrames (HTML+GSAP+SVG+Canvas, 120 BPM/60 FPS to MP4) — directly complements the already-registered heygen-com-hyperframes and the motion-graphics-video skill. 136 stars/20 forks, real traction for a skill-sized repo."
     trust_tier: T2
     source: "https://github.com/Sunwood-ai-labs/hyperframes-motion-reel-skill"
@@ -872,6 +901,7 @@ entries:
     checked_at: "2026-10-16"
   - id: abubakrchan-product-launch-motion
     type: skill
+    category: "design.motion"
     purpose: "Claude Code skill for product-launch motion videos from code: one shape that never cuts, springs, a cursor that drives every change, beat-synced SFX measured from real audio (numpy), 60fps motion blur. Explicitly built for/with Opus 5.5. Strongest-traction pick among several near-duplicate 'beat-synced motion graphics Claude skill' repos found in the same search sweep (292 stars/46 forks, actively maintained — pushed within the last day) — the ~5 other near-identical 0-5-star repos from the same sweep were deliberately not added (noise, not independent value)."
     trust_tier: T2
     source: "https://github.com/AbubakrChan/product-launch-motion"
@@ -916,6 +946,7 @@ entries:
     checked_at: "2026-10-16"
   - id: higgsfield-motion
     type: skill
+    category: "design.motion"
     purpose: "Motion-design key-frame and code-rendered-film skill (HTML/CSS/SVG/WebGL -> PNG stills, MP4 with music/SFX, any brand identity via a token system) for video-editor. Published by @adilinthewildtempo as a free download on their Higgsfield.ai blog, explicitly for readers to use -- not a GitHub repo, no formal license, but unambiguous public-distribution intent (see skills/higgsfield-motion/README.md for the full provenance note, including a stray precompiled binary that was removed before vendoring)."
     trust_tier: T3
     source: "https://higgsfield.ai/@adilinthewildtempo/blogs/i-tested-claude-motion-at-3-difficulty-levels-can-it-make-a-higgsfield-style-launch-video"
@@ -926,6 +957,7 @@ entries:
     checked_at: "2026-10-16"
   - id: higgsfield-motion-saas
     type: skill
+    category: "design.motion"
     purpose: "SaaS/app launch-motion skill (code-based headless-Chromium render path, or After Effects ExtendScript) with a transition library tuned to hide cuts at peak motion speed. Same source/author/distribution-intent as higgsfield-motion. REAL DISCLOSURE (the skill's own SKILL.md states this openly): its AE technique numbers were derived by frame-by-frame study of a named third party's ('MahdiEdits') SaaS tutorials -- see skills/higgsfield-motion-saas/README.md."
     trust_tier: T3
     source: "https://higgsfield.ai/@adilinthewildtempo/blogs/i-tested-claude-motion-at-3-difficulty-levels-can-it-make-a-higgsfield-style-launch-video"
@@ -980,6 +1012,7 @@ entries:
     checked_at: "2026-10-17"
   - id: google-labs-code-stitch-skills
     type: skill
+    category: "engineering.cloud-platform"
     purpose: "Official Google Labs Agent Skills library for the Stitch MCP server (UI design/generation), Apache-2.0, 8,530 stars/1,115 forks. Three plugins: stitch-build, stitch-design, stitch-utilities. Pairs with google-labs-code-stitch-sdk. Real dependency: the skills drive Stitch's hosted service, not a local model."
     trust_tier: T2
     source: "https://github.com/google-labs-code/stitch-skills"
@@ -1033,3 +1066,14 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-17"
     checked_at: "2026-10-17"
+  - id: hypit-ai-hypit
+    type: skill
+    category: "media.video-production"
+    purpose: "Agent skill (Claude Code/Codex) that reads a reference video and rebuilds it as an editable, re-runnable workflow (SVML source: footage, captions, B-roll, effects anchored to words), with supplied recordings usable as retained footage. 24k stars/2.9k forks, TypeScript, pushed 2026-10-19. Installed globally 2026-10-20 via 'npx skills add hypit-ai/hypit -g' (lives at ~/.agents/skills/hypit, symlinked into ~/.claude/skills). Use alongside edenfunf-reelmimic: ReelMimic for rhythm/BPM/shot breakdown of a reference, Hypit for composing real supplied footage. REAL CAVEATS: Apache-2.0 WITH CONDITIONS (own/client work and commercial output are fine; no hosted multi-tenant service, no resale, must not remove Hypit name/logo from its CLI/reports); generation uses paid third-party model services (HypiHub or own keys; ~$1 per example) so spend needs Riyan's agreement first; needs Node 22.15+ and its own executable. It does NOT do planar screen tracking; that is done with OpenCV outside Hypit."
+    trust_tier: T2
+    source: "https://github.com/hypit-ai/hypit"
+    pinned_commit: "0d36de9a9d17562fca0e478969b80eb1c16a7693"
+    license: "Apache-2.0 with additional conditions"
+    approved_by: riyan
+    approved_at: "2026-10-20"
+    checked_at: "2026-10-20"

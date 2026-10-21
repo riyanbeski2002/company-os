@@ -1,6 +1,7 @@
 ---
 name: capability-curator
 description: Use when you suspect your standing knowledge in your own discipline may be stale — a newer library, a new CVE class, a changed best practice, a better-reviewed component source — and before recommending or adopting anything from outside this repo, OR before writing a brand-new first-party skill from a pattern you noticed mid-task. Covers the trust-tier model, the discover-then-propose flow, staging a new skill draft for approval, and how to check what is already vetted. Triggers on - is there a better way to do this, what's new in, is this still the recommended approach, should we use this library/tool/skill, should this be its own skill.
+category: "governance.agent-harness"
 ---
 
 # Capability Curator

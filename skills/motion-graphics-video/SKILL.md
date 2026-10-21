@@ -1,6 +1,7 @@
 ---
 name: motion-graphics-video
 description: Use when building a rendered motion-graphics video or overlay (launch video, logo animation, SaaS-overlay card on talking-head footage, channel intro) with Claude writing real HTML/CSS/SVG/GSAP and a code-to-video renderer, instead of hand-keyframing in After Effects. Triggers on - make a launch video, animate this logo, build a motion graphic overlay, create an intro/explainer video, review this motion-graphics render.
+category: "design.motion"
 ---
 
 # Motion-graphics video, built from code

@@ -1,6 +1,7 @@
 ---
 name: capture-and-tailor
 description: Use whenever a reference is handed over — a website/section, a video/reel, a live app, or an image of an object — and the goal is a tailored, original version for this product, not a copy of it. Routes to the right capture tool by reference type, enforces grammar-only extraction (never the reference's actual content/assets), and runs a deliberate-difference check so the result doesn't read as a photocopy. Triggers on - recreate this, make something like this reference, I want this style for our product, clone the vibe not the content.
+category: "design.ux"
 ---
 
 # Capture and tailor: reference in, original out

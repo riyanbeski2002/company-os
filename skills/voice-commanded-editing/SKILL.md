@@ -1,6 +1,7 @@
 ---
 name: voice-commanded-editing
 description: Use when editing an existing raw video where the creator spoke their own edit instructions out loud while filming (e.g. "zoom in here," "add a caption," "cut to black," "remove it") — find each spoken order with word-level timestamps and apply the effect at the exact synced moment, output frame-accurate to the original. Triggers on - edit this video, I narrated the edits, sync effects to what I said, self-commentary edit.
+category: "media.video-production"
 ---
 
 # Voice-commanded self-edit

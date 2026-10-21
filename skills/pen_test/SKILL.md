@@ -1,6 +1,7 @@
 ---
 name: pen_test
 description: Full local exploitation capability for the pen_test agent — original, owned methodology and native tooling for SQLi, SSRF/XXE/injection, JWT/auth, IDOR/business-logic, and secrets, plus continuously-updated engines (sqlmap, nuclei, trivy, semgrep) for the classes where a live feed is the actual value. Triggers on - run a pentest, exploit this endpoint, SQL injection test, full exploitation, penetration test.
+category: "security.offensive"
 ---
 
 # Pen Test

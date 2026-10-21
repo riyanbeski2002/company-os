@@ -1,6 +1,7 @@
 ---
 name: component-customization
 description: Use before building any UI component, hero section, scroll effect, or animated interaction from scratch — check the registered component libraries first, then restyle/restructure what you find to this product's actual tokens and taste, rather than shipping it verbatim or ignoring it and hand-rolling one. Triggers on - build a hero section, add a scroll animation, I need a component for X, this looks generic/templated.
+category: "design.components"
 ---
 
 # Component customization: reuse the structure, never the skin

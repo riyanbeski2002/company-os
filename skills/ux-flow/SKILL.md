@@ -1,6 +1,7 @@
 ---
 name: ux-flow
 description: Use before frontend implementation starts on a customer-facing screen or flow with real ambiguity — a new page, a materially different interaction, a permission-gated view nobody has designed yet. Produces the states/edge-case/information-architecture contract frontend builds against. Triggers on - design the UX for, what should this screen do, is this ready for frontend to build, staff a product designer.
+category: "design.ux"
 ---
 
 # UX Flow
