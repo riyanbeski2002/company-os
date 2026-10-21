@@ -467,12 +467,20 @@ def cmd_plan(args):
     # batch — both checks below exist because a batch-local view already
     # missed real incidents (finos-5a: same fix staffed 3x across 3 waves;
     # resolve-os: 18 tasks across 6 waves in ~29h, each wave its own PR).
-    existing = [t for t in taskstate.fold(EventLog(root).read()).values()
+    events = EventLog(root).read()
+    existing = [t for t in taskstate.fold(events).values()
                if t.get("project") == project]
 
     cross_plan_joins = staffing.join_existing_gate_groups(planned, existing)
     default_group_id, default_grouped_tasks = staffing.default_gate_group(planned, project)
     duplicates = staffing.find_duplicate_staffing(planned, existing)
+    # Informational only, never a refusal: work that looks like it was done
+    # before (resolved tasks, this project) and lessons whose text overlaps a
+    # new title (every project in this log — a lesson exists to cross them).
+    import lessons as lessons_mod
+    similar_resolved = staffing.find_similar_resolved_work(planned, existing)
+    matching_lessons = staffing.find_matching_lessons(
+        planned, lessons_mod.fold(events))
 
     plan = {
         "project": project, "request": request, "tasks": planned,
@@ -484,6 +492,8 @@ def cmd_plan(args):
         "default_gate_group": default_group_id,
         "default_gate_group_tasks": default_grouped_tasks,
         "possible_duplicate_staffing": duplicates,
+        "similar_resolved_work": similar_resolved,
+        "matching_lessons": matching_lessons,
     }
 
     if collisions and not args.allow_overlap:

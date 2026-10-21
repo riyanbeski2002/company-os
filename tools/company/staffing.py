@@ -348,12 +348,35 @@ def find_duplicate_staffing(planned_tasks: list[dict], existing_tasks: list[dict
     same inputs same output, like every other check in this file.
     """
     live = [t for t in existing_tasks if t.get("status") not in RESOLVED_STATUSES]
+    return _title_matches(planned_tasks, live, threshold)
+
+
+def find_similar_resolved_work(planned_tasks: list[dict], existing_tasks: list[dict],
+                               threshold: float = DUPLICATE_TITLE_THRESHOLD) -> list[dict]:
+    """The other half of `find_duplicate_staffing`: newly planned tasks whose
+    title closely matches an already-RESOLVED task's. Restaffing shipped or
+    abandoned work is legitimate, so this is informational only — it never
+    feeds a refusal — but "this was done before, and ended MERGED/FAILED" is
+    worth seeing before the work starts, not after. Live tasks are left to
+    `find_duplicate_staffing`; the two never report the same pair.
+    """
+    resolved = [t for t in existing_tasks if t.get("status") in RESOLVED_STATUSES]
+    hits = _title_matches(planned_tasks, resolved, threshold)
+    goals_by_task = {t["id"]: t["goal"] for t in resolved if t.get("goal")}
+    for hit in hits:
+        if hit["existing_task"] in goals_by_task:
+            hit["existing_goal"] = goals_by_task[hit["existing_task"]]
+    return hits
+
+
+def _title_matches(planned_tasks: list[dict], candidates: list[dict],
+                   threshold: float) -> list[dict]:
     hits = []
     for new_task in planned_tasks:
         new_title = new_task.get("title", "")
         if not new_title:
             continue
-        for existing in live:
+        for existing in candidates:
             if existing.get("id") == new_task.get("id"):
                 continue  # replanning the same task id is not a duplicate
             sim = _title_similarity(new_title, existing.get("title", ""))
@@ -363,6 +386,52 @@ def find_duplicate_staffing(planned_tasks: list[dict], existing_tasks: list[dict
                     "existing_task": existing["id"], "existing_title": existing.get("title"),
                     "existing_status": existing.get("status"),
                     "similarity": round(sim, 2),
+                })
+    return hits
+
+
+# Lesson text is prose, not a title: a Jaccard score against a whole
+# pattern + fix paragraph is diluted to near zero by length alone. So the
+# measure here is how much of the NEW TITLE the lesson talks about, with a
+# floor on shared words so a one-word title can't match everything. Function
+# words — and generic task verbs every lesson's fix text uses — are dropped
+# first, or "fix the ..." would match every lesson ever recorded.
+LESSON_MATCH_THRESHOLD = 0.5
+LESSON_MATCH_MIN_SHARED = 2
+_LESSON_STOPWORDS = {
+    "the", "and", "for", "with", "that", "this", "from", "into", "not", "are",
+    "was", "were", "but", "has", "have", "had", "its", "all", "any", "can",
+    "when", "then", "than", "them", "they", "what", "which", "who", "will",
+    "would", "should", "could", "also", "only", "just", "each", "every",
+    "fix", "fixed", "add", "added", "bug", "task", "update", "updated",
+}
+
+
+def find_matching_lessons(planned_tasks: list[dict], lessons: list[dict],
+                          threshold: float = LESSON_MATCH_THRESHOLD,
+                          min_shared: int = LESSON_MATCH_MIN_SHARED) -> list[dict]:
+    """Recorded lessons (`lessons.fold` output) whose pattern/fix text shares
+    meaningful words with a newly planned task's title. `lessons.fold` can
+    only be queried by exact `skill` tag; this is the "has this mistake been
+    made before?" check by content, at the one moment it's cheapest to act on.
+    Informational, never a refusal. Same crude, deterministic spirit as
+    `_title_similarity`."""
+    hits = []
+    for new_task in planned_tasks:
+        title_words = _title_tokens(new_task.get("title", "")) - _LESSON_STOPWORDS
+        if not title_words:
+            continue
+        for lesson in lessons:
+            lesson_words = _title_tokens(
+                f"{lesson.get('pattern') or ''} {lesson.get('fix') or ''}")
+            shared = title_words & lesson_words
+            overlap = len(shared) / len(title_words)
+            if len(shared) >= min_shared and overlap >= threshold:
+                hits.append({
+                    "new_task": new_task["id"], "new_title": new_task.get("title"),
+                    "lesson": lesson.get("id"), "pattern": lesson.get("pattern"),
+                    "fix": lesson.get("fix"), "shared_words": sorted(shared),
+                    "overlap": round(overlap, 2),
                 })
     return hits
 

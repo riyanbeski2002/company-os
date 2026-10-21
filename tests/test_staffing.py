@@ -471,6 +471,160 @@ class TestFindDuplicateStaffing(unittest.TestCase):
         self.assertEqual(a, b)
 
 
+class TestFindSimilarResolvedWork(unittest.TestCase):
+    """`find_duplicate_staffing` deliberately ignores resolved tasks, which
+    left no way to surface "this was already done once, and here is how it
+    ended" at plan time. This is that, informational only."""
+
+    def test_surfaces_a_resolved_task_with_a_similar_title(self):
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        for status in ("DONE", "MERGED", "ABANDONED", "FAILED"):
+            existing = [{"id": "TASK-OLD", "title": "Admin self attach bug fix",
+                         "status": status}]
+            hits = staffing.find_similar_resolved_work(planned, existing)
+            self.assertEqual(len(hits), 1, status)
+            self.assertEqual((hits[0]["existing_task"], hits[0]["existing_status"]),
+                             ("TASK-OLD", status))
+
+    def test_does_not_surface_a_live_task(self):
+        """Live work is `find_duplicate_staffing`'s job — the two functions
+        must never report the same pair."""
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        existing = [{"id": "TASK-OLD", "title": "Fix the admin self-attach bug",
+                     "status": "IN_PROGRESS"}]
+        self.assertEqual(staffing.find_similar_resolved_work(planned, existing), [])
+        self.assertEqual(len(staffing.find_duplicate_staffing(planned, existing)), 1)
+
+    def test_does_not_surface_unrelated_titles(self):
+        planned = [{"id": "TASK-NEW", "title": "Add dark mode to the dashboard"}]
+        existing = [{"id": "TASK-OLD", "title": "Fix the admin self-attach bug",
+                     "status": "MERGED"}]
+        self.assertEqual(staffing.find_similar_resolved_work(planned, existing), [])
+
+    def test_carries_the_resolved_task_goal_only_when_it_has_one(self):
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        existing = [
+            {"id": "TASK-A", "title": "Fix the admin self-attach bug", "status": "MERGED",
+             "goal": "G-002"},
+            {"id": "TASK-B", "title": "Fix the admin self-attach bug", "status": "FAILED"},
+        ]
+        hits = {h["existing_task"]: h for h in
+                staffing.find_similar_resolved_work(planned, existing)}
+        self.assertEqual(hits["TASK-A"]["existing_goal"], "G-002")
+        self.assertNotIn("existing_goal", hits["TASK-B"])
+
+
+def _lesson(lid, pattern, fix):
+    return {"id": lid, "pattern": pattern, "fix": fix, "skill": None}
+
+
+class TestFindMatchingLessons(unittest.TestCase):
+    """`lessons.fold` can only be filtered by exact skill tag; nothing
+    surfaced a lesson by what it is ABOUT when similar work was planned."""
+
+    def test_surfaces_a_lesson_whose_text_overlaps_the_title(self):
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        lessons = [_lesson("LESSON-7", "the admin self-attach endpoint skipped the "
+                           "ownership check", "added an ownership assertion")]
+        hits = staffing.find_matching_lessons(planned, lessons)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0]["lesson"], "LESSON-7")
+        self.assertEqual(hits[0]["shared_words"], ["admin", "attach", "self"])
+
+    def test_matches_on_fix_text_too(self):
+        planned = [{"id": "TASK-NEW", "title": "Harden the deploy script exit code"}]
+        lessons = [_lesson("LESSON-3", "three runs looked green when they had failed",
+                           "deploy script now propagates the exit code")]
+        self.assertEqual(len(staffing.find_matching_lessons(planned, lessons)), 1)
+
+    def test_no_false_positive_on_unrelated_text(self):
+        planned = [{"id": "TASK-NEW", "title": "Add dark mode to the dashboard"}]
+        lessons = [_lesson("LESSON-3", "the deploy script silently swallows the exit code",
+                           "fixed the script to propagate the exit code")]
+        self.assertEqual(staffing.find_matching_lessons(planned, lessons), [])
+
+    def test_function_words_and_generic_verbs_alone_never_match(self):
+        """'Fix the login' vs a lesson whose fix text says 'fix the ...' shares
+        two words, both meaningless — that must not count."""
+        planned = [{"id": "TASK-NEW", "title": "Fix the login"}]
+        lessons = [_lesson("LESSON-1", "the cache went stale", "fix the TTL")]
+        self.assertEqual(staffing.find_matching_lessons(planned, lessons), [])
+
+    def test_one_shared_word_is_not_enough(self):
+        planned = [{"id": "TASK-NEW", "title": "Payments refactor"}]
+        lessons = [_lesson("LESSON-1", "payments webhook retried twice", "idempotency key")]
+        self.assertEqual(staffing.find_matching_lessons(planned, lessons), [])
+
+    def test_deterministic(self):
+        planned = [{"id": "TASK-NEW", "title": "Fix the admin self-attach bug"}]
+        lessons = [_lesson("LESSON-7", "admin self-attach skipped a check", "assert it")]
+        self.assertEqual(staffing.find_matching_lessons(planned, lessons),
+                         staffing.find_matching_lessons(planned, lessons))
+
+
+class TestPlanSurfacesPriorWork(unittest.TestCase):
+    """End to end through `company plan`: the new findings are reported, and
+    neither changes the existing refuse/warn behaviour for live duplicates."""
+
+    def setUp(self):
+        from eventlog import EventLog, make_event
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+        log = EventLog(self.root)
+        for tid, title, status in (("P-OLD", "Fix the admin self-attach bug", "MERGED"),
+                                   ("P-LIVE", "Rotate the webhook signing secret", None)):
+            log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
+                                  task=tid, data={"title": title, "tier": 0}))
+            if status:
+                log.append(make_event(event="STATUS_CHANGED", actor="company-pm",
+                                      project="p", task=tid, data={"to": status}))
+        log.append(make_event(event="LESSON_RECORDED", actor="company-pm", project="other",
+                              data={"pattern": "admin self-attach skipped the ownership check",
+                                    "fix": "assert ownership before attach"},
+                              evidence={"log": "e"}))
+
+    def plan(self, title, *flags):
+        import json
+        import os
+        import subprocess
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("COMPANY_ACTOR", "COMPANY_PROJECT")}
+        spec = {"project": "p", "request": "r", "tasks": [{"id": "P-NEW", "title": title}]}
+        r = subprocess.run([sys.executable, str(HERE.parent / "tools" / "company" / "cli.py"),
+                            "--root", str(self.root), "plan", *flags],
+                           capture_output=True, text=True, env=env, input=json.dumps(spec))
+        return r.returncode, json.loads(r.stdout)
+
+    def test_resolved_match_and_lesson_are_surfaced_without_refusing(self):
+        code, plan = self.plan("Admin self attach bug fix")
+        self.assertEqual(code, 0)
+        self.assertTrue(plan["ok"])
+        self.assertEqual(plan["possible_duplicate_staffing"], [])
+        self.assertEqual([h["existing_task"] for h in plan["similar_resolved_work"]],
+                         ["P-OLD"])
+        self.assertEqual(plan["similar_resolved_work"][0]["existing_status"], "MERGED")
+        self.assertEqual(len(plan["matching_lessons"]), 1)
+
+    def test_live_duplicate_still_refuses_and_allow_duplicate_still_passes(self):
+        code, plan = self.plan("Rotate webhook signing secret")
+        self.assertEqual(code, 3)
+        self.assertFalse(plan["ok"])
+        self.assertEqual([h["existing_task"] for h in plan["possible_duplicate_staffing"]],
+                         ["P-LIVE"])
+        self.assertEqual(plan["similar_resolved_work"], [])
+
+        code, plan = self.plan("Rotate webhook signing secret", "--allow-duplicate")
+        self.assertEqual(code, 0)
+        self.assertTrue(plan["ok"])
+
+    def test_unrelated_title_surfaces_nothing(self):
+        code, plan = self.plan("Add dark mode to the dashboard")
+        self.assertEqual(code, 0)
+        self.assertEqual((plan["similar_resolved_work"], plan["matching_lessons"]), ([], []))
+
+
 class TestSizeBands(unittest.TestCase):
     def test_bands(self):
         self.assertEqual(staffing.size_band(0)["size"], "trivial")
