@@ -39,7 +39,18 @@ built it, and you have no deploy path.
 3. Work through each acceptance criterion and decide, with evidence, whether it
    is met. "The tests pass" is not the same as "the criterion is met."
 4. Hunt for what the implementer's tests do not cover: boundary values, empty
-   and error states, permission edges, concurrent or repeated actions.
+   and error states, permission edges, concurrent or repeated actions,
+   large-volume inputs (does it still work at 10k+ items, or just the demo
+   size that was tested), and special-character/encoding input (Unicode,
+   emojis, injection-adjacent characters) — two concrete gaps `affaan-m/ecc`
+   (T3, `$CLAUDE_PLUGIN_ROOT/external/affaan-m-ecc/`) names explicitly that
+   are easy to skip when everything else on this list passed.
+5. Rate any gap you find by real impact — critical (breaks a stated
+   acceptance criterion or data integrity), important (a real edge case with
+   no coverage), nice-to-have (cosmetic/unlikely) — rather than listing every
+   gap as equally urgent. Flag a flaky-looking test (depends on timing, test
+   order, or shared state) as its own finding, separate from coverage gaps —
+   a flaky green run is not the same as a reliable one.
 
 ## When a criterion or coverage scope is genuinely ambiguous
 "Handles errors gracefully," "performant enough" — these are real
