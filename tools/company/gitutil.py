@@ -49,3 +49,34 @@ def diff_patch_or_stat(worktree: Path, base: str, ref: str = "HEAD",
                 "in the worktree for the rest)")
     except Exception:
         return None
+
+
+EVENT_LOG_REL = ".company/events/events.jsonl"
+
+
+def event_log_git_state(repo: Path) -> dict:
+    """Is the event log in git? Read-only: never edits .gitignore or the index.
+
+    {"state": "tracked" | "ignored" | "untracked" | "unknown", "pattern": ...}
+    `pattern` is check-ignore's `source:line:pattern` for "ignored", else None.
+    Whether a repo tracks it is that repo's own .gitignore decision (company-os
+    itself deliberately ignores its own); this only reports which it made.
+    """
+    def git(*args):
+        return subprocess.run(["git", "-C", str(repo), *args],
+                              capture_output=True, text=True, timeout=10)
+    try:
+        if git("ls-files", "--error-unmatch", EVENT_LOG_REL).returncode == 0:
+            return {"state": "tracked", "pattern": None}
+        # The plain exit code decides; -v alone exits 0 on a matching
+        # `!negation` too, which means NOT ignored.
+        ignored = git("check-ignore", "-q", EVENT_LOG_REL).returncode
+        if ignored == 1:
+            return {"state": "untracked", "pattern": None}
+        if ignored == 0:
+            verbose = git("check-ignore", "-v", EVENT_LOG_REL).stdout
+            return {"state": "ignored",
+                    "pattern": verbose.split("\t", 1)[0].strip() or None}
+    except Exception:
+        pass
+    return {"state": "unknown", "pattern": None}

@@ -65,7 +65,8 @@ problem.
 
 git repo · not `$HOME` · has commits · **working tree clean** · current branch ·
 **paths without spaces** · a verify command exists · `.company/` initialised ·
-**event log integrity** · event log backed up · baseline recorded.
+**event log integrity** · event log backed up · event log tracked in git ·
+baseline recorded.
 
 Two of those are easy to underestimate on a live repo:
 
@@ -92,6 +93,26 @@ backup over `events.jsonl` by hand and run `company rebuild --verify`.
 If a crash leaves the log's last line half-written, every append refuses until
 you repair it by hand (or restore) — Company OS will not guess what that line
 was meant to say. `doctor` names the exact line.
+
+### Tracking the event log in git
+
+**New onboards should track `events.jsonl` in git** — your remote then backs it
+up for free, on top of `company backup`. Company OS never edits your `.gitignore`
+for this and never commits on your behalf; `company init` only tells you where
+you stand:
+
+- **Not ignored** — it prints a reminder to `git add .company/events/events.jsonl`
+  and commit it yourself at least once after the first events are written.
+- **Excluded by an existing rule** — it names the matching pattern. To track it,
+  add a negation yourself. A directory ignore like `.company/` cannot be undone by
+  a file-level `!` alone (git never looks inside an excluded directory); replace
+  it with `.company/*`, `!.company/events/`, `.company/events/*`,
+  `!.company/events/events.jsonl`.
+
+Already-onboarded repos are unaffected — leaving the log ignored is a valid
+choice, and Company OS's own repo ignores its own on purpose. `doctor` reports
+which state you are in (tracked, ignored with the matching pattern, or never
+added) as information, never as a failure.
 
 ### What counts as "green" in your stack
 
@@ -180,7 +201,7 @@ files. Explicitly **not** to check less — only to carry less.
 
 | Command | Purpose |
 |---|---|
-| `company init` | Scaffold `.company/` in this repo. Idempotent. |
+| `company init` | Scaffold `.company/` in this repo. Idempotent. Says whether git will track the event log; never edits `.gitignore` for it. |
 | `company event <task> <TYPE> [--data JSON] [--evidence ...]` | Append one event. **Worker-facing.** |
 | `company handoff <task> --from R --to R --stdin` | Write a handoff. **Worker-facing.** |
 | `company gates --request "..." --paths <globs>` | Deterministic risk-table lookup. |
