@@ -256,6 +256,118 @@ trusting subagent reports) before being staged.
 mid-session; Phase 6's commit (`0830a04`) plus this review update are not
 yet pushed as of this review.
 
+## Phase 7 — Close the genuinely-open follow-ups (2026-10-22)
+
+Source: two external architecture reviews comparing company-os against
+Paperclip/Ruflo/ECC. Most of their "roadmap" either already shipped in
+Phases 1-6 above or is a decision already made and rejected (read-only
+web dashboard — explicitly refused in Phase 5, GOAL.md/NORTH_STAR stand).
+Three items are real, scoped, and don't need a new use case to justify
+(unlike GitHub integration / external connectors / departmental
+execution, which stay deliberately open per Riyan's earlier choice):
+
+- [x] **Sandbox Tier-2 workers.** README admits Bash can write outside a
+      worker's owned-file guards — a pattern-matching guard, not a real
+      boundary. Ground first: how does `worker.py` currently enforce file
+      ownership, what's the actual escape (symlink? absolute path? cwd
+      escape?), what sandboxing primitives are available on this machine
+      (container? `sandbox-exec`? Claude Code's own sandboxing?) before
+      picking a fix.
+- [x] **Routines as events.** No scheduling exists. A `company routine
+      add --cron ... --template ...` registering a routine as an event,
+      with a lightweight external trigger (cron/launchd) appending the
+      task when it fires — fully auditable because the routine and every
+      firing are themselves events, same pattern as every other piece of
+      state in this system.
+- [x] **Evidence-linked memory provenance.** Lessons are events but don't
+      cite their source. Require each new lesson to reference a commit,
+      test run, or review event it came from; render a queryable view.
+      Keep lessons as events — this is a provenance field, not a new
+      store.
+
+- [x] **Wire the external capability catalog into real usage.** Acquisition
+      is real and current: 82 forked repos under `external/` (synced as
+      recently as 2026-10-21), indexed into a 1,661-unit catalog
+      (`config/capability-index.yaml`) by `tools/build_capability_index.py`,
+      loadable on-demand via `tools/capability.py load <unit_id>`
+      (symlinks into `skills/`). Consumption has never fired once: 0
+      symlinks in `skills/` today, 0 `CAPABILITY_*` events in the real log
+      across 625 events. Nothing at staffing or packet-render time nudges
+      an agent to check the catalog — it's only discoverable if an agent
+      spontaneously runs `capability.py list` unprompted. Ground first:
+      where staffing/packet rendering happens (`staffing.py`, `packet.py`),
+      whether a cheap relevance nudge (surface top-N catalog matches for a
+      task's title/description, same word-overlap idiom as
+      `find_matching_lessons`) fits without becoming a second bulk-load
+      path — the whole point of on-demand loading was avoiding context
+      bloat from loading everything.
+
+Ground each via a read-only Opus investigation agent before writing any
+code, same pattern as Phases 1-6. Route implementation through Opus
+subagents, not Sonnet.
+
+**Review**: all 4 items done, each grounded read-only before any code,
+then implemented serially (never in parallel) because all four shared
+`cli.py` — the exact file this session already learned the hard way can
+silently absorb a concurrent agent's in-progress edits. Independently
+re-verified after every commit (`git log`/`git status`/full test run from
+this session, not trusted from the subagent's own report):
+
+- **Sandboxing** (`d853ebc`): the gap was worse than `README.md` admitted
+  — 11 of 13 crafted escape commands succeeded against the old
+  regex-only guard, and advisors had zero containment at all
+  (`COMPANY_TASK` unset skipped the check entirely). Fixed with Claude
+  Code's own Seatbelt sandbox at launch (`failIfUnavailable`,
+  `allowUnsandboxedCommands: false` — no silent unsandboxed fallback) plus
+  a merge-time `owned_globs` diff check in `integrate.py`. Live-tested,
+  not just unit-tested: real `claude -p --settings` runs proved the OS
+  sandbox denies the same escapes the regex missed. New known tradeoff:
+  workers lose network access in normal mode (pip/npm installs mid-task
+  will now fail). Known-unknown left open, not fixed: whether
+  `git update-ref` on another branch from inside a worktree is still
+  possible (git metadata stays writable for commits to work).
+  Event-log append forgery (bypassing `$COMPANY_ACTOR`) stays explicitly
+  out of scope — a separate problem, not a sandbox issue.
+- **Routines as events** (`1762334`): `tools/company/routines.py`,
+  `ROUTINE_DEFINED`/`ROUTINE_FIRED`, `company routine
+  define/list/due/fire`, stdlib-only cron matcher (supports `*`, ranges,
+  lists, `/step`, dual day-of-month/day-of-week). `fire` routes through
+  the same `plan_spec` staffing/gate logic as `cmd_plan` (extracted from
+  it, byte-identical output) rather than a direct `TASK_CREATED` —
+  scheduled work cannot skip the risk table. Idempotent per
+  `(routine, slot)` under the event-log's existing flock, proven with a
+  real 4-concurrent-process race test. No daemon, by design — Riyan's own
+  cron fires `company routine fire --due`; matches `GOAL.md`'s "no
+  server" stance. Built with no named recurring task yet (Riyan's
+  explicit choice: "build the generic plumbing anyway").
+- **Evidence-linked memory provenance** (`9fd6b92`): optional
+  `source_ref` on `LESSON_RECORDED` (`commit:<sha>` /
+  `test_run:<seq>` / `review:<seq>` / `task:<id>`), deliberately NOT
+  required — real-log data showed 6 of 7 genuine (non-quarantined)
+  lessons have no natural source at all, so mandatory citation would
+  have forced fabrication. Lessons now actually reach the worker (not
+  just the PM's plan JSON) via `cmd_run` threading
+  `find_matching_lessons` results into `packet.render(lessons=...)`,
+  capped at 3 and 200 chars each (~300 tokens worst case), byte-identical
+  packet when none match. Added `company lesson --search`.
+- **Capability catalog wiring** (`a8f40fe`): 82 forked repos / 1,661
+  indexed units had never once been consumed (0 symlinks, 0 load events
+  ever, despite real recent syncs) — built but entirely unused.
+  Deliberately wired at PLAN time only, not packet/worker time: loading a
+  unit behaves like adding a native skill (real context cost), and a
+  measured precision check against the real catalog found genuine noise
+  (a capability-catalog-planning task matched "terminal-opener"; a
+  rate-limiting task matched an unrelated legal unit) — informational
+  hint for the PM to decide, never an automatic worker-facing suggestion
+  or bulk-load. `company capability load` now appends `CAPABILITY_LOADED`
+  so usage becomes visible going forward; the standalone
+  `tools/capability.py` script is untouched and still records nothing
+  when run directly.
+
+**Test count**: 742 (pre-Phase-7) → 792, zero regressions at any step.
+All four commits pushed-pending (not yet pushed to `origin/main` as of
+this review — confirm before pushing).
+
 ## Review
 
 (updated as each phase completes)
