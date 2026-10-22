@@ -289,6 +289,14 @@ company run TASK-101 --role backend-engineer --detach
 `company run <task-id>` will refuse anything not already staffed — that
 refusal means step 1/2 didn't happen, not that the CLI is broken.
 
+`company plan`'s JSON also carries `matching_capabilities`: up to 3 catalog
+units per task (`config/capability-index.yaml`) sharing 3+ words with its
+title + owned_globs. It is a hint, not a recommendation — word overlap
+against catalog prose is noisy, and a loaded unit costs context like any
+native skill. Read the description; if one genuinely fits, `company
+capability load <unit_id> --task <id>` (records `CAPABILITY_LOADED`) and name
+it in the packet. Otherwise ignore it. Nothing is loaded for you.
+
 **Recurring work is a routine, not a reminder.** `company routine define
 --cron "<5-field UTC cron>" --spec <plan spec>` stores the same spec you'd
 pipe to `company plan`; `company routine fire --due` (from cron/launchd)

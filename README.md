@@ -205,7 +205,8 @@ files. Explicitly **not** to check less — only to carry less.
 | `company event <task> <TYPE> [--data JSON] [--evidence ...]` | Append one event. **Worker-facing.** |
 | `company handoff <task> --from R --to R --stdin` | Write a handoff. **Worker-facing.** |
 | `company gates --request "..." --paths <globs>` | Deterministic risk-table lookup. |
-| `company plan [--spec f.json]` | Apply the risk table to a proposed task graph; refuse colliding parallel work. |
+| `company plan [--spec f.json]` | Apply the risk table to a proposed task graph; refuse colliding parallel work. Also reports, informational only, `matching_lessons` and `matching_capabilities` (catalog units whose text overlaps a task's title + owned_globs). |
+| `company capability load <unit_id> [--task T]` | `tools/capability.py load`, plus a `CAPABILITY_LOADED` event. `company capability search <terms>` / `list [--type T]` pass through to the script. The script still works standalone, without recording anything. |
 | `company staff [--project P]` | Apply a plan: tasks in the log, branches and worktrees on disk. |
 | `company run <task> --role <agent>` | Launch a Tier-2 worker: worktree, packet, supervision, budget. |
 | `company gate-group <gate_group> --role <agent>` | One gate launch for several tasks sharing a `gate_group` — combined diff, one verdict per task, not one launch each. |

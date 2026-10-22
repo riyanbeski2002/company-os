@@ -70,6 +70,10 @@ EVENTS = {
     # without the second, a retried `routine fire` would staff the same slot
     # twice. Retiring a routine is a re-definition with enabled: false.
     "ROUTINE_DEFINED", "ROUTINE_FIRED",
+    # tools/capability.py stays standalone (no event log), so nothing recorded
+    # that a catalog unit was ever actually loaded — `company capability load`
+    # appends this (data: unit_id, type, optional task) after a load succeeds.
+    "CAPABILITY_LOADED",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event

@@ -625,6 +625,105 @@ class TestPlanSurfacesPriorWork(unittest.TestCase):
         self.assertEqual((plan["similar_resolved_work"], plan["matching_lessons"]), ([], []))
 
 
+def _unit(uid, name, description):
+    return {"unit_id": uid, "name": name, "description": description, "type": "skill"}
+
+
+class TestFindMatchingCapabilities(unittest.TestCase):
+    """The capability catalog is surfaced at plan time by its own matcher:
+    title + owned_globs against name + description, 3 shared words, catalog
+    boilerplate stopworded, best few per task."""
+
+    def test_owned_globs_carry_signal_the_title_omits(self):
+        units = [_unit("x:payments-ledger", "payments-ledger",
+                       "Double-entry ledger design for payments and refunds")]
+        planned = [{"id": "T-1", "title": "Add refunds to the ledger"}]
+        self.assertEqual(staffing.find_matching_capabilities(planned, units), [])
+        planned[0]["owned_globs"] = ["src/payments/**"]
+        hits = staffing.find_matching_capabilities(planned, units)
+        self.assertEqual([h["unit_id"] for h in hits], ["x:payments-ledger"])
+        self.assertEqual(hits[0]["shared_words"], ["ledger", "payments", "refunds"])
+        self.assertEqual(hits[0]["overlap_score"], 3)
+
+    def test_two_shared_words_are_not_enough(self):
+        units = [_unit("x:gsap", "gsap", "GSAP scroll animation recipes")]
+        planned = [{"id": "T-1", "title": "Scroll animation polish"}]
+        self.assertEqual(staffing.find_matching_capabilities(planned, units), [])
+
+    def test_catalog_boilerplate_and_path_noise_never_match(self):
+        """Every unit says 'use when the user wants to build ... with ...';
+        every glob says src/ and .py. None of that is a match."""
+        units = [_unit("x:any", "any", "Use when the user wants to build and "
+                       "create new code with this skill, using src tests py")]
+        planned = [{"id": "T-1", "title": "Build and create new code using this",
+                    "owned_globs": ["src/**/*.py", "tests/**"]}]
+        self.assertEqual(staffing.find_matching_capabilities(planned, units), [])
+
+    def test_capped_to_the_best_matches_per_task_ties_by_unit_id(self):
+        units = [_unit(f"x:u{i}", f"u{i}", "react dashboard charts table") for i in range(5)]
+        units.append(_unit("x:best", "best", "react dashboard charts table filters"))
+        planned = [{"id": "T-1", "title": "React dashboard charts table filters"}]
+        hits = staffing.find_matching_capabilities(planned, units)
+        self.assertEqual([h["unit_id"] for h in hits], ["x:best", "x:u0", "x:u1"])
+        self.assertEqual([h["overlap_score"] for h in hits], [5, 4, 4])
+
+    def test_description_is_truncated_and_hit_is_informational_shape(self):
+        units = [_unit("x:long", "long", "react dashboard charts " + "word " * 100)]
+        planned = [{"id": "T-1", "title": "React dashboard charts"}]
+        hit, = staffing.find_matching_capabilities(planned, units)
+        self.assertEqual(set(hit), {"new_task", "unit_id", "name", "description",
+                                    "shared_words", "overlap_score"})
+        self.assertEqual(len(hit["description"]), 153)
+        self.assertTrue(hit["description"].endswith("..."))
+
+
+class TestPlanSurfacesCapabilities(unittest.TestCase):
+    """`company plan` reports matching_capabilities from the catalog index,
+    and an absent index surfaces nothing rather than failing the plan."""
+
+    def setUp(self):
+        import yaml
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+        self.index = Path(self.tmp.name) / "capability-index.yaml"
+        self.index.write_text(yaml.safe_dump({"units": [
+            _unit("x:migrations", "database-migrations",
+                  "Postgres schema migration safety: locking, backfill, rollbacks")]}))
+
+    def plan(self, index):
+        import contextlib
+        import io
+        import json
+        from unittest import mock
+        import cli
+        capability = cli._capability()
+        spec = Path(self.tmp.name) / "spec.json"
+        spec.write_text(json.dumps({"project": "p", "request": "r", "tasks": [
+            {"id": "P-1", "title": "Postgres migration with a backfill",
+             "owned_globs": ["db/migrations/**"]}]}))
+        out = io.StringIO()
+        with mock.patch.object(capability, "INDEX", index), \
+                contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            cli.main(["--root", str(self.root), "plan", "--spec", str(spec)])
+        return json.loads(out.getvalue())
+
+    def test_matching_capabilities_are_in_the_plan_json(self):
+        plan = self.plan(self.index)
+        self.assertTrue(plan["ok"])
+        hit, = plan["matching_capabilities"]
+        self.assertEqual((hit["new_task"], hit["unit_id"], hit["overlap_score"]),
+                         ("P-1", "x:migrations", 4))
+        self.assertEqual(hit["shared_words"],
+                         ["backfill", "migration", "migrations", "postgres"])
+
+    def test_no_index_surfaces_nothing(self):
+        plan = self.plan(Path(self.tmp.name) / "missing.yaml")
+        self.assertTrue(plan["ok"])
+        self.assertEqual(plan["matching_capabilities"], [])
+
+
 class TestSizeBands(unittest.TestCase):
     def test_bands(self):
         self.assertEqual(staffing.size_band(0)["size"], "trivial")

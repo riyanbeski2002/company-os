@@ -416,6 +416,23 @@ def cmd_gates(args):
     emit(result)
 
 
+def _capability():
+    """tools/capability.py, the standalone catalog loader — one directory up
+    from this package, so not on the path `company` itself runs with."""
+    tools_dir = str(Path(__file__).resolve().parent.parent)
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    import capability
+    return capability
+
+
+def _capability_units() -> list[dict]:
+    capability = _capability()
+    if not capability.INDEX.exists():
+        return []
+    return list(capability.load_units().values())
+
+
 def cmd_plan(args):
     """Turn a proposed task graph into a staffing plan.
 
@@ -544,6 +561,13 @@ def plan_spec(root: Path, spec: dict, *, allow_overlap: bool = False,
     similar_resolved = staffing.find_similar_resolved_work(planned, existing)
     matching_lessons = staffing.find_matching_lessons(
         planned, lessons_mod.fold(events))
+    # Same informational pattern against company-os's own external capability
+    # catalog. Plan time only, never the packet: match precision against this
+    # corpus is too low to inject into a worker unasked, and a loaded unit
+    # costs context like any native skill — so the PM sees the hint and
+    # decides. A checkout without the index just surfaces nothing.
+    matching_capabilities = staffing.find_matching_capabilities(
+        planned, _capability_units())
 
     plan = {
         "project": project, "request": request, "tasks": planned,
@@ -557,6 +581,7 @@ def plan_spec(root: Path, spec: dict, *, allow_overlap: bool = False,
         "possible_duplicate_staffing": duplicates,
         "similar_resolved_work": similar_resolved,
         "matching_lessons": matching_lessons,
+        "matching_capabilities": matching_capabilities,
     }
 
     if collisions and not allow_overlap:
@@ -1603,6 +1628,51 @@ def cmd_lesson(args):
         emit(out)
 
 
+def cmd_capability_load(args):
+    """`tools/capability.py load`, plus the one fact that script deliberately
+    can't record (it stays standalone, no event log): CAPABILITY_LOADED, so
+    which catalog units actually get used is visible in the log. The script's
+    own output is captured into the JSON rather than mixed into stdout; it is
+    run in-process, unchanged, and still works directly without `company`."""
+    import contextlib
+    import io
+    capability = _capability()
+    root = company_root(args)
+    project = load_project(root, args.project)
+    printed = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(printed):
+            capability.cmd_load([args.unit_id])
+    except SystemExit as exc:  # unknown unit_id, or no index: nothing loaded
+        die(str(exc.code), 1)
+    data = {"unit_id": args.unit_id,
+            "type": capability.load_units()[args.unit_id]["type"]}
+    if args.task:
+        data["task"] = args.task
+    written = EventLog(root).append(make_event(
+        event="CAPABILITY_LOADED",
+        actor=args.actor or os.environ.get("COMPANY_ACTOR") or "company-pm",
+        project=project, data=data))
+    emit({"ok": True, "seq": written["seq"], **data,
+          "output": printed.getvalue().strip()})
+
+
+def cmd_capability_search(args):
+    """Thin wrapper: the script's own search, output passed through."""
+    try:
+        _capability().cmd_search(args.terms)
+    except SystemExit as exc:
+        die(str(exc.code), 1)
+
+
+def cmd_capability_list(args):
+    """Thin wrapper: the script's own list, output passed through."""
+    try:
+        _capability().cmd_list(["--type", args.type] if args.type else [])
+    except SystemExit as exc:
+        die(str(exc.code), 1)
+
+
 def cmd_escalate(args):
     """Ask the CEO for something the PM cannot do or decide — or, with
     --list, query what's already been raised instead of raising a new one."""
@@ -2287,6 +2357,22 @@ def build_parser():
     ls.add_argument("--search", help="list mode: only lessons whose pattern/fix shares "
                     "words with this text, best match first")
     ls.set_defaults(fn=cmd_lesson)
+
+    cp = sub.add_parser("capability", help="the external capability catalog "
+                        "(tools/capability.py); `load` also records CAPABILITY_LOADED")
+    cpsub = cp.add_subparsers(dest="capability_cmd", required=True)
+    cpl = cpsub.add_parser("load", help="load one catalog unit and record that it was loaded")
+    cpl.add_argument("unit_id")
+    cpl.add_argument("--task", help="the task this unit was loaded for")
+    cpl.add_argument("--actor")
+    cpl.add_argument("--project")
+    cpl.set_defaults(fn=cmd_capability_load)
+    cps = cpsub.add_parser("search", help="units whose id/name/description contain every term")
+    cps.add_argument("terms", nargs="+")
+    cps.set_defaults(fn=cmd_capability_search)
+    cpli = cpsub.add_parser("list", help="every unit, grouped by type")
+    cpli.add_argument("--type", choices=["skill", "tool", "reference"])
+    cpli.set_defaults(fn=cmd_capability_list)
 
     es = sub.add_parser("escalate", help="ask the CEO for something the PM cannot do")
     es.add_argument("--kind",

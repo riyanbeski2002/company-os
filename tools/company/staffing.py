@@ -437,6 +437,71 @@ def find_matching_lessons(planned_tasks: list[dict], lessons: list[dict],
     return hits
 
 
+# The external capability catalog (config/capability-index.yaml, read through
+# tools/capability.py) is far noisier prose than a lesson: ~1,700 units whose
+# descriptions are ~270 chars of "Use when the user asks to build ... with
+# ..." boilerplate. Against that, the lesson matcher's title-only, 2-shared-
+# words rule surfaced filler-word matches, so this one differs on purpose:
+# owned_globs are tokenized alongside the title (a path component like
+# "auth" or "payments" is often the real signal a short title omits), the
+# floor is 3 shared words, catalog boilerplate is stopworded, and only the
+# best few per task are kept. Informational only — the PM decides whether
+# `company capability load <unit_id>` is worth its context cost.
+CAPABILITY_MATCH_MIN_SHARED = 3
+CAPABILITY_MATCH_LIMIT = 3
+_CAPABILITY_STOPWORDS = _LESSON_STOPWORDS | {
+    # catalog boilerplate: how descriptions say "when to use me", not what for
+    "use", "used", "uses", "using", "user", "users", "wants", "asks", "asked",
+    "need", "needs", "invoke", "trigger", "triggers", "whenever", "mentions",
+    "covers", "skill", "skills", "agent", "agents", "claude", "you", "your",
+    "support", "supports", "guide", "help", "helps", "like", "via", "based",
+    "including", "through", "without", "across", "instead", "specific", "about",
+    "see", "their", "how", "make", "don", "one", "new", "existing", "before",
+    "after", "first", "real", "full", "per", "out", "more", "other", "such",
+    "both", "most", "best", "practices", "patterns", "work", "code", "tasks",
+    "create", "creating", "build", "building", "write", "writing", "run", "runs",
+    "project", "file", "files",
+}
+# Directory and extension names that say where code lives, not what it does.
+_GLOB_NOISE = {
+    "src", "lib", "app", "apps", "packages", "pkg", "internal", "cmd", "test",
+    "tests", "spec", "docs", "tools", "scripts", "config", "components", "index",
+    "main", "py", "js", "ts", "tsx", "jsx", "json", "yaml", "yml", "md",
+}
+
+
+def find_matching_capabilities(planned_tasks: list[dict], capability_units,
+                               min_shared: int = CAPABILITY_MATCH_MIN_SHARED,
+                               limit: int = CAPABILITY_MATCH_LIMIT) -> list[dict]:
+    """Catalog units (tools/capability.py `load_units()` values) whose
+    name + description shares at least `min_shared` meaningful words with a
+    newly planned task's title + owned_globs, best `limit` per task by shared
+    word count (ties by unit_id, so same inputs same output)."""
+    unit_words = [(u, _title_tokens(f"{u.get('name') or ''} {u.get('description') or ''}")
+                   - _CAPABILITY_STOPWORDS) for u in capability_units]
+    hits = []
+    for new_task in planned_tasks:
+        glob_words = _title_tokens(" ".join(new_task.get("owned_globs") or [])) - _GLOB_NOISE
+        task_words = (_title_tokens(new_task.get("title", "")) | glob_words) \
+            - _CAPABILITY_STOPWORDS
+        if len(task_words) < min_shared:
+            continue
+        scored = []
+        for unit, words in unit_words:
+            shared = task_words & words
+            if len(shared) >= min_shared:
+                scored.append((-len(shared), unit["unit_id"], unit, shared))
+        for _, _, unit, shared in sorted(scored, key=lambda s: s[:2])[:limit]:
+            description = " ".join((unit.get("description") or "").split())
+            hits.append({
+                "new_task": new_task["id"], "unit_id": unit["unit_id"],
+                "name": unit.get("name"),
+                "description": description[:150] + ("..." if len(description) > 150 else ""),
+                "shared_words": sorted(shared), "overlap_score": len(shared),
+            })
+    return hits
+
+
 # --- overlap prediction -----------------------------------------------------
 
 def predict_overlap(tasks: list[dict]) -> list[dict]:
