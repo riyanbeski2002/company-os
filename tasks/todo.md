@@ -163,10 +163,33 @@ master prompt's section 4 asks for.
       not a number; only `status`/`goal tree` take `--json`, the rest are
       always-JSON (inconsistent flag surface).
 
-## Phase 6 — Production hardening (not started)
+## Phase 6 — Production hardening (done, scoped down to what fits a single operator)
 
-- [ ] Threat model, multi-tenant isolation tests, failure injection,
-      restore testing — deferred until Phases 1-5 exist to harden.
+- [x] Found the real, single most consequential gap before building
+      anything: `.company/events/events.jsonl` — the sole authoritative
+      source of truth — had no backup and no corruption-recovery path.
+      `append()`'s own concurrency safety (flock + atomic seq + fsync)
+      was already sound; nothing around it protected against a crash
+      leaving a torn tail, and backup coverage across onboarded repos was
+      pure accident (one repo had zero copy anywhere, 4.7MB of history).
+- [x] Shipped exactly that, nothing broader (no multi-tenant isolation,
+      no deployment validation, no sprawling threat model — none of it
+      fits a single-operator, no-server tool): `company backup`
+      (timestamped, atomic, fsync'd, outside the repo), two new
+      `company doctor` checks (integrity — blocking; backup freshness —
+      advisory only), `append()` refuses rather than guesses on a torn
+      tail (same discipline as `backfill.py`/`quarantine.py`).
+- [x] Auto-backup deliberately left manual-only — wiring it into
+      onboard/session-done/event would have leaked real writes into
+      `~/.company-backups` on every test run, the same class of leak
+      `quarantine.py` just cleaned up for lessons. `events.jsonl`-in-git
+      is a separate decision, deliberately not bundled in.
+- [x] `KNOWN_ISSUES.md` wording corrected — all 3 documented defects were
+      already fixed in code (confirmed earlier this session), the doc
+      still read as open.
+- [x] 31 new tests, including a real SIGKILL-mid-append crash test (both
+      before and after the fsync point) and a corrupt → restore →
+      `rebuild --verify` test. 711/711 passing. Committed `0830a04`.
 
 ## Operating notes
 
@@ -181,6 +204,57 @@ master prompt's section 4 asks for.
   `.company/config/authorized-targets.yaml` remain untouched/unstaged in
   every commit (standing "ignore anything related to hyperverge"
   instruction).
+
+## Review
+
+All 6 phases of the 2026-10-21 master prompt are now done, each scoped
+down from the prompt's original language to what was real and
+non-speculative — none of the 6 shipped as originally written, and that
+was the right outcome every time, not a shortfall:
+
+- **Phase 1**: 2 of 3 "known issues" were already fixed; shipped the one
+  real gap (token backfill) plus a live-blocking `cmd_integrate` bug found
+  via a real bug report mid-stream.
+- **Phase 2**: the "universal adapter contract" was already real,
+  documented and tested; the only genuinely open item (a 3rd harness)
+  stayed blocked on missing info, by Riyan's choice, not forced.
+- **Phase 3**: the master prompt's 9-rung hierarchy needed only 2 new
+  rungs (above "project", below "task") — ADR-006, approved then
+  implemented, dogfooded with a real mission/objective/key-result.
+- **Phase 4**: skill-loading and memory were already correctly built;
+  shipped the one real narrow gap (resolved-work/lesson retrieval at
+  staffing time).
+- **Phase 5**: found a genuine conflict between the master prompt and
+  company-os's own GOAL.md/NORTH_STAR/ADR-006 (no server/UI, ever) —
+  surfaced rather than silently resolved either way; Riyan kept GOAL.md,
+  so Phase 5 shipped a documented, tested JSON contract instead of a
+  dashboard.
+- **Phase 6**: found the one gap that actually mattered for a
+  single-operator system (event-log durability) instead of building the
+  multi-tenant/deployment-validation language the prompt used, which
+  never fit this system to begin with.
+
+**Pattern that held across every phase, worth remembering**: investigate
+what's real before writing code. Every single phase turned out smaller,
+more scoped, or materially different from its master-prompt description
+once grounded against the actual repo — never once did the grounding pass
+turn up "yes, build exactly what was asked, at that scale."
+
+**What's deliberately NOT done, by explicit decision, not oversight**:
+departmental non-engineering execution (advisor roles exist, have never
+run a real task end-to-end), external connectors (zero exist, no named
+use case), a 3rd harness adapter (blocked on missing info), 3 CLI-JSON
+inconsistencies (real but each is a behavior change), `events.jsonl`-in-git
+(a separate decision, explicitly deferred).
+
+**Test count**: 536 at session start → 711 at this review, zero
+regressions at any step, every commit verified independently (not just
+trusting subagent reports) before being staged.
+
+**Status**: 10 commits (`baf0d74`..`0830a04`) on top of the pre-initiative
+`6cdd62d` — the first 9 (through Phase 5) pushed to `origin/main`
+mid-session; Phase 6's commit (`0830a04`) plus this review update are not
+yet pushed as of this review.
 
 ## Review
 
