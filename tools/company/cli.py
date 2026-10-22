@@ -22,7 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from eventlog import GOAL_EVENTS, EventLog, EvidenceError, canonical, make_event  # noqa: E402
+from eventlog import (GOAL_EVENTS, ROUTINE_EVENTS, EventLog, EvidenceError,  # noqa: E402
+                      canonical, make_event)
 import taskstate  # noqa: E402
 
 SCAFFOLD = [
@@ -217,6 +218,12 @@ def cmd_event(args):
         # (parent level, one open mission, retro-link reasons) and refuses
         # to run inside a launched worker.
         die(f"{args.type!r} may only be recorded through `company goal`, never "
+           f"through raw `company event` — that command owns its validation.", 2)
+    if args.type in ROUTINE_EVENTS:
+        # Same shape as goal events: `company routine` owns the cron check and
+        # the one-fire-per-slot rule, and refuses to run inside a worker — a
+        # worker must never schedule its own future work.
+        die(f"{args.type!r} may only be recorded through `company routine`, never "
            f"through raw `company event` — that command owns its validation.", 2)
     data = json.loads(args.data) if args.data else None
     evidence = None
@@ -417,20 +424,46 @@ def cmd_plan(args):
     asked for it or not, and refuses to plan parallel work with overlapping
     file ownership.
     """
-    import staffing
     root = company_root(args)
+    spec = json.loads(Path(args.spec).read_text(encoding="utf-8")) if args.spec \
+        else json.loads(sys.stdin.read())
+    try:
+        plan = plan_spec(root, spec, allow_overlap=args.allow_overlap,
+                         allow_tier_escalation=args.allow_tier_escalation,
+                         allow_duplicate=args.allow_duplicate)
+    except ValueError as exc:
+        die(str(exc), 1)
+    if not plan["ok"]:
+        emit(plan, 3)
+
+    project = plan["project"]
+    (root / "projects").mkdir(parents=True, exist_ok=True)
+    (root / "projects" / f"{project}.json").write_text(
+        canonical({k: v for k, v in plan.items() if k != "ok"}), encoding="utf-8")
+    emit(plan)
+
+
+def plan_spec(root: Path, spec: dict, *, allow_overlap: bool = False,
+              allow_tier_escalation: bool = False, allow_duplicate: bool = False) -> dict:
+    """The body of `company plan`, callable by `company routine fire`: the
+    staffing plan for `spec`, with `ok` False and a `refusal` when a check
+    refuses it. Writes nothing. Raises ValueError for a malformed spec or a
+    goal that can't be linked."""
+    import staffing
     cfg = staffing.load_config(root, "risk-triggers.yaml")
     qg = staffing.load_config(root, "quality-gates.yaml")
 
-    spec = json.loads(Path(args.spec).read_text(encoding="utf-8")) if args.spec \
-        else json.loads(sys.stdin.read())
-    project = spec.get("project") or die("plan spec needs a 'project'")
+    project = spec.get("project")
+    if not project:
+        raise ValueError("plan spec needs a 'project'")
     request = spec.get("request", "")
     # ADR-006 §3: a spec-level `goal` is stamped onto every task lacking one,
     # the same way `project` is. Never an input to staffing.evaluate() (§6):
     # "grow payments revenue" must not fire the payments trigger.
     goal = spec.get("goal")
-    tasks = spec.get("tasks") or die("plan spec needs a non-empty 'tasks' list")
+    tasks = spec.get("tasks")
+    if not tasks:
+        raise ValueError("plan spec needs a non-empty 'tasks' list")
 
     planned, forced, unreasoned_escalations = [], [], []
     for task in tasks:
@@ -482,10 +515,11 @@ def cmd_plan(args):
         for gid in linked_goals:
             d = defs.get(gid)
             if not d or d["closed"] or d.get("level") == "mission":
-                die(f"plan links tasks to {gid!r}, which is "
+                raise ValueError(
+                    f"plan links tasks to {gid!r}, which is "
                     + ("not a defined goal" if not d else "closed" if d["closed"]
                        else "the mission — link an objective or key_result")
-                    + " (see `company goal tree`)", 1)
+                    + " (see `company goal tree`)")
 
     tier2 = [t for t in planned if t.get("tier") == 2]
     parallel = [t for t in tier2 if not t.get("depends_on")]
@@ -525,24 +559,20 @@ def cmd_plan(args):
         "matching_lessons": matching_lessons,
     }
 
-    if collisions and not args.allow_overlap:
+    if collisions and not allow_overlap:
         plan["ok"] = False
         plan["refusal"] = (
             "parallel tasks have overlapping file ownership — sequence them with "
             "depends_on, split the globs, or pass --allow-overlap"
         )
-        emit(plan, 3)
-
-    if unreasoned_escalations and not args.allow_tier_escalation:
+    elif unreasoned_escalations and not allow_tier_escalation:
         plan["ok"] = False
         plan["refusal"] = (
             "fast_path recommends Tier 0 for one or more tasks (no risk trigger, "
             "diff in-bounds) but they're staffed above it with no recorded reason — "
             "set 'tier_reason' on the task, or pass --allow-tier-escalation"
         )
-        emit(plan, 3)
-
-    if duplicates and not args.allow_duplicate:
+    elif duplicates and not allow_duplicate:
         plan["ok"] = False
         plan["refusal"] = (
             "one or more planned tasks closely match the title of a still-live "
@@ -550,12 +580,20 @@ def cmd_plan(args):
             "same fix twice under a different id, or pass --allow-duplicate if "
             "this genuinely is separate work"
         )
-        emit(plan, 3)
+    else:
+        plan["ok"] = True
+    return plan
 
-    (root / "projects").mkdir(parents=True, exist_ok=True)
-    (root / "projects" / f"{project}.json").write_text(canonical(plan), encoding="utf-8")
-    plan["ok"] = True
-    emit(plan)
+
+def _task_created_data(task: dict) -> dict:
+    """A planned task's TASK_CREATED payload — shared by `staff` and
+    `routine fire` so both create tasks the same way."""
+    import worker as worker_mod
+    tid = task["id"]
+    data = {k: v for k, v in task.items() if k not in ("id", "project")}
+    if task.get("tier") == 2 and not data.get("branch"):
+        data["branch"] = f"task/{tid.split('-')[-1]}-{worker_mod.slug(task.get('title', tid))}"
+    return data
 
 
 def cmd_staff(args):
@@ -579,9 +617,7 @@ def cmd_staff(args):
             staffed.append({"task": tid, "skipped": "already in the event log"})
             continue
 
-        data = {k: v for k, v in task.items() if k not in ("id", "project")}
-        if task.get("tier") == 2 and not data.get("branch"):
-            data["branch"] = f"task/{tid.split('-')[-1]}-{worker_mod.slug(task.get('title', tid))}"
+        data = _task_created_data(task)
         log.append(make_event(event="TASK_CREATED", actor="company-pm",
                               project=project, task=tid, data=data))
 
@@ -1614,15 +1650,17 @@ def cmd_team(args):
 
 # --- goals (ADR-006) -------------------------------------------------------
 
-def _refuse_inside_worker(verb: str):
+def _refuse_inside_worker(verb: str, group: str = "goal",
+                          why: str = "goals are set and assessed by Riyan or the PM, "
+                                     "never by the work being measured"):
     """A launched Tier-2 worker defining its own objective, or grading its own
-    outcome, is self-certification. $COMPANY_ACTOR is set only by the
-    launcher, so its presence is the one actor boundary enforceable today."""
+    outcome, is self-certification; one scheduling a routine is a worker
+    choosing its own future work. $COMPANY_ACTOR is set only by the launcher,
+    so its presence is the one actor boundary enforceable today."""
     actor = os.environ.get("COMPANY_ACTOR")
     if actor:
-        die(f"`company goal {verb}` refuses to run inside a launched worker "
-            f"($COMPANY_ACTOR={actor!r}) — goals are set and assessed by Riyan or "
-            f"the PM, never by the work being measured.", 2)
+        die(f"`company {group} {verb}` refuses to run inside a launched worker "
+            f"($COMPANY_ACTOR={actor!r}) — {why}.", 2)
 
 
 def _json_arg(name: str, raw: str | None):
@@ -1761,6 +1799,137 @@ def cmd_goal_gaps(args):
     root = company_root(args)
     views, tasks = _goal_views(root)
     emit(goals_mod.gaps(views, tasks, _goal_policy(root)))
+
+
+ROUTINE_WHY = "routines are scheduled by Riyan or the PM, never by a worker choosing its own future work"
+
+
+def _routine_now(args):
+    import routines as routines_mod
+    from datetime import datetime, timezone
+    try:
+        return routines_mod.parse_time(args.now) if args.now else datetime.now(timezone.utc)
+    except ValueError as exc:
+        die(f"--now is not an ISO 8601 time: {exc}")
+
+
+def cmd_routine_define(args):
+    import routines as routines_mod
+    _refuse_inside_worker("define", "routine", ROUTINE_WHY)
+    root = company_root(args)
+    events = EventLog(root).read()
+    if args.id and args.id in routines_mod.fold(events):
+        # A redefinition is written whole, so the fold's "last wins" never
+        # has to merge partial events.
+        prior = routines_mod.fold(events)[args.id]
+        data = {k: prior[k] for k in ("id", "cron", "spec", "enabled")}
+    else:
+        if not args.cron or not args.spec:
+            die("--cron and --spec are required to define a new routine")
+        data = {"id": args.id or routines_mod.next_id(events), "enabled": True}
+    if args.spec:
+        raw = args.spec
+        if not raw.lstrip().startswith("{"):
+            try:
+                raw = Path(raw).read_text(encoding="utf-8")
+            except OSError as exc:
+                die(f"--spec: {exc}")
+        data["spec"] = _json_arg("--spec", raw)
+    for field, value in (("cron", args.cron), ("enabled", args.enabled), ("reason", args.reason)):
+        if value is not None:
+            data[field] = value
+    try:
+        written = routines_mod.define(root, actor=args.actor or "company-pm", data=data)
+    except ValueError as exc:
+        die(str(exc), 1)
+    emit({"ok": True, "seq": written["seq"], "routine": data["id"],
+          "enabled": data["enabled"], "cron": data["cron"]})
+
+
+def cmd_routine_list(args):
+    import routines as routines_mod
+    views = routines_mod.fold(EventLog(company_root(args)).read())
+    emit({"ok": True, "routines": [
+        {"id": rid, "cron": r["cron"], "enabled": r["enabled"],
+         "project": r["spec"].get("project"), "fired": len(r["fired"]),
+         "last_fired_slot": r["fired"][-1]["slot"] if r["fired"] else None}
+        for rid, r in sorted(views.items())]})
+
+
+def cmd_routine_due(args):
+    import routines as routines_mod
+    now = _routine_now(args)
+    views = routines_mod.fold(EventLog(company_root(args)).read())
+    emit({"ok": True, "now": routines_mod.slot_id(now), "due": routines_mod.due(views, now)})
+
+
+def cmd_routine_fire(args):
+    """Turn due routines into PLANNED tasks, through plan_spec() — the same
+    mandatory gates, duplicate-work and goal checks `company plan` applies.
+    Never launches anything. A slot fires once: ROUTINE_FIRED is appended
+    before the tasks, and EventLog.append refuses a second one for the same
+    (routine, slot) under its lock, so a concurrent fire becomes a no-op."""
+    import routines as routines_mod
+    from eventlog import ORG_PROJECT, DuplicateFireError
+    _refuse_inside_worker("fire", "routine", ROUTINE_WHY)
+    if bool(args.id) == bool(args.due):
+        die("give a routine id to fire, or --due — not both, not neither")
+    root = company_root(args)
+    log = EventLog(root)
+    now = _routine_now(args)
+    views = routines_mod.fold(log.read())
+
+    if args.due:
+        targets = routines_mod.due(views, now)
+    else:
+        r = views.get(args.id) or die(f"no routine {args.id!r} is defined")
+        if not r["enabled"]:
+            die(f"routine {args.id!r} is disabled")
+        slot = routines_mod.latest_slot(routines_mod.parse_cron(r["cron"]),
+                                        routines_mod.parse_time(r["revised_at"]), now)
+        if not slot:
+            die(f"routine {args.id!r} has no scheduled slot since it was defined")
+        targets = [{"routine": args.id, "slot": routines_mod.slot_id(slot)}]
+
+    results, refused = [], False
+    for target in targets:
+        rid, slot = target["routine"], target["slot"]
+        result = {"routine": rid, "slot": slot}
+        results.append(result)
+        if slot in routines_mod.fired_slots(views[rid]):
+            # Checked before planning: this slot's own tasks would otherwise
+            # trip the duplicate-staffing refusal and read as a failure.
+            result["skipped"] = "already fired for this slot"
+            continue
+        try:
+            plan = plan_spec(root, routines_mod.instantiate(views[rid]["spec"], slot))
+        except ValueError as exc:
+            plan = {"ok": False, "refusal": str(exc)}
+        if not plan["ok"]:
+            refused = True
+            result.update({"ok": False, "refusal": plan["refusal"]})
+            continue
+        tasks = plan["tasks"]
+        try:
+            log.append(make_event(event="ROUTINE_FIRED", actor=args.actor or "company-pm",
+                                  project=ORG_PROJECT,
+                                  data={"routine": rid, "slot": slot,
+                                        "tasks": [t["id"] for t in tasks]}))
+        except DuplicateFireError:
+            result["skipped"] = "already fired for this slot"
+            continue
+        existing = taskstate.fold(log.read())
+        for task in tasks:
+            if task["id"] not in existing:
+                log.append(make_event(event="TASK_CREATED", actor=args.actor or "company-pm",
+                                      project=task["project"], task=task["id"],
+                                      data=_task_created_data(task)))
+        result.update({"ok": True, "tasks": [t["id"] for t in tasks],
+                       "gates": {t["id"]: t["gates"] for t in tasks}})
+
+    taskstate.rebuild(root)
+    emit({"ok": not refused, "now": routines_mod.slot_id(now), "fired": results},
+         3 if refused else 0)
 
 
 def cmd_gallery(args):
@@ -2169,6 +2338,31 @@ def build_parser():
     gg2 = gosub.add_parser("gaps", help="ungoaled tasks, unassessed and suspect outcomes")
     gg2.add_argument("--json", action="store_true", help="accepted; output is always JSON")
     gg2.set_defaults(fn=cmd_goal_gaps)
+
+    ro = sub.add_parser("routine", help="recurring work: a plan spec on a cron schedule")
+    rosub = ro.add_subparsers(dest="routinecmd", required=True)
+    rd = rosub.add_parser("define", help="define a routine, or redefine one with --id and --reason")
+    rd.add_argument("--id", help="R-NNN; redefines it if it exists (default: the next R-NNN)")
+    rd.add_argument("--cron", help='5-field UTC cron, e.g. "*/15 * * * *" or "0 3 * * 1-5"')
+    rd.add_argument("--spec", help="plan spec (same shape `company plan` takes): a JSON file path or inline JSON")
+    en = rd.add_mutually_exclusive_group()
+    en.add_argument("--enable", dest="enabled", action="store_true", default=None)
+    en.add_argument("--disable", dest="enabled", action="store_false", default=None,
+                    help="stop it firing — also how a routine is retired")
+    rd.add_argument("--reason", help="required when redefining")
+    rd.add_argument("--actor", help="default: company-pm")
+    rd.set_defaults(fn=cmd_routine_define)
+    rl = rosub.add_parser("list", help="every routine: cron, enabled, last fired slot")
+    rl.set_defaults(fn=cmd_routine_list)
+    ru = rosub.add_parser("due", help="which routines are due now (read-only)")
+    ru.add_argument("--now", help="ISO 8601 time to evaluate at instead of the clock (UTC if naive)")
+    ru.set_defaults(fn=cmd_routine_due)
+    rf = rosub.add_parser("fire", help="turn a due routine into PLANNED tasks via the plan checks; never runs them")
+    rf.add_argument("id", nargs="?")
+    rf.add_argument("--due", action="store_true", help="fire every routine that is due")
+    rf.add_argument("--now", help="ISO 8601 time to evaluate at instead of the clock (UTC if naive)")
+    rf.add_argument("--actor", help="default: company-pm")
+    rf.set_defaults(fn=cmd_routine_fire)
 
     gl = sub.add_parser("gallery", help="plan or open the tmux viewing gallery")
     gl.add_argument("--project")

@@ -221,6 +221,9 @@ files. Explicitly **not** to check less — only to carry less.
 | `company goal tree [--json]` | The mission → objectives → key results tree, each node with delivery, outcome, and spend. |
 | `company goal show <goal>` | One goal: linked tasks, assessment history, flags, budget vs. spend. |
 | `company goal gaps` | Ungoaled tasks, `awaiting_assessment`, `stale`, `self_assessed`, and other goal-hygiene flags — information, not a gate. |
+| `company routine define --cron "M H DOM MON DOW" --spec f.json\|JSON [--id R-NNN --reason "..."] [--enable\|--disable]` | Define or redefine recurring work: a plan spec on a UTC cron schedule (`*`, numbers, ranges, lists, `/step`). `--disable` retires it. |
+| `company routine list\|due [--now ISO]` | Every routine with its last fired slot; or which are due now (read-only). |
+| `company routine fire <R-NNN>\|--due [--now ISO]` | Turn a due slot into PLANNED tasks through the same checks as `company plan`. Once per slot; never launches a worker. |
 | `company status [--json]` | Derived state only. Never estimated. |
 | `company report` | Executive summary: outcomes, not activity. |
 | `company escalate --kind K --need "..."` | Ask the CEO for something the PM cannot do or decide. |

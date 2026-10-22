@@ -289,6 +289,14 @@ company run TASK-101 --role backend-engineer --detach
 `company run <task-id>` will refuse anything not already staffed — that
 refusal means step 1/2 didn't happen, not that the CLI is broken.
 
+**Recurring work is a routine, not a reminder.** `company routine define
+--cron "<5-field UTC cron>" --spec <plan spec>` stores the same spec you'd
+pipe to `company plan`; `company routine fire --due` (from cron/launchd)
+turns each due slot into PLANNED tasks through the same plan checks, once per
+slot. It never launches anything — pick those tasks up with step 3 like any
+other. A slot whose previous tasks are still live is refused as duplicate
+work; finish or abandon them first.
+
 **Gate at the milestone/PR boundary, not per task — this is the default now,
 not an opt-in (Riyan, 2026-08-25): "kill the rule that says code review, qa,
 security for every task, it is only for milestones and PRs."** The risk

@@ -65,6 +65,11 @@ EVENTS = {
     # after TASK_CREATED; nothing records whether intent was *achieved*; and
     # an abandoned goal would otherwise sit "unassessed" forever.
     "GOAL_DEFINED", "GOAL_LINKED", "OUTCOME_ASSESSED", "GOAL_CLOSED",
+    # Recurring work (routines.py). Nothing records that work should recur on
+    # a schedule, or which scheduled occurrence already produced its tasks —
+    # without the second, a retried `routine fire` would staff the same slot
+    # twice. Retiring a routine is a re-definition with enabled: false.
+    "ROUTINE_DEFINED", "ROUTINE_FIRED",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event
@@ -101,6 +106,10 @@ GOAL_PARENT_LEVEL = {"mission": None, "objective": "mission", "key_result": "obj
 OUTCOME_VERDICTS = {"achieved", "not_achieved", "inconclusive"}
 GOAL_DISPOSITIONS = {"abandoned", "superseded"}
 MEASURE_DIRECTIONS = {"increase", "decrease"}
+
+# Routines are org-level schedules, not tasks: same reserved project, same
+# no-top-level-task rule as goal events. Their tasks are named in data.
+ROUTINE_EVENTS = {"ROUTINE_DEFINED", "ROUTINE_FIRED"}
 
 # Gate name -> the event that satisfies it. Used by the Evidence Rule.
 GATE_EVENT = {
@@ -170,6 +179,8 @@ def validate(event: dict) -> None:
             raise EvidenceError("IMPLEMENTATION_READY requires evidence.commit (a SHA)")
     if name in GOAL_EVENTS:
         _validate_goal_event(event)
+    if name in ROUTINE_EVENTS:
+        _validate_routine_event(event)
 
 
 def _is_number(v) -> bool:
@@ -254,6 +265,57 @@ def _validate_goal_event(event: dict) -> None:
             raise ValueError("GOAL_CLOSED requires a data.reason")
 
 
+def _validate_routine_event(event: dict) -> None:
+    """Shape rules a single routine event can answer. Whether the cron
+    expression actually parses lives in routines.py, which owns the matcher;
+    whether a slot already fired is checked in EventLog.append, under the lock."""
+    name = event["event"]
+    data = event.get("data") or {}
+    if event["project"] != ORG_PROJECT:
+        raise ValueError(f"{name} is not project-scoped and must carry project {ORG_PROJECT!r}")
+    if event.get("task"):
+        # Same reason as goal events: taskstate.fold() would create a
+        # phantom DRAFT task for whatever id leaked in here.
+        raise ValueError(f"{name} must not carry a top-level 'task'")
+
+    if name == "ROUTINE_DEFINED":
+        if not str(data.get("id") or "").startswith("R-"):
+            raise ValueError("ROUTINE_DEFINED requires data.id of the form R-NNN")
+        if not (isinstance(data.get("cron"), str) and len(data["cron"].split()) == 5):
+            raise ValueError("ROUTINE_DEFINED requires data.cron, a 5-field cron expression")
+        spec = data.get("spec")
+        if not (isinstance(spec, dict) and spec.get("project")
+                and isinstance(spec.get("tasks"), list) and spec["tasks"]
+                and all(isinstance(t, dict) and t.get("id") for t in spec["tasks"])):
+            raise ValueError("ROUTINE_DEFINED requires data.spec, a plan spec with a "
+                             "'project' and a non-empty 'tasks' list of tasks with ids")
+        if not isinstance(data.get("enabled"), bool):
+            raise ValueError("ROUTINE_DEFINED requires data.enabled (true or false)")
+
+    elif name == "ROUTINE_FIRED":
+        if not data.get("routine") or not data.get("slot"):
+            raise ValueError("ROUTINE_FIRED requires data.routine and data.slot")
+        tasks = data.get("tasks")
+        if not (isinstance(tasks, list) and tasks and all(isinstance(t, str) and t for t in tasks)):
+            raise ValueError("ROUTINE_FIRED requires a non-empty data.tasks list of task ids")
+
+
+class DuplicateFireError(ValueError):
+    """Raised when a ROUTINE_FIRED names a (routine, slot) already in the log."""
+
+
+def _rejects_duplicate_fire(event: dict, history: list[dict]) -> None:
+    """Called with the append lock held, so two concurrent `routine fire`
+    calls for one slot can't both read "not fired yet" and both append."""
+    data = event.get("data") or {}
+    key = (data.get("routine"), data.get("slot"))
+    for prior in history:
+        pd = prior.get("data") or {}
+        if prior.get("event") == "ROUTINE_FIRED" and (pd.get("routine"), pd.get("slot")) == key:
+            raise DuplicateFireError(f"{key[0]} already fired for slot {key[1]} "
+                                     f"(seq {prior.get('seq')})")
+
+
 def _rejects_stale_gate_verdict(event: dict, history: list[dict]) -> None:
     """A PASSED verdict citing the exact same commit SHA as that role's own
     most recent FAILED verdict on this task is refused — that combination
@@ -318,6 +380,8 @@ class EventLog:
                 if event.get("task") and event.get("event") in GATE_FAIL_EVENT:
                     task_history = [e for e in self.read() if e.get("task") == event["task"]]
                     _rejects_stale_gate_verdict(event, task_history)
+                if event.get("event") == "ROUTINE_FIRED":
+                    _rejects_duplicate_fire(event, self.read())
                 event = dict(event)
                 event["seq"] = self._next_seq()
                 line = compact(event)
