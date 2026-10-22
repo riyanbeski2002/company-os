@@ -189,3 +189,29 @@ synthetic test never would have:
   thing once, end to end, against production-shaped conditions, found two
   bugs that a much larger synthetic test suite (500 tests passing
   throughout both bugs' entire lifetime) never touched.
+
+## `git add <file>` on a whole file picks up concurrent subagents' edits too — stage narrower when parallel work shares a file
+**What happened:** Two subagents ran in parallel, both told their files were
+disjoint-but-shared (`cli.py`, among others). One finished and was
+committed via `git add tools/company/cli.py` (whole-file add) + commit —
+but by then the second, still-running agent had already written its own
+in-progress edits to that same file on disk. The commit silently absorbed
+both: the committed `cli.py` called a function (`gitutil.
+event_log_git_state`) that only existed in the second agent's still-
+uncommitted `gitutil.py`. `HEAD` was broken (a clean checkout would hit
+`AttributeError`) even though every local test passed, because the
+missing file was still present on disk, just not in git.
+**Why it matters:** whole-file `git add` doesn't ask "is this all my
+diff" — it stages whatever is on disk at that path, regardless of which
+agent wrote which lines. Running tests before committing doesn't catch
+this either, since the working tree (not HEAD) is what tests run against.
+**Fix going forward:** when two agents run in parallel and might touch
+the same file, either (a) serialize them instead of parallelizing, (b)
+after each agent reports done, check `git diff <file>` against what that
+*specific* agent was asked to change before staging, not just "does the
+file look right," or (c) stage with `git add -p` when a shared file is
+involved, so only the reported agent's own hunks go into their commit.
+After committing, a quick sanity check worth the 10 seconds: does `HEAD`
+actually work if the uncommitted files on disk were removed? (Caught in
+this case, not shipped — fixed with an immediate follow-up commit before
+pushing.)
