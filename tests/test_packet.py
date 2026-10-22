@@ -88,5 +88,34 @@ class TestRenderCarriesTheHandoff(unittest.TestCase):
             packet.render(self._task(), why="w", verify="true", handoff_text=huge)
 
 
+class TestRenderCarriesMatchingLessons(unittest.TestCase):
+    def _task(self):
+        return {"id": "TASK-1", "title": "t", "tier": 2, "branch": "b"}
+
+    def test_lessons_appear_with_a_citation_only_when_one_exists(self):
+        body = packet.render(self._task(), why="w", verify="true", lessons=[
+            {"pattern": "exit code swallowed", "fix": "propagate it",
+             "source_ref": {"type": "commit", "ref": "6f2fea7"}},
+            {"pattern": "PM polled", "fix": "wait for notices", "source_ref": None},
+        ])
+        self.assertIn("LESSONS THAT APPLY TO THIS TASK", body)
+        self.assertIn("  - exit code swallowed → propagate it [source: commit 6f2fea7]\n", body)
+        self.assertIn("  - PM polled → wait for notices\n", body)
+
+    def test_no_lessons_means_no_section(self):
+        for none in (None, []):
+            body = packet.render(self._task(), why="w", verify="true", lessons=none)
+            self.assertNotIn("LESSONS THAT APPLY", body)
+        self.assertEqual(packet.render(self._task(), why="w", verify="true"),
+                         packet.render(self._task(), why="w", verify="true", lessons=None))
+
+    def test_lessons_are_bounded_and_clipped(self):
+        many = [{"pattern": f"pattern-{i} " + "y" * 1000, "fix": "f"} for i in range(10)]
+        body = packet.render(self._task(), why="w", verify="true", lessons=many)
+        self.assertIn("pattern-0", body)
+        self.assertNotIn(f"pattern-{packet.LESSONS_IN_PACKET}", body)
+        self.assertNotIn("y" * packet.LESSON_CHARS, body)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -108,6 +108,13 @@ def find_handoff(root: Path, task_id: str, actor: str, role: str) -> Path | None
 TOKEN_BUDGET = 3500
 CHARS_PER_TOKEN = 4  # rough, deliberately conservative
 
+# Matched lessons carried into a worker packet: the top few by
+# staffing.find_matching_lessons' own overlap score, each side clipped. Worst
+# case ~3 x 2 x 200 chars ≈ 300 tokens of the budget above — enough to warn,
+# never enough to crowd out the brief itself.
+LESSONS_IN_PACKET = 3
+LESSON_CHARS = 200
+
 # A GROUP packet is not a task packet. TOKEN_BUDGET caps one task's brief,
 # and 2000 is the right discipline there: if a single task cannot be
 # described in 2k tokens it is too big or was scoped lazily. A group packet
@@ -142,12 +149,35 @@ def _bullets(items, empty="(none)") -> str:
     return "\n".join(f"  - {i}" for i in items)
 
 
+def _lessons_section(lessons: list[dict] | None) -> str:
+    """Lessons matched to this task, already ranked by the caller — bounded,
+    so a long lesson log can't crowd the brief out of TOKEN_BUDGET. A lesson
+    with no source_ref gets no bracket: an absent citation stays absent."""
+    if not lessons:
+        return ""
+    lines = []
+    for lesson in lessons[:LESSONS_IN_PACKET]:
+        line = f"  - {_clip(lesson.get('pattern'))} → {_clip(lesson.get('fix'))}"
+        ref = lesson.get("source_ref")
+        if ref:
+            line += f" [source: {ref.get('type')} {ref.get('ref')}]"
+        lines.append(line)
+    return "\nLESSONS THAT APPLY TO THIS TASK (recorded before — don't repeat them)\n" \
+        + "\n".join(lines) + "\n"
+
+
+def _clip(text, limit: int = LESSON_CHARS) -> str:
+    text = " ".join(str(text or "").split())
+    return text if len(text) <= limit else text[:limit - 1] + "…"
+
+
 def render(task: dict, *, why: str, contracts: list[dict] | None = None,
            architecture: list[str] | None = None, decisions: list[str] | None = None,
            handoff_target: str = "pm", max_turns: int = 60,
            timeout_s: int = 1800, enforce_budget: bool = True,
            verify: str | None = None, baseline: dict | None = None,
-           diff_summary: str | None = None, handoff_text: str | None = None) -> str:
+           diff_summary: str | None = None, handoff_text: str | None = None,
+           lessons: list[dict] | None = None) -> str:
     contracts = contracts or []
     verify = verify or task.get("test_command")
     if not verify:
@@ -227,7 +257,7 @@ DEPENDENCIES
 
 CONTRACTS PUBLISHED BY YOUR DEPENDENCIES (build against these, not guesses)
 {contract_text}
-{diff_section}{handoff_section}
+{diff_section}{handoff_section}{_lessons_section(lessons)}
 RELEVANT ARCHITECTURE (pointers, read them if you need them)
 {_bullets(architecture, empty='(nothing beyond the files in your owned globs)')}
 

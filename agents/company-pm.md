@@ -524,6 +524,13 @@ future session on this repo — check `company lesson` (no args) at the start
 of a run for anything already learned here before repeating it. A correction
 that only lives in this transcript will happen again on the next one.
 
+If one event really is the source, cite it with `--source-ref type:ref`
+(`commit:<sha>`, `test_run:<seq>`, `review:<seq>`, `task:<id>`). It is
+optional — most lessons are field observations with no single source, so
+leave it off rather than invent one. `company lesson --search "<text>"` finds
+recorded lessons by word overlap. You don't hand lessons to workers yourself:
+`company run` puts the top matches for a task's title into its packet.
+
 **Tag `--skill` whenever the correction is really about how a skill or agent
 does its job**, not just this one task. `company lesson` (no args) also
 reports `skills_needing_a_patch` — any skill with 2+ lessons against it. That

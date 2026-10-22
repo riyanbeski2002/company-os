@@ -53,6 +53,69 @@ class TestRecord(unittest.TestCase):
         self.assertEqual(events[0]["actor"], "company-pm")
 
 
+class TestSourceRef(unittest.TestCase):
+    """An optional citation — absent is the common, valid case, so it is
+    shape-checked when given and never required."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / ".company"
+        (self.root / "events").mkdir(parents=True)
+
+    def _record(self, **kw):
+        return lessons.record(self.root, project="p", pattern="x", evidence="e",
+                              fix="f", **kw)
+
+    def test_without_a_source_ref_is_valid_and_stores_none(self):
+        data = self._record()
+        self.assertNotIn("source_ref", data)
+        self.assertNotIn("source_ref", EventLog(self.root).read()[0]["data"])
+        self.assertIsNone(lessons.fold(EventLog(self.root).read())[0]["source_ref"])
+
+    def test_with_a_source_ref_it_is_stored_and_folded_through(self):
+        ref = {"type": "commit", "ref": "6f2fea7"}
+        self._record(source_ref=ref)
+        self.assertEqual(EventLog(self.root).read()[0]["data"]["source_ref"], ref)
+        self.assertEqual(lessons.fold(EventLog(self.root).read())[0]["source_ref"], ref)
+
+    def test_an_unknown_type_is_refused(self):
+        with self.assertRaises(ValueError):
+            self._record(source_ref={"type": "vibes", "ref": "x"})
+        self.assertEqual(EventLog(self.root).read(), [])
+
+    def test_an_empty_ref_is_refused(self):
+        for bad in ("", "  ", None, True):
+            with self.assertRaises(ValueError):
+                self._record(source_ref={"type": "task", "ref": bad})
+        self.assertEqual(EventLog(self.root).read(), [])
+
+    def test_a_cited_seq_need_not_exist_in_the_log(self):
+        # Shape only: an honest citation can't fail for reasons unrelated
+        # to the lesson itself.
+        self._record(source_ref={"type": "test_run", "ref": 99999})
+        self.assertEqual(len(EventLog(self.root).read()), 1)
+
+    def test_parse_type_colon_ref(self):
+        self.assertEqual(lessons.parse_source_ref("commit:6f2fea7"),
+                         {"type": "commit", "ref": "6f2fea7"})
+        self.assertEqual(lessons.parse_source_ref("test_run:318"),
+                         {"type": "test_run", "ref": 318})
+        self.assertEqual(lessons.parse_source_ref("review:402"),
+                         {"type": "review", "ref": 402})
+        self.assertEqual(lessons.parse_source_ref("task:T-14"),
+                         {"type": "task", "ref": "T-14"})
+
+    def test_parse_json_object(self):
+        self.assertEqual(lessons.parse_source_ref('{"type": "review", "ref": 7}'),
+                         {"type": "review", "ref": 7})
+
+    def test_parse_refuses_a_bare_value(self):
+        with self.assertRaises(ValueError):
+            lessons.parse_source_ref("6f2fea7")
+
+
 class TestSkillTaggingAndRepeatDetection(unittest.TestCase):
     """The actual self-improving loop: a lesson tagged to a skill is
     queryable, and 2+ lessons on the same skill is the concrete signal that
@@ -197,6 +260,55 @@ class TestCLI(unittest.TestCase):
     def test_missing_fix_is_refused(self):
         result = self._run("lesson", "--pattern", "x", "--evidence", "e", "--project", "p")
         self.assertNotEqual(result.returncode, 0)
+
+    def test_record_with_source_ref(self):
+        import json
+        rec = self._run("lesson", "--pattern", "p1", "--evidence", "e", "--fix", "f",
+                        "--project", "p", "--source-ref", "test_run:318")
+        self.assertEqual(rec.returncode, 0, rec.stderr)
+        listed = json.loads(self._run("lesson", "--project", "p").stdout)
+        self.assertEqual(listed["lessons"][0]["source_ref"], {"type": "test_run", "ref": 318})
+
+    def test_malformed_source_ref_is_refused(self):
+        for bad in ("vibes:x", "commit:", "6f2fea7"):
+            rec = self._run("lesson", "--pattern", "p1", "--evidence", "e", "--fix", "f",
+                            "--project", "p", "--source-ref", bad)
+            self.assertEqual(rec.returncode, 2, bad)
+        self.assertEqual(EventLog(self.repo / ".company").read(), [])
+
+    def test_search_filters_by_word_overlap_best_first(self):
+        import json
+        for pattern, fix in (("deploy script swallowed the exit code", "propagate it"),
+                             ("PM polled instead of waiting", "use idle notices"),
+                             ("exit code ignored by deploy wrapper", "check deploy exit code")):
+            self._run("lesson", "--pattern", pattern, "--evidence", "e", "--fix", fix,
+                      "--project", "p")
+        out = json.loads(self._run("lesson", "--project", "p",
+                                   "--search", "deploy exit code").stdout)
+        self.assertEqual(len(out["lessons"]), 2)
+        self.assertTrue(all("deploy" in l["pattern"] for l in out["lessons"]))
+
+    def test_a_launched_task_packet_carries_its_matching_lessons(self):
+        """The missing wire: cmd_plan showed the PM matching lessons, the
+        worker's own packet never had them."""
+        import json
+        from eventlog import make_event
+        self._run("lesson", "--pattern", "deploy script swallowed the exit code",
+                  "--evidence", "e", "--fix", "propagate the deploy exit code",
+                  "--project", "p", "--source-ref", "commit:6f2fea7")
+        self._run("lesson", "--pattern", "PM polled instead of waiting",
+                  "--evidence", "e", "--fix", "use idle notices", "--project", "p")
+        EventLog(self.repo / ".company").append(make_event(
+            event="TASK_CREATED", actor="company-pm", project="p", task="T-1",
+            data={"title": "fix deploy exit code handling", "owner": "backend-engineer"}))
+        res = self._run("run", "T-1", "--role", "backend-engineer", "--dry-run",
+                        "--verify", "true")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        body = json.loads(res.stdout)["packet"]
+        self.assertIn("LESSONS THAT APPLY TO THIS TASK", body)
+        self.assertIn("deploy script swallowed the exit code", body)
+        self.assertIn("[source: commit 6f2fea7]", body)
+        self.assertNotIn("PM polled", body)
 
 
 class TestReadOnlyRolesCannotRecord(unittest.TestCase):

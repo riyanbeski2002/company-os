@@ -430,7 +430,8 @@ def find_matching_lessons(planned_tasks: list[dict], lessons: list[dict],
                 hits.append({
                     "new_task": new_task["id"], "new_title": new_task.get("title"),
                     "lesson": lesson.get("id"), "pattern": lesson.get("pattern"),
-                    "fix": lesson.get("fix"), "shared_words": sorted(shared),
+                    "fix": lesson.get("fix"), "source_ref": lesson.get("source_ref"),
+                    "shared_words": sorted(shared),
                     "overlap": round(overlap, 2),
                 })
     return hits

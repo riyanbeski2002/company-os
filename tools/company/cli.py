@@ -681,7 +681,8 @@ def cmd_run(args):
 
     root = company_root(args)
     repo = root.parent
-    tasks = taskstate.fold(EventLog(root).read())
+    events = EventLog(root).read()
+    tasks = taskstate.fold(events)
     task = tasks.get(args.task) or die(f"no such task {args.task!r} in the event log")
 
     contracts = _contracts_for(tasks, task)
@@ -713,6 +714,15 @@ def cmd_run(args):
     handoff_path = packet_mod.find_handoff(root, task["id"], actor, args.role)
     handoff_text = handoff_path.read_text() if handoff_path else None
 
+    # cmd_plan already shows the PM which recorded lessons overlap a task's
+    # title; the worker actually doing the task never saw them. Same match,
+    # best overlap first (stable, so ties stay oldest-first); render() bounds it.
+    import lessons as lessons_mod
+    import staffing
+    matching_lessons = sorted(
+        staffing.find_matching_lessons([task], lessons_mod.fold(events)),
+        key=lambda hit: -hit["overlap"])
+
     try:
         body = packet_mod.render(
             task, why=args.why or "Requested by the CEO.",
@@ -721,7 +731,7 @@ def cmd_run(args):
             max_turns=_resolve_max_turns(args.max_turns, args.role), timeout_s=args.timeout,
             verify=verify_command(root, args.verify),
             baseline=_baseline(root, task.get("project")),
-            handoff_text=handoff_text)
+            handoff_text=handoff_text, lessons=matching_lessons)
     except (packet_mod.PacketTooLarge, ValueError) as exc:
         die(str(exc), 1)
 
@@ -1566,16 +1576,28 @@ def cmd_lesson(args):
         project = load_project(root, args.project)
         actor = args.actor or os.environ.get("COMPANY_ACTOR")
         try:
+            source_ref = lessons.parse_source_ref(args.source_ref) \
+                if args.source_ref else None
             data = lessons.record(root, project=project, pattern=args.pattern,
                                   evidence=args.evidence, fix=args.fix, actor=actor,
-                                  skill=args.skill)
+                                  skill=args.skill, source_ref=source_ref)
         except ValueError as exc:
             die(str(exc), 2)
         emit({"ok": True, **data})
     else:
         project = args.project or os.environ.get("COMPANY_PROJECT")
         events = EventLog(root).read()
-        out = {"ok": True, "lessons": lessons.fold(events, project, skill=args.skill)}
+        found = lessons.fold(events, project, skill=args.skill)
+        if args.search:
+            # The same word-overlap match cmd_plan runs against a task title,
+            # run against free text instead; one shared word is enough here.
+            import staffing
+            hits = staffing.find_matching_lessons(
+                [{"id": "search", "title": args.search}], found, min_shared=1)
+            overlap = {h["lesson"]: h["overlap"] for h in hits}
+            found = sorted((l for l in found if l["id"] in overlap),
+                           key=lambda l: -overlap[l["id"]])
+        out = {"ok": True, "lessons": found}
         if not args.skill:
             out["skills_needing_a_patch"] = lessons.skills_with_repeated_lessons(events)
         emit(out)
@@ -2256,6 +2278,14 @@ def build_parser():
     ls.add_argument("--project")
     ls.add_argument("--skill", help="tag this lesson to the skill/agent it's about — "
                     "2+ lessons on the same skill is the signal it needs a real patch")
+    ls.add_argument("--source-ref",
+                    help="optional citation, type:ref or a JSON object — type is one of "
+                         "commit (a SHA), test_run (a TEST_RUN seq), review (a review "
+                         "event seq), task (a task id); e.g. commit:6f2fea7, test_run:318, "
+                         "task:T-14. Omit it when there is no single source — most "
+                         "lessons are field observations")
+    ls.add_argument("--search", help="list mode: only lessons whose pattern/fix shares "
+                    "words with this text, best match first")
     ls.set_defaults(fn=cmd_lesson)
 
     es = sub.add_parser("escalate", help="ask the CEO for something the PM cannot do")

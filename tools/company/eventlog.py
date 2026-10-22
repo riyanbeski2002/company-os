@@ -111,6 +111,12 @@ MEASURE_DIRECTIONS = {"increase", "decrease"}
 # no-top-level-task rule as goal events. Their tasks are named in data.
 ROUTINE_EVENTS = {"ROUTINE_DEFINED", "ROUTINE_FIRED"}
 
+# What a LESSON_RECORDED's optional data.source_ref may cite: a commit SHA,
+# the seq of a TEST_RUN or review event, or a task id. Optional on purpose —
+# most real lessons are field observations with no single source event, and
+# requiring one would just invite a fabricated citation.
+SOURCE_REF_TYPES = ("commit", "test_run", "review", "task")
+
 # Gate name -> the event that satisfies it. Used by the Evidence Rule.
 GATE_EVENT = {
     "review": "REVIEW_PASSED",
@@ -181,6 +187,20 @@ def validate(event: dict) -> None:
         _validate_goal_event(event)
     if name in ROUTINE_EVENTS:
         _validate_routine_event(event)
+    if name == "LESSON_RECORDED" and "source_ref" in (event.get("data") or {}):
+        _validate_source_ref(event["data"]["source_ref"])
+
+
+def _validate_source_ref(ref) -> None:
+    """Shape only. Whether the cited seq/sha/task exists is deliberately not
+    checked — an honest optional citation shouldn't be able to fail a lesson
+    for reasons unrelated to the lesson itself."""
+    if not isinstance(ref, dict) or ref.get("type") not in SOURCE_REF_TYPES:
+        raise ValueError(f"source_ref type must be one of {', '.join(SOURCE_REF_TYPES)}")
+    value = ref.get("ref")
+    if isinstance(value, bool) or not isinstance(value, (str, int)) \
+            or (isinstance(value, str) and not value.strip()):
+        raise ValueError("source_ref requires a non-empty ref (a sha, a seq, or a task id)")
 
 
 def _is_number(v) -> bool:

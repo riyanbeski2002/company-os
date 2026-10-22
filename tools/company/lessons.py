@@ -16,19 +16,45 @@ three runs looked green when they'd failed" is.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from eventlog import EventLog, make_event
 from quarantine import quarantined_seqs as _quarantined_seqs
 
 
+def parse_source_ref(raw: str) -> dict:
+    """`type:ref` (e.g. `commit:6f2fea7`, `test_run:318`, `task:T-14`), or a
+    JSON object — the same compact-string-or-JSON shape `--evidence` takes.
+    A seq-typed ref (`test_run`/`review`) that is all digits becomes an int.
+    Shape is checked once, at append, by eventlog's validate()."""
+    raw = raw.strip()
+    if raw.startswith("{"):
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"source_ref is not valid JSON: {exc}") from exc
+    kind, sep, value = raw.partition(":")
+    if not sep:
+        raise ValueError(f"source_ref must be type:ref or a JSON object, got {raw!r}")
+    value = value.strip()
+    if kind in ("test_run", "review") and value.isdigit():
+        value = int(value)
+    return {"type": kind.strip(), "ref": value}
+
+
 def record(company_root: Path, *, project: str, pattern: str, evidence: str,
-          fix: str, actor: str | None = None, skill: str | None = None) -> dict:
+          fix: str, actor: str | None = None, skill: str | None = None,
+          source_ref: dict | None = None) -> dict:
     """`skill` is what closes the loop this event log used to leave open: a
     lesson that names the skill/agent it's about is queryable by
     `fold(..., skill=...)`, so 2+ lessons touching the same skill become a
     concrete signal that skill needs a real patch — not a hope that someone
-    remembers to go read the log."""
+    remembers to go read the log.
+
+    `source_ref` optionally cites where the lesson came from — see
+    eventlog.SOURCE_REF_TYPES, which validates its shape at append. Absent is
+    the common, valid case."""
     if not pattern.strip():
         raise ValueError("a lesson requires a pattern — what kept happening, not just what happened once")
     if not fix.strip():
@@ -43,6 +69,8 @@ def record(company_root: Path, *, project: str, pattern: str, evidence: str,
     data = {"pattern": pattern, "fix": fix}
     if skill:
         data["skill"] = skill
+    if source_ref is not None:
+        data["source_ref"] = source_ref
     EventLog(company_root).append(make_event(
         event="LESSON_RECORDED", actor=actor or "company-pm",
         project=project, data=data, evidence={"log": evidence}))
@@ -86,6 +114,7 @@ def fold(events: list[dict], project: str | None = None,
             "pattern": data.get("pattern"),
             "fix": data.get("fix"),
             "skill": data.get("skill"),
+            "source_ref": data.get("source_ref"),
             "evidence": (ev.get("evidence") or {}).get("log"),
         })
     return out
