@@ -117,6 +117,16 @@ class TestProgressIsEvidenceBased(unittest.TestCase):
         self.assertIsNone(render.progress({"id": "T", "status": "IN_PROGRESS"}))
         self.assertEqual(render.project_progress([{"id": "T", "status": "IN_PROGRESS"}]),
                          "unknown")
+        self.assertIsNone(render.project_progress_pct([{"id": "T", "status": "IN_PROGRESS"}]))
+
+    def test_project_pct_is_the_number_behind_the_string(self):
+        tasks = [{"id": "A", "status": "IN_PROGRESS",
+                  "acceptance_criteria": ["a", "b", "c", "d"], "criteria_met": ["a"]},
+                 {"id": "B", "status": "IN_PROGRESS",
+                  "acceptance_criteria": ["a", "b"], "criteria_met": ["a"]},
+                 {"id": "C", "status": "IN_PROGRESS"}]  # unknown: left out of the mean
+        self.assertEqual(render.project_progress_pct(tasks), 38)
+        self.assertEqual(render.project_progress(tasks), "38%")
 
     def test_partial_credit_only_for_verified_criteria(self):
         task = {"id": "T", "status": "IN_PROGRESS",

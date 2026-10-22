@@ -135,8 +135,37 @@ def cmd_init(args):
     _ensure_line(repo / ".worktreeinclude", ".env")
     _ensure_line(repo / ".worktreeinclude", ".env.local")
 
+    # Advisory only — never edits .gitignore for events.jsonl. Whether a repo
+    # tracks its log is that repo's own decision (company-os's own .gitignore
+    # deliberately ignores it); new onboards are just told the recommended
+    # default. On stderr so stdout stays one JSON document.
+    import gitutil
+    log_git = gitutil.event_log_git_state(repo)
+    print(_event_log_git_note(log_git), file=sys.stderr)
+
     emit({"ok": True, "repo": str(repo), "company_root": str(root),
-          "configs_installed": copied})
+          "configs_installed": copied, "event_log_git": log_git})
+
+
+def _event_log_git_note(log_git: dict) -> str:
+    rel = ".company/events/events.jsonl"
+    if log_git["state"] == "tracked":
+        return f"note: {rel} is tracked in git — your remote backs it up."
+    if log_git["state"] == "untracked":
+        return (f"note: {rel} is not ignored, so git will track it once added. "
+                f"company-os never commits on your behalf: `git add {rel}` and "
+                f"commit it yourself at least once after the first events are "
+                f"written, for a free backup via your remote.")
+    if log_git["state"] == "ignored":
+        return (f"note: {rel} would be excluded by this repo's existing .gitignore "
+                f"(matched by: {log_git['pattern']}). company-os recommends tracking "
+                f"the event log in git for a free backup via your remote. If you "
+                f"want that, add an explicit `!{rel}` negation to your .gitignore "
+                f"yourself — but git cannot re-include a file whose parent directory "
+                f"is excluded, so a directory ignore like `.company/` must become "
+                f"`.company/*` + `!.company/events/` + `.company/events/*` + "
+                f"`!{rel}`. Nothing was changed; leaving it ignored is a valid choice.")
+    return f"note: could not determine whether git tracks {rel}."
 
 
 def _ensure_line(path: Path, line: str):
@@ -933,6 +962,7 @@ def cmd_status(args):
 
     if args.json:
         emit({"project": project, "progress": render.project_progress(tasks),
+              "progress_pct": render.project_progress_pct(tasks),
               "tasks": tasks, "escalations": _escalations(root, project),
               "stalled": stalls, "early_warning": early_warning})
     print(render.status(project or "all projects", tasks, _escalations(root, project), stalls))
@@ -1222,6 +1252,18 @@ def cmd_doctor(args):
                   f"no backup in {backup.default_dir(root)} — events.jsonl is the only "
                   f"copy of this repo's state. Run `company backup`.")
 
+        # Informational, never a failure: an ignore rule is the repo's own
+        # decision (company-os ignores its own log on purpose), not a defect.
+        import gitutil
+        log_git = gitutil.event_log_git_state(repo)
+        check("event log tracked in git", True, {
+            "tracked": "tracked — your remote backs it up",
+            "ignored": f"not tracked (ignored, matched by: {log_git['pattern']}) — "
+                       f"the repo's own choice; your remote does not back it up",
+            "untracked": "not tracked (never added, not ignored) — `git add` and "
+                         "commit it for a free backup via your remote",
+        }.get(log_git["state"], "unknown — git could not say"))
+
     try:
         base = _baseline(root, args.project or os.environ.get("COMPANY_PROJECT"))
     except ValueError:
@@ -1277,8 +1319,8 @@ def cmd_costs(args):
             {k: round(v / len(done)) for k, v in result["tokens"].items()} if done else None),
         "wall_clock_minutes": result["wall_clock_minutes"],
         "api_equivalent_usd": result["api_equivalent_usd"],
-        "by_actor": result["by_actor"],
-        "by_task": result["by_task"],
+        "by_actor": costs_mod.ranked(result["by_actor"], "actor"),
+        "by_task": costs_mod.ranked(result["by_task"], "task"),
         "untasked": result["untasked"],
         "runs_with_unestimated_cost": result["runs_with_unestimated_cost"],
         "runs_with_backfilled_tokens": result["runs_with_backfilled_tokens"],
@@ -1981,6 +2023,7 @@ def build_parser():
 
     ct = sub.add_parser("costs", help="what this cost and what it delivered")
     ct.add_argument("--project")
+    ct.add_argument("--json", action="store_true", help="accepted; output is always JSON")
     ct.set_defaults(fn=cmd_costs)
 
     bf = sub.add_parser("backfill-tokens",
@@ -2062,6 +2105,7 @@ def build_parser():
                     help="query instead of raising — 'what's still waiting on "
                          "Riyan' without reading every .md file by hand "
                          "(finos-52, cost audit 2026-09-14)")
+    es.add_argument("--json", action="store_true", help="accepted; --list is always JSON")
     es.set_defaults(fn=cmd_escalate)
 
     rs = sub.add_parser("resolve", help="CEO: answer an escalation")
@@ -2119,8 +2163,10 @@ def build_parser():
     gt.set_defaults(fn=cmd_goal_tree)
     gs = gosub.add_parser("show", help="one goal: tasks, assessments, flags, budget vs. spend")
     gs.add_argument("goal")
+    gs.add_argument("--json", action="store_true", help="accepted; output is always JSON")
     gs.set_defaults(fn=cmd_goal_show)
     gg2 = gosub.add_parser("gaps", help="ungoaled tasks, unassessed and suspect outcomes")
+    gg2.add_argument("--json", action="store_true", help="accepted; output is always JSON")
     gg2.set_defaults(fn=cmd_goal_gaps)
 
     gl = sub.add_parser("gallery", help="plan or open the tmux viewing gallery")

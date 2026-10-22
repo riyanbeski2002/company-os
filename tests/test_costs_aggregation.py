@@ -174,6 +174,20 @@ class TestProjectFiltering(unittest.TestCase):
         self.assertEqual(set(result["by_task"]), {"T-1", "T-2"})
 
 
+class TestRanked(unittest.TestCase):
+    def test_a_list_in_cost_rank_with_each_entry_naming_itself(self):
+        events = [
+            _exited("a-low", task="T-1", output=10, cache_read=9000),
+            _exited("z-high", task="T-2", output=500, cache_read=100),
+        ]
+        result = costs.aggregate(events)
+        by_actor = costs.ranked(result["by_actor"], "actor")
+        self.assertEqual([e["actor"] for e in by_actor], ["z-high", "a-low"])
+        self.assertEqual(by_actor[0], {"actor": "z-high", **result["by_actor"]["z-high"]})
+        self.assertEqual([e["task"] for e in costs.ranked(result["by_task"], "task")],
+                         ["T-1", "T-2"])
+
+
 class TestIgnoresNonExitEvents(unittest.TestCase):
     def test_other_event_types_are_skipped(self):
         events = [

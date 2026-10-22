@@ -157,3 +157,12 @@ def aggregate(events: list[dict], project: str | None = None) -> dict:
         "by_task": dict(sorted(by_task.items(), key=lambda kv: -kv[1]["cache_read_tokens"])),
         "untasked": untasked,
     }
+
+
+def ranked(breakdown: dict, id_key: str) -> list[dict]:
+    """`aggregate`'s by_actor/by_task as a list in their cost-ranked order,
+    each entry carrying its own id under `id_key`. The JSON form of a
+    breakdown: canonical()'s sort_keys re-sorts a dict's keys alphabetically,
+    which threw the ranking away, but never reorders a list. Internal
+    callers (goals.activity) keep the dict, since they look entries up by id."""
+    return [{id_key: name, **entry} for name, entry in breakdown.items()]

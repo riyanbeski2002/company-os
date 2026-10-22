@@ -29,12 +29,19 @@ def progress(task: dict) -> float | None:
     return len(met) / len(criteria)
 
 
-def project_progress(tasks: list[dict]) -> str:
+def project_progress_pct(tasks: list[dict]) -> int | None:
+    """Mean known per-task progress as 0-100, or None when no task's
+    progress can be computed — never a stand-in number."""
     values = [progress(t) for t in tasks]
     known = [v for v in values if v is not None]
     if not known:
-        return "unknown"
-    return f"{round(100 * sum(known) / len(known))}%"
+        return None
+    return round(100 * sum(known) / len(known))
+
+
+def project_progress(tasks: list[dict]) -> str:
+    pct = project_progress_pct(tasks)
+    return "unknown" if pct is None else f"{pct}%"
 
 
 def _age(ts: str) -> str:
