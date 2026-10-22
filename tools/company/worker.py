@@ -182,6 +182,60 @@ def _link_loaded_skills(repo: Path, wt: Path) -> None:
 
 # --- launch -----------------------------------------------------------------
 
+# The .company/ subdirectories a sandboxed worker's own `company` CLI calls
+# write to (event, handoff, escalate, session ping, and the task/goal/
+# escalation views taskstate.rebuild() regenerates after each event) — read
+# off cli.py/eventlog.py/taskstate.py/goals.py/escalations.py/sessions.py,
+# not guessed. Everything else under .company/ (worktrees of OTHER tasks,
+# config, state/workers' pid files) stays unwritable.
+SANDBOX_WRITABLE = ("events", "tasks", "goals", "handoffs", "escalations", "state/sessions")
+
+# A third-party report describes Seatbelt write policies widening when a
+# workspace path contains glob syntax. Claude Code 2.1.308 documents that it
+# ignores glob-spelled allowWrite values, but the launch cwd is granted
+# implicitly, so validate every path rather than trust either behavior.
+_GLOB_CHARS = set("*?[]{}")
+
+
+def sandbox_settings(company_root: Path, workdir: Path) -> dict:
+    """Per-launch Claude Code sandbox policy (passed via `--settings`).
+
+    The sandbox confines every Bash call — and every child it spawns:
+    `python3 -c`, `cd ../..`, raw appends — at the OS level, which the
+    command-string regexes in hooks/protect_branches.py cannot. Writes are
+    allowed only in `workdir` (the launch cwd, which Claude Code grants
+    implicitly; it also grants a worktree's own git metadata so commits
+    work) plus SANDBOX_WRITABLE. .company/secrets is unreadable from Bash
+    (guard_secrets.py only covers the Read/Grep tools).
+
+    failIfUnavailable + allowUnsandboxedCommands=false are the load-bearing
+    pair: Bash is pre-allowed for every worker, so a sandbox that failed to
+    start, or a model retrying with dangerouslyDisableSandbox, would
+    otherwise run with no containment at all.
+    """
+    company_root = Path(company_root).resolve()
+    writable = [company_root / d for d in SANDBOX_WRITABLE]
+    secrets = company_root / "secrets"
+    for path in (Path(workdir).resolve(), *writable, secrets):
+        if _GLOB_CHARS & set(str(path)):
+            raise WorkerError(
+                f"refusing to launch: sandbox path {str(path)!r} contains glob "
+                f"characters, which could widen the sandbox's write policy")
+    for path in writable:
+        # A not-yet-existing allowWrite dir can't be created from inside the
+        # sandbox (its parent isn't writable), so make them all up front.
+        path.mkdir(parents=True, exist_ok=True)
+    return {"sandbox": {
+        "enabled": True,
+        "failIfUnavailable": True,
+        "allowUnsandboxedCommands": False,
+        "filesystem": {
+            "allowWrite": [str(p) for p in writable],
+            "denyRead": [str(secrets)],
+        },
+    }}
+
+
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
               worktree: Path, thinking: bool = True,
               harness_spec: dict | None = None) -> dict:
@@ -224,7 +278,8 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
 
 def build_command(task: dict, role: str, model: str | None = None,
                    effort: str | None = None, skip_permissions: bool = False,
-                   harness_spec: dict | None = None, company_root: Path | None = None) -> list[str]:
+                   harness_spec: dict | None = None, company_root: Path | None = None,
+                   sandbox: dict | None = None) -> list[str]:
     """Fill the role's configured harness command template (config/harness.yaml).
 
     Model/effort come from staffing.yaml's tier policy (D11), not a default —
@@ -243,7 +298,7 @@ def build_command(task: dict, role: str, model: str | None = None,
         spec, role=role, plugin_root=PLUGIN_ROOT,
         allowed_tools=ROLE_TOOLS.get(role, "Read,Grep,Glob,Bash"),
         schema=RESULT_SCHEMA, model=model, effort=effort,
-        skip_permissions=skip_permissions,
+        skip_permissions=skip_permissions, settings=sandbox,
     )
 
 
@@ -378,6 +433,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
     try:
         log = EventLog(company_root)
         wt, branch = ensure_worktree(repo, company_root, task)
+        sandbox = sandbox_settings(company_root, wt)
 
         state = company_root / "state" / "workers" / actor
         state.mkdir(parents=True, exist_ok=True)
@@ -419,7 +475,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
                 build_command(task, role, model=policy.get("model"), effort=policy.get("effort"),
-                              skip_permissions=skip_permissions, harness_spec=harness_spec),
+                              skip_permissions=skip_permissions, harness_spec=harness_spec,
+                              sandbox=sandbox),
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
                               thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec),
@@ -548,6 +605,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         policy = staffing.model_policy(policy_cfg, tier=2, gated=True, role=role)
         task_ids = [t["id"] for t in tasks]
         harness_spec = harness.resolve(harness.load_config(company_root), role)
+        sandbox = sandbox_settings(company_root, worktree)
 
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
@@ -569,7 +627,8 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
                 build_command({"id": claim_id}, role, model=policy.get("model"),
-                              effort=policy.get("effort"), harness_spec=harness_spec),
+                              effort=policy.get("effort"), harness_spec=harness_spec,
+                              sandbox=sandbox),
                 cwd=str(worktree), env=env,
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
@@ -664,13 +723,25 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
     """Run an advisory officer against the repo itself.
 
     No worktree and no branch: advisors read, they never write. They are also
-    not bound to a task, so the ownership hook stays inert — which is safe here
-    only because their agent files disallow Write and Edit outright.
+    not bound to a task, so the ownership hook stays inert — their agent files
+    disallow Write and Edit outright, and Bash runs in the OS sandbox.
+
+    The cwd is an empty per-advisor directory inside the repo, not the repo
+    root: the sandbox always grants writes to the launch cwd, so launching
+    in the repo root would leave an advisor's Bash free to write anywhere in
+    the checkout (and a denyWrite on the repo also overrides the
+    SANDBOX_WRITABLE dirs it needs for `company advise-finding`/`escalate` —
+    verified live). Still under the repo, so the hooks' cwd-based repo
+    detection and CLAUDE.md discovery are unchanged; the packet names the
+    repository path explicitly.
     """
     log = EventLog(company_root)
     state = company_root / "state" / "workers" / actor
     state.mkdir(parents=True, exist_ok=True)
     out_path, err_path = state / "stdout.json", state / "stderr.log"
+    cwd = state / "cwd"
+    cwd.mkdir(exist_ok=True)
+    sandbox = sandbox_settings(company_root, cwd)
 
     policy_cfg = staffing.load_config(company_root, "staffing.yaml")
     policy = staffing.model_policy(policy_cfg, tier=1, gated=False, role=role)
@@ -689,7 +760,7 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
     cmd = harness.build_command(
         harness_spec, role=role, plugin_root=PLUGIN_ROOT,
         allowed_tools="Read,Grep,Glob,Bash", schema=None,
-        model=policy.get("model"), effort=policy.get("effort"),
+        model=policy.get("model"), effort=policy.get("effort"), settings=sandbox,
     )
 
     worker_input = packet
@@ -698,7 +769,7 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
 
     started = time.monotonic()
     with open(out_path, "w") as out, open(err_path, "w") as err:
-        proc = subprocess.Popen(cmd, cwd=str(repo), env=env, stdin=subprocess.PIPE,
+        proc = subprocess.Popen(cmd, cwd=str(cwd), env=env, stdin=subprocess.PIPE,
                                 stdout=out, stderr=err, text=True)
         (state / "pid").write_text(str(proc.pid))
         try:

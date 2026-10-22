@@ -54,6 +54,33 @@ def detect_concurrent_glob_conflicts(tasks: dict, target_id: str) -> list[dict]:
     return conflicts
 
 
+def paths_outside_ownership(paths, task: dict) -> list[dict]:
+    """Every changed path the task's ownership doesn't cover, with why.
+
+    Merge-time twin of hooks/guard_paths.py, using the same pathrules.check.
+    That hook only sees Write/Edit tool calls; a Bash write (`echo > f`,
+    `python3 -c`, `git apply`) inside the worktree reaches the branch
+    without it ever firing, and the OS sandbox's boundary is the whole
+    worktree, not this task's globs. The diff is what actually merges, so
+    this is the check that can't be routed around.
+    """
+    out = []
+    for path in paths:
+        ok, reason = pathrules.check(path, task.get("owned_globs"), task.get("forbidden_globs"))
+        if not ok:
+            out.append({"path": path, "reason": reason})
+    return out
+
+
+def changed_paths(repo: Path, branch: str, base: str = INTEGRATION_BRANCH,
+                  cwd: Path | None = None) -> list[str]:
+    """Files `branch` changed since it diverged from `base` (three-dot diff)."""
+    r = _git(repo, "diff", "--name-only", "--no-renames", f"{base}...{branch}", cwd=cwd)
+    if r.returncode != 0:
+        raise RuntimeError(f"could not diff {branch} against {base}: {r.stderr.strip()}")
+    return [line for line in r.stdout.splitlines() if line]
+
+
 def _git(repo: Path, *args, cwd: Path | None = None):
     return subprocess.run(
         ["git", "-C", str(cwd or repo), *args], capture_output=True, text=True)
@@ -83,6 +110,19 @@ def integrate(repo: Path, company_root: Path, task: dict, test_command: str,
 
     wt = ensure_integration_worktree(repo, company_root)
     result = {"task": task["id"], "branch": branch, "worktree": str(wt)}
+
+    # Ownership is enforced on what would actually merge, before merging it.
+    # Not bypassable with --force: guard_paths.py has no override either, and
+    # an out-of-glob change that's genuinely needed is an ownership change to
+    # make explicitly, not one to wave through here.
+    outside = paths_outside_ownership(changed_paths(repo, branch, cwd=wt), task)
+    if outside:
+        log.append(make_event(
+            event="TASK_BLOCKED", actor=actor, project=task["project"], task=task["id"],
+            data={"stage": "integration", "reason": "diff outside owned globs",
+                  "detail": outside}))
+        return {**result, "merged": False, "reason": "diff outside owned globs",
+                "detail": outside}
 
     merge = _git(repo, "merge", "--no-ff", "--no-edit",
                  "-m", f"Integrate {task['id']}: {task.get('title', '')}",

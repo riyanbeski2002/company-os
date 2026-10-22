@@ -9,6 +9,7 @@ harness would actually rely on.
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -231,6 +232,102 @@ class TestPersonaInjectionContract(unittest.TestCase):
     def test_missing_role_file_raises_clearly(self):
         with self.assertRaises(harness.HarnessError):
             harness.load_persona(REPO, "no-such-role-exists")
+
+
+class TestLaunchSandbox(unittest.TestCase):
+    """Every claude launch carries the OS sandbox via --settings (task
+    workers, gate groups, and advisors alike); a harness that can't carry
+    it refuses rather than launching unsandboxed."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve() / ".company"
+        self.wt = self.root / "worktrees" / "T-1"
+        self.wt.mkdir(parents=True)
+        self.spec = harness.resolve(harness.load_config(REPO), "backend-engineer")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _settings_from(self, cmd):
+        self.assertEqual(cmd.count("--settings"), 1)
+        return json.loads(cmd[cmd.index("--settings") + 1])
+
+    def test_policy_shape(self):
+        sb = worker.sandbox_settings(self.root, self.wt)["sandbox"]
+        self.assertIs(sb["enabled"], True)
+        self.assertIs(sb["failIfUnavailable"], True)
+        self.assertIs(sb["allowUnsandboxedCommands"], False)
+        self.assertEqual(sb["filesystem"]["allowWrite"],
+                         [str(self.root / d) for d in worker.SANDBOX_WRITABLE])
+        self.assertEqual(sb["filesystem"]["denyRead"], [str(self.root / "secrets")])
+        self.assertNotIn("excludedCommands", sb)  # would run commands outside the sandbox
+        for d in worker.SANDBOX_WRITABLE:  # pre-created: the sandbox can't mkdir them
+            self.assertTrue((self.root / d).is_dir(), d)
+
+    def test_worker_command_carries_the_settings_inline(self):
+        sandbox = worker.sandbox_settings(self.root, self.wt)
+        cmd = worker.build_command({"id": "T-1"}, "backend-engineer",
+                                   harness_spec=self.spec, sandbox=sandbox)
+        self.assertEqual(self._settings_from(cmd), sandbox)
+
+    def test_skip_permissions_launch_still_carries_the_settings(self):
+        sandbox = worker.sandbox_settings(self.root, self.wt)
+        cmd = worker.build_command({"id": "T-1"}, "backend-engineer", skip_permissions=True,
+                                   harness_spec=self.spec, sandbox=sandbox)
+        self.assertEqual(self._settings_from(cmd), sandbox)
+
+    def test_glob_characters_in_a_sandbox_path_refuse_the_launch(self):
+        for bad in ("T-[1]", "T-*", "T-?", "T-{a,b}"):
+            with self.assertRaises(worker.WorkerError, msg=bad):
+                worker.sandbox_settings(self.root, self.root / "worktrees" / bad)
+
+    def test_harness_without_a_settings_flag_refuses_to_launch_unsandboxed(self):
+        spec = {k: v for k, v in self.spec.items() if k != "settings_flag"}
+        with self.assertRaises(harness.HarnessError):
+            harness.build_command(spec, role="backend-engineer", plugin_root=REPO,
+                                  allowed_tools="Bash", settings={"sandbox": {}})
+
+    def test_self_sandboxed_harness_launches_without_the_flag(self):
+        codex = {**harness.load_config(REPO)["harnesses"]["codex"], "_name": "codex"}
+        self.assertNotIn("settings_flag", codex)
+        cmd = harness.build_command(codex, role="backend-engineer", plugin_root=REPO,
+                                    allowed_tools="Bash", settings={"sandbox": {}})
+        self.assertNotIn("--settings", cmd)
+        self.assertEqual(self.spec["settings_flag"], "--settings")
+
+    def test_repo_config_copy_also_carries_the_flag(self):
+        """This repo's own .company/config/harness.yaml wins over the plugin
+        default, so it must carry settings_flag too."""
+        cfg = harness.load_config(REPO / ".company")
+        self.assertEqual(cfg["harnesses"]["claude"].get("settings_flag"), "--settings")
+
+    def test_advisor_launch_is_sandboxed_from_a_scratch_cwd(self):
+        captured = {}
+
+        class FakeProc:
+            returncode = 0
+            pid = 1
+
+            def __init__(self, cmd, **kw):
+                captured["cmd"], captured["cwd"] = cmd, kw["cwd"]
+
+            def communicate(self, input=None, timeout=None):
+                return None
+
+        repo = self.root.parent
+        orig = worker.subprocess.Popen
+        worker.subprocess.Popen = FakeProc
+        try:
+            worker.launch_readonly(repo, self.root, "p", "packet", "cto-advisor", "cto-advisor")
+        finally:
+            worker.subprocess.Popen = orig
+        cwd = Path(captured["cwd"])
+        self.assertNotEqual(cwd, repo)  # the launch cwd is always writable
+        self.assertTrue(cwd.is_relative_to(self.root / "state" / "workers" / "cto-advisor"))
+        sb = self._settings_from(captured["cmd"])["sandbox"]
+        self.assertIs(sb["failIfUnavailable"], True)
+        self.assertIs(sb["allowUnsandboxedCommands"], False)
 
 
 if __name__ == "__main__":

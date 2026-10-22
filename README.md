@@ -345,21 +345,32 @@ These were all found the hard way, in real runs.
 - **Two workers in one worktree overwrite each other.** `--detach` makes this
   easy to do by accident, so `launch` refuses a second live worker on a task.
 
-## Residual gap: Bash is not fully sandboxed
+## Bash containment: OS sandbox + merge-time ownership check
 
-The ownership hook (`guard_paths.py`) sees `Write`, `Edit`, and `NotebookEdit`.
-It does **not** see `Bash`. A shell redirect could therefore write outside a
-task's owned globs.
+The ownership hook (`guard_paths.py`) sees `Write`, `Edit`, and `NotebookEdit`,
+not `Bash`, and `protect_branches.py`'s command-string patterns are easy to
+route around (`cd /repo && echo > f`, `../../../`, `python3 -c`). Two layers
+now close that, neither of which parses commands:
 
-`protect_branches.py` closes the common shapes — redirects, `tee`, `cp`/`mv`,
-and `cd` to absolute paths outside the worktree — but this is pattern matching,
-not a sandbox. A determined worker could still escape it, and Claude Code's own
-worktree isolation (which refuses command shapes it cannot statically verify)
-is not active because we create worktrees with plain git.
+1. **OS sandbox at launch.** Every `claude` launch — task workers, gate
+   groups, *and* advisors — gets `--settings` with Claude Code's own sandbox
+   (Seatbelt on macOS; `worker.sandbox_settings()`): Bash and everything it
+   spawns may write only to the launch cwd (the task worktree; an empty
+   scratch dir for advisors) plus the `.company/` dirs the `company` CLI
+   writes (`worker.SANDBOX_WRITABLE`); `.company/secrets` is unreadable;
+   `failIfUnavailable: true` and `allowUnsandboxedCommands: false` mean no
+   silent unsandboxed fallback. A harness that can't carry it refuses to
+   launch unless it declares `self_sandboxed: true`.
+2. **Ownership at merge.** `company integrate` refuses any task whose
+   `git diff integration...branch` touches a path outside its `owned_globs`
+   (same `pathrules.check` as `guard_paths.py`; not bypassable with `--force`).
 
-Treat the guards as protection against *mistakes*, not against an adversary.
-If you need a real boundary, run workers under Claude Code sandboxing or in a
-container.
+Still open: the sandbox's boundary is the whole worktree plus
+`.company/events`, so a worker can append raw lines to `events.jsonl`
+without going through `company event`'s `$COMPANY_ACTOR` check. Closing that
+is an event-log trust problem, not a sandbox one. Under
+`--dangerously-skip-permissions` sandboxed network egress is auto-approved
+(filesystem confinement still holds).
 
 ## Fixed: the guards used to only apply inside a spawned Tier-2 worker
 

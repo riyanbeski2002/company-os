@@ -46,6 +46,13 @@ harnesses:
     model_flag: --model
     effort_flag: --effort
     skip_permissions_flag: --dangerously-skip-permissions
+    # Carries worker.sandbox_settings() inline (`--settings` takes a file or
+    # a JSON string, verified on 2.1.308): Claude Code's own OS sandbox
+    # (Seatbelt on macOS) confining every Bash call's writes to the launch
+    # cwd plus the few .company/ dirs the `company` CLI writes. Bash
+    # hooks alone (protect_branches.py) can't see through `cd`, `../`, or
+    # `python3 -c` — the kernel can.
+    settings_flag: --settings
     # An ANTHROPIC_API_KEY in the environment silently takes precedence over
     # the claude.ai login and returns terminal_reason "api_error" with zero
     # tokens consumed (verified on this machine) — workers must run on the
@@ -88,6 +95,9 @@ harnesses:
       - sandbox_mode="workspace-write"
       - -c
       - sandbox_workspace_write.network_access=false
+    # No --settings equivalent; the two `-c sandbox_*` lines above are this
+    # harness's own containment, so harness.build_command doesn't refuse it.
+    self_sandboxed: true
     # model_flag is deliberately UNSET. staffing.yaml's tier policy names
     # Claude model families (sonnet/opus/haiku); this account's valid Codex
     # model catalog is not confirmed (live-tested 2026-10-19: `gpt-5.1-codex`

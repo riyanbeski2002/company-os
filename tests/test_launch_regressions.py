@@ -71,6 +71,9 @@ class FakeHarnessCase(unittest.TestCase):
         (self.root / "config" / "harness.yaml").write_text(
             "default: fake\nroles: {}\nharnesses:\n  fake:\n"
             "    native_agent_loading: true\n"
+            # a stand-in process, not a real CLI: nothing to sandbox, and
+            # without this harness.build_command refuses to launch it
+            "    self_sandboxed: true\n"
             f"    command: [{json.dumps(sys.executable)}, {json.dumps(str(script))}]\n")
 
     def _task(self, tid="T-1"):

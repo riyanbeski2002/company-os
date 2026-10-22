@@ -63,7 +63,8 @@ def resolve(config: dict, role: str | None) -> dict:
 
 def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: str,
                    schema: dict | None = None, model: str | None = None,
-                   effort: str | None = None, skip_permissions: bool = False) -> list[str]:
+                   effort: str | None = None, skip_permissions: bool = False,
+                   settings: dict | None = None) -> list[str]:
     """Fill the harness's command template.
 
     A template token that is EXACTLY a `{placeholder}` (nothing else in the
@@ -72,6 +73,14 @@ def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: st
     before it — this is what lets one `claude` entry serve both the
     schema-bearing Tier-2 launch and the schema-less readonly advisor launch
     without two near-duplicate templates.
+
+    `settings` (worker.sandbox_settings()'s per-launch OS sandbox policy) is
+    passed inline via the harness's `settings_flag`. A harness with no such
+    flag must declare `self_sandboxed: true` (its command template applies
+    its own containment, e.g. codex's `sandbox_mode`) — otherwise this
+    raises rather than launching unsandboxed. Fail-closed on purpose: a repo
+    whose .company/config/harness.yaml predates settings_flag would
+    otherwise silently drop the sandbox.
 
     A placeholder embedded inside a larger token (e.g. `"{plugin_root}/
     tools/foo.py"`, needed the first time a harness pointed at an adapter
@@ -130,6 +139,16 @@ def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: st
         cmd += [spec["effort_flag"], translate_effort(spec, effort)]
     if skip_permissions and spec.get("skip_permissions_flag"):
         cmd.append(spec["skip_permissions_flag"])
+    if settings is not None:
+        if spec.get("settings_flag"):
+            cmd += [spec["settings_flag"], json.dumps(settings)]
+        elif not spec.get("self_sandboxed"):
+            raise HarnessError(
+                f"harness {spec.get('_name')!r} has no `settings_flag` to carry the "
+                f"launch sandbox and does not declare `self_sandboxed: true` — "
+                f"refusing to launch unsandboxed. Add `settings_flag: --settings` "
+                f"to its entry in config/harness.yaml (and any .company/config "
+                f"copy of it).")
     return cmd
 
 

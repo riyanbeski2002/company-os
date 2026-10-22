@@ -1457,8 +1457,9 @@ def cmd_advise(args):
             f"Escalate anything that is genuinely the CEO's call with "
             f"`company escalate`. Report only what you verified; label the rest."
         )
-        # Advisors read; they never touch a worktree, so they run in the repo
-        # itself with a read-only tool set.
+        # Advisors read; they never touch a worktree. They read the repo itself
+        # with a read-only tool set, from a sandboxed scratch cwd (see
+        # worker.launch_readonly).
         try:
             result = worker_mod.launch_readonly(
                 repo, root, project, packet, spec["agent"], actor,
