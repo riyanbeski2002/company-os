@@ -1186,13 +1186,51 @@ def cmd_doctor(args):
           fatal=True)
     if detected.get("verify_strength") == "syntax-only" and not configured:
         check("verify strength", False, detected["warning"])
-    check("company initialised", (root / "events" / "events.jsonl").exists(),
-          str(root), fatal=True)
+    events_path = root / "events" / "events.jsonl"
+    check("company initialised", events_path.exists(), str(root), fatal=True)
 
-    base = _baseline(root, args.project or os.environ.get("COMPANY_PROJECT"))
-    check("baseline recorded", base is not None,
-          f"exit {base['exit_code']}, green={base['green']}" if base else
-          "none — run `company baseline` so red repos are judged fairly")
+    # The log is the only authoritative state there is: one corrupt line
+    # stops every other command, and a torn tail stops every append. Both are
+    # reported here, never raised — surfacing them is this command's job.
+    if events_path.exists():
+        try:
+            integrity = EventLog(root).integrity()
+        except TimeoutError as exc:
+            check("event log integrity", False,
+                  f"skipped — {exc}; a writer is holding it, re-run doctor")
+        else:
+            found, total = integrity["problems"], integrity["problem_count"]
+            check("event log integrity", not total,
+                  f"{integrity['events']} events, seq contiguous, trailing newline"
+                  if not total else
+                  "; ".join(found[:3]) + (f"; and {total - 3} more" if total > 3 else "")
+                  + f" — {events_path} needs repair by hand (or restore from "
+                    f"`company backup`) before any run",
+                  fatal=True)
+
+        import backup
+        newest = backup.latest(backup.default_dir(root))
+        if newest:
+            with open(newest, "rb") as fh:
+                saved = sum(1 for _ in fh)
+            with open(events_path, "rb") as fh:
+                live = sum(1 for _ in fh)
+            check("event log backed up", True,
+                  f"{newest} ({max(live - saved, 0)} event(s) appended since)")
+        else:
+            check("event log backed up", False,
+                  f"no backup in {backup.default_dir(root)} — events.jsonl is the only "
+                  f"copy of this repo's state. Run `company backup`.")
+
+    try:
+        base = _baseline(root, args.project or os.environ.get("COMPANY_PROJECT"))
+    except ValueError:
+        check("baseline recorded", False,
+              "unreadable — the event log is corrupt, see event log integrity")
+    else:
+        check("baseline recorded", base is not None,
+              f"exit {base['exit_code']}, green={base['green']}" if base else
+              "none — run `company baseline` so red repos are judged fairly")
 
     # Self-hosted only (see staffing.config_drift's own docstring for the
     # real incident this check exists because of).
@@ -1316,6 +1354,31 @@ def cmd_quarantine_lessons(args):
                                 expect=args.expect, dry_run=args.dry_run)
     except ValueError as exc:
         die(str(exc), 2)
+    emit({"ok": True, **result})
+
+
+def cmd_backup(args):
+    """Snapshot events.jsonl outside the repo, under the append lock — see
+    backup.py. Cheap (one file copy) and safe to re-run: an unchanged log
+    writes nothing new.
+
+    Manual by design, not wired into any other verb: every verb is exercised
+    by the test suite as a real subprocess against the operator's real $HOME,
+    so an automatic backup would quietly write into ~/.company-backups on
+    every test run. `company doctor` reports instead whether a backup exists
+    and how many events it is behind, so a missing one is visible at preflight.
+
+    To restore: copy a backup over .company/events/events.jsonl by hand, then
+    `company rebuild --verify`.
+    """
+    import backup
+    root = company_root(args)
+    try:
+        result = backup.run(root, dest=args.dest)
+    except FileNotFoundError as exc:
+        die(str(exc))
+    for problem in result["problems"]:
+        print(f"warning: backed-up log is not intact: {problem}", file=sys.stderr)
     emit({"ok": True, **result})
 
 
@@ -1936,6 +1999,11 @@ def build_parser():
                     help="refuse unless the log holds exactly this many contaminated entries")
     ql.add_argument("--dry-run", action="store_true", help="report what would be quarantined")
     ql.set_defaults(fn=cmd_quarantine_lessons)
+
+    bk = sub.add_parser("backup",
+                        help="snapshot the event log outside the repo, under the append lock")
+    bk.add_argument("--dest", help="backup directory (default: ~/.company-backups/<repo>-<hash>/)")
+    bk.set_defaults(fn=cmd_backup)
 
     dr = sub.add_parser("doctor", help="preflight a repo before pointing workers at it")
     dr.add_argument("--project")

@@ -1,15 +1,21 @@
 # Known issues
 
-Open defects, with evidence. Every one of these was found by the `cfo-advisor`
+Defects, with evidence. Every one of these was found by the `cfo-advisor`
 running against the fixture project — not by a human reading code. They are
 recorded here because the event log they came from lives in a disposable fixture
 repo that `tools/mkfixture.sh` recreates from scratch.
 
 Severity is the officer's, not softened.
 
+**All three are fixed.** Each entry keeps its original finding and evidence so
+the reasoning behind the fix survives; its **Status** line says what shipped.
+
 ---
 
 ## 1. `company costs` reports zero tokens — HIGH
+
+**Status.** Fixed. New runs: `0dfb3e8` (`WORKER_EXITED` carries `tokens`).
+Historical runs: `baf0d74` (`company backfill-tokens`, `tests/test_backfill.py`).
 
 **Finding.** Cost reporting is blind. `company costs` returns
 `tokens={cache_creation:0, cache_read:0, input:0, output:0}` for every run, so
@@ -40,6 +46,12 @@ Adds no runtime cost and removes no checks.
 
 ## 2. One task implemented four times concurrently — HIGH
 
+**Status.** Fixed in `bb3c688`: `worker.claim_task` takes an atomic
+`O_CREAT | O_EXCL` claim per task, so a second launch is refused rather than
+raced. Proven through a real `worker.launch()` in
+`tests/test_launch_regressions.py` (`baf0d74`). The **Fix** below is the
+original proposal.
+
 **Finding.** TASK-202 was implemented four separate times in seven minutes by
 four different workers. Only one result could ever merge. The three redundant
 implementations plus one abandoned run cost **659,577 cache-read tokens — 26.5%
@@ -65,6 +77,12 @@ then be thrown away.
 ---
 
 ## 3. A gate worker can exit without a verdict, silently — HIGH
+
+**Status.** Fixed in `31c1462`: a gate worker that exits with no verdict event
+records `GATE_NO_VERDICT` and is surfaced as a failed run, not re-run under a
+new name. Proven through a real `worker.launch()` in
+`tests/test_launch_regressions.py` (`baf0d74`). The **Fix** below is the
+original proposal.
 
 **Finding.** `security-reviewer-201` ran 11 turns to a clean `end_turn` and
 emitted neither `SECURITY_REVIEW_PASSED` nor `SECURITY_REVIEW_FAILED`. The gate

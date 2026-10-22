@@ -65,7 +65,7 @@ problem.
 
 git repo · not `$HOME` · has commits · **working tree clean** · current branch ·
 **paths without spaces** · a verify command exists · `.company/` initialised ·
-baseline recorded.
+**event log integrity** · event log backed up · baseline recorded.
 
 Two of those are easy to underestimate on a live repo:
 
@@ -74,6 +74,24 @@ Two of those are easy to underestimate on a live repo:
   Commit or stash first.
 - **Paths containing spaces.** Ownership globs and shell commands must quote
   them. Real repos have `Asset Audit.js` in them.
+
+### Backing up the event log
+
+`.company/events/events.jsonl` is the only authoritative state there is. Back it
+up yourself — nothing does it automatically:
+
+```bash
+company backup          # -> ~/.company-backups/<repo>-<hash>/events-<timestamp>.jsonl
+```
+
+It is one file copy taken under the same lock every append holds, so a backup
+always ends on a whole event; re-running on an unchanged log writes nothing.
+`doctor` says how many events the newest backup is behind. To restore, copy a
+backup over `events.jsonl` by hand and run `company rebuild --verify`.
+
+If a crash leaves the log's last line half-written, every append refuses until
+you repair it by hand (or restore) — Company OS will not guess what that line
+was meant to say. `doctor` names the exact line.
 
 ### What counts as "green" in your stack
 

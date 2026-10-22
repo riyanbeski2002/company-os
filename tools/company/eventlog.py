@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import errno
 import fcntl
+import filecmp
 import json
 import os
+import shutil
 import time
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -121,6 +124,11 @@ GATE_FAIL_EVENT = {
 
 class EvidenceError(ValueError):
     """Raised when an event asserts a fact it cannot back up."""
+
+
+class TornTailError(ValueError):
+    """Raised when the log's last line has no trailing newline — a previous
+    write was interrupted mid-line, and appending would fuse onto it."""
 
 
 def _evidence_commit(evidence) -> str | None:
@@ -296,6 +304,17 @@ class EventLog:
         with open(self.lockpath, "r+") as lock:
             _flock_with_timeout(lock)
             try:
+                if self._torn_tail():
+                    # Refuse rather than guess: only the operator can know
+                    # what the partial line was meant to say, and writing
+                    # now would turn one bad line into two fused ones.
+                    raise TornTailError(
+                        f"{self.path} ends mid-line — a previous write was "
+                        f"interrupted, so this event would be fused onto that "
+                        f"partial line. Nothing was written. Run `company doctor` "
+                        f"to diagnose, inspect the tail of the file by hand, and "
+                        f"repair it or restore from `company backup` before "
+                        f"continuing.")
                 if event.get("task") and event.get("event") in GATE_FAIL_EVENT:
                     task_history = [e for e in self.read() if e.get("task") == event["task"]]
                     _rejects_stale_gate_verdict(event, task_history)
@@ -322,6 +341,63 @@ class EventLog:
                 count += 1
         return count + 1
 
+    def _torn_tail(self) -> bool:
+        # Called with the lock held. Every complete append ends in "\n", so
+        # any other last byte means a write died partway through its line.
+        try:
+            with open(self.path, "rb") as fh:
+                if fh.seek(0, os.SEEK_END) == 0:
+                    return False
+                fh.seek(-1, os.SEEK_END)
+                return fh.read(1) != b"\n"
+        except FileNotFoundError:
+            return False
+
+    @contextmanager
+    def _locked(self):
+        """The same lock append() holds, for readers that need a view no
+        writer is halfway through (integrity checks, backups)."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.lockpath.touch(exist_ok=True)
+        with open(self.lockpath, "r+") as lock:
+            _flock_with_timeout(lock)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock, fcntl.LOCK_UN)
+
+    def integrity(self) -> dict:
+        """check_integrity() on the live log, under the append lock — without
+        it, an append in flight reads as a torn tail."""
+        with self._locked():
+            return check_integrity(self.path)
+
+    def snapshot(self, dest: Path, unless_same_as: Path | None = None) -> bool:
+        """Copy the log to `dest` atomically, under the append lock, so the
+        copy can never contain half an event. fsync'd before the rename and
+        the directory after it, so a crash leaves either no copy or a whole
+        one. Returns False, writing nothing, if `unless_same_as` is already
+        byte-identical to the log (repeat backups don't pile up duplicates)."""
+        dest = Path(dest)
+        tmp = dest.with_name(f".{dest.name}.tmp-{os.getpid()}")
+        with self._locked():
+            if unless_same_as and filecmp.cmp(unless_same_as, self.path, shallow=False):
+                return False
+            try:
+                with open(self.path, "rb") as src, open(tmp, "wb") as out:
+                    shutil.copyfileobj(src, out)
+                    out.flush()
+                    os.fsync(out.fileno())
+                os.replace(tmp, dest)
+            finally:
+                tmp.unlink(missing_ok=True)
+        dirfd = os.open(dest.parent, os.O_RDONLY)
+        try:
+            os.fsync(dirfd)
+        finally:
+            os.close(dirfd)
+        return True
+
     # --- reading ------------------------------------------------------------
     def read(self) -> list[dict]:
         if not self.path.exists():
@@ -340,6 +416,49 @@ class EventLog:
                         f"corrupt and must be repaired by hand: {exc}"
                     ) from exc
         return events
+
+
+_MAX_LISTED_PROBLEMS = 20
+
+
+def check_integrity(path: Path) -> dict:
+    """Every line valid JSON, `seq` running 1, 2, 3... with no gap or repeat,
+    and a trailing newline. Reports what it finds, never raises on bad
+    content — read() already refuses a corrupt log; this says exactly where.
+
+    After an unparseable line the seq check resyncs on the next good one, so
+    one bad line is one problem, not a cascade of gaps after it."""
+    problems, events, lines = [], 0, 0
+    prev, last = 0, b"\n"
+    with open(path, "rb") as fh:
+        for lineno, raw in enumerate(fh, 1):
+            lines, last = lineno, raw
+            if not raw.strip():
+                problems.append(f"line {lineno} is blank")
+                prev = None
+                continue
+            try:
+                ev = json.loads(raw)
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                problems.append(f"line {lineno} is not valid JSON: {exc}")
+                prev = None
+                continue
+            seq = ev.get("seq") if isinstance(ev, dict) else None
+            if not isinstance(seq, int) or isinstance(seq, bool):
+                problems.append(f"line {lineno} has no integer seq")
+                prev = None
+                continue
+            events += 1
+            if prev is not None and seq != prev + 1:
+                kind = "a gap" if seq > prev + 1 else "a repeated or out-of-order seq"
+                problems.append(f"line {lineno}: seq {seq} follows {prev} — {kind}")
+            prev = seq
+    if not last.endswith(b"\n"):
+        problems.append(f"line {lines} has no trailing newline — a write was "
+                        f"interrupted mid-line (torn tail), and append() will "
+                        f"refuse until it is repaired by hand")
+    return {"lines": lines, "events": events, "problem_count": len(problems),
+            "problems": problems[:_MAX_LISTED_PROBLEMS]}
 
 
 def _flock_with_timeout(handle, timeout: float = 10.0) -> None:
