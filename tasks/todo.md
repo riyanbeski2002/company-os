@@ -371,3 +371,83 @@ this review — confirm before pushing).
 ## Review
 
 (updated as each phase completes)
+
+## Auto capability selection per project (Riyan, 2026-10-24: "go auto")
+
+Premise checked: every `config/capability-index.yaml` unit comes from a registry
+entry with `approved_by`. 19 of the 80 indexed repos are T3/T4 — the curator
+legend says T4 is "reference only", but `tools/capability.py` (2026-10-16
+instruction) loads every tier without a gate. Going auto follows the user's
+instruction; the T4 legend conflict is flagged in the final report.
+
+- [x] A. `sync_external_capabilities.py`: skip entries whose `local_path` is not
+      under `external/` (higgsfield-motion* point at tracked native skills, and
+      their `source` is a blog URL, so sync reports them MISSING and would clone
+      the blog). Test.
+- [x] B. `tools/capability.py prepare <brief>`: rank units by term overlap on
+      name+description (stopwords dropped), top 5 above a threshold; ensure each
+      unit's repo is cloned via sync (no install commands run); load skills
+      (symlink); print the rest as available. Test.
+- [x] C. `company capability prepare --brief --task --project`: wraps B, records
+      one CAPABILITY_LOADED per loaded unit. Test.
+- [x] D. `agents/company-pm.md`: call `capability prepare` at project start
+      instead of only surfacing hints.
+- [ ] E. Run the full suite (`python3 -m unittest discover -q tests`); confirm no stray skills/ symlinks.
+
+**Review (in progress):** A, B, C, D done with unit tests. A real end-to-end clone was not run because all 78 cloned repos are present; the clone path is covered by a mocked test only.
+
+## Goal router: company-pm knows how to get each goal done (Riyan, 2026-10-24)
+
+Scope: PM asks only goal clarification and detailing. Routing, skill choice and
+agent choice are the PM's job. Hard stops are gates, not how/why questions:
+unauthorized VAPT targets, live money movement, public posting, third-party
+media/account data.
+
+- [x] 1. `config/capability-map.yaml`: hand-curated map (agents, native skills,
+      catalog units, repos, tools). Each: use_when, not_when, inputs, outputs,
+      cost, kinds. Refs validated against the index, registry and agent files.
+- [x] 2. `config/playbooks.yaml`: six goal kinds (build_app, trading_app,
+      video_recreate, content_engine, vapt, research). Each: ordered steps
+      (capability ids), goal clarifications, hard gates, known gaps.
+- [x] 3. `tools/capability_router.py`: classify(goal) by keyword score (multi-kind
+      allowed), explain(goal) with no side effects, prepare(goal) that clones
+      and loads only what explain selected. T4 never selected. Tools cloned,
+      never installed.
+- [x] 4. `company capability explain <goal>` and `company capability prepare
+      <goal>` wired to the router. Existing keyword `prepare` kept for briefs.
+- [x] 5. `agents/company-pm.md`: goal intake protocol (clarify, explain,
+      prepare, then plan).
+- [x] 6. Tests: map refs resolve, playbooks reference only mapped ids, the six
+      sample goals route to the expected kinds, gates fire, T4 excluded.
+- [ ] 7. Full suite.
+
+Known gaps to report, not hide: no Instagram/YouTube posting integration in the
+catalog; no Spotify catalog access (licensing); reel recreation must not
+download or copy third-party media.
+
+## Session continuation (Riyan, 2026-10-24): fixes + re-audit + 3 skill docs
+
+- [x] A. Opus 5.5 agent writes doc/CAPABILITY-ROUTER-FIXES.md (fix design).
+- [x] B. Implement all 5 fixes per the doc (classifier paraphrase + gates-never-dropped,
+      wire 6 dead map entries, Spotify gap/gate, fix use_when overclaim, gap-compute note).
+- [x] C. Add 3 native skills from Downloads docs, attributed, metadata-only trust:
+      motion-as-code, opportunity-research-loop (AI Money OS), trading-research-loop.
+      Wire trading-research-loop into the trading_app playbook (paper-only, code kill switch,
+      overfitting defenses). Register each in capability-registry.yaml + capability-map.yaml.
+- [x] D. Full suite green (832 tests, 1 skipped).
+- [x] E. Fresh no-context Fable agent re-audited: 7/10; 3 follow-up holes fixed + re-tested against the goal; capture score /10.
+
+## Push router to 9.5 (Riyan, 2026-10-24)
+
+Target the dimensions an independent audit scores: robustness, precision/economy,
+completeness of gates+gaps — real improvements, then verify with a fresh Fable audit.
+
+- [x] 1. Precision: `composes_with` on playbooks; when a high-confidence kind
+      exists, drop stray low-confidence kinds except declared compositions.
+      Kills the compound-goal economy leak the audits flagged.
+- [x] 2. Robustness: broaden signals + RISK_GATES vocabulary across all classes
+      (health done; add accounts/PII net, broaden trading/video/content/vapt).
+- [x] 3. Completeness: add personalization/ML gap (tailored/recommend), and a
+      multi-user personal-data gate that survives fallthrough.
+- [x] 4. Regression tests for each; full suite green.
+- [x] 5. Fresh no-context Fable audit: reached 9.5/10 (rounds 6.0 -> 9.5 over 13 independent audits).

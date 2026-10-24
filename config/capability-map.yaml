@@ -1,0 +1,273 @@
+# Capability map — what each resource is FOR, in plain language.
+#
+# The problem this solves (Riyan, 2026-10-24): the catalog
+# (capability-index.yaml, 1,791 units) and the registry say what EXISTS. They
+# do not say WHEN to reach for a thing or when NOT to. company-pm needs to turn
+# a goal into "use these, not those" without asking the user how or why.
+#
+# This file is hand-curated, not generated. It does not try to annotate all
+# 1,791 catalog units — it names the resources actually worth routing to, and
+# grows as new ones prove useful. Everything else stays browsable via
+# `company capability search`.
+#
+# Each entry:
+#   id        unique within this file
+#   kind      agent | native_skill | catalog_unit | repo | tool | external_tool
+#   ref       the real identifier: an agents/<name>, a native skills/<name>, a
+#             capability-index unit_id, or a registry id. Validated by tests.
+#   use_when  one line — the situation this is the right tool for
+#   not_when  one line — where it looks right but is the wrong tool
+#   provides  tags a playbook step can require (e.g. mobile_ui, render_video)
+#   trust     T0..T4, mirrored from the registry (tests check it matches)
+#   cost      rough note: context load, wall-clock, or $ — for the PM to weigh
+#
+# `ref` resolution and trust-tier agreement are enforced in
+# tests/test_capability_map.py. A playbook step may only require a `provides`
+# tag that some entry here supplies.
+
+entries:
+
+  # --- Orchestration & delivery (company-os's own, T0) -------------------
+  - id: pm
+    kind: agent
+    ref: company-pm
+    use_when: "Any goal that needs staffing, planning, or more than one worker."
+    not_when: "A single-file edit you can just make."
+    provides: [orchestration, planning, staffing]
+    trust: T0
+    cost: "the main session"
+  - id: product-designer
+    kind: agent
+    ref: product-designer
+    use_when: "A customer-facing screen or flow with real ambiguity, before any frontend is built."
+    not_when: "The UX is already specified or trivial."
+    provides: [ux_flow, information_architecture]
+    trust: T0
+    cost: "Tier-1, one pass"
+  - id: frontend-engineer
+    kind: agent
+    ref: frontend-engineer
+    use_when: "Building client-side screens, components, and interaction inside owned globs."
+    not_when: "Server/data work — that's backend-engineer."
+    provides: [frontend_build, mobile_ui, web_ui]
+    trust: T0
+    cost: "Tier-2 worker, own worktree"
+  - id: backend-engineer
+    kind: agent
+    ref: backend-engineer
+    use_when: "APIs, services, data models, business logic inside owned globs."
+    not_when: "Pure UI work — that's frontend-engineer."
+    provides: [backend_build, api, data_model]
+    trust: T0
+    cost: "Tier-2 worker, own worktree"
+  - id: qa-engineer
+    kind: agent
+    ref: qa-engineer
+    use_when: "Independent verification that a change meets its acceptance criteria."
+    not_when: "The implementer reviewing their own work."
+    provides: [verification, test_gaps]
+    trust: T0
+    cost: "Tier-1, one pass"
+  - id: code-reviewer
+    kind: agent
+    ref: code-reviewer
+    use_when: "Independent correctness/root-cause review of a task branch."
+    not_when: "Security-specific review — use security-reviewer."
+    provides: [code_review]
+    trust: T0
+    cost: "Tier-1, read-only"
+  - id: security-reviewer
+    kind: agent
+    ref: security-reviewer
+    use_when: "A change touches auth, permissions, secrets, payments, PII, uploads, migrations, or multi-tenancy."
+    not_when: "Running live exploitation against a target — that's pen_test, and only when authorized."
+    provides: [security_review]
+    trust: T0
+    cost: "Tier-1, read-only, auto-triggered by risk match"
+  - id: pen-test
+    kind: agent
+    ref: pen_test
+    use_when: "Authorized, stakeholder-approved exploitation of a named target in config/authorized-targets.yaml."
+    not_when: "No written authorization, or the target is not listed — then it does not run at all."
+    provides: [vapt, exploitation]
+    trust: T0
+    cost: "Tier-1; GATED on authorized-targets.yaml"
+  - id: finance-analyst
+    kind: agent
+    ref: finance-analyst
+    use_when: "Real finance deliverables — models, comps, decks — for a deal or planning."
+    not_when: "company-os's own cost auditing (that's cfo-advisor)."
+    provides: [financial_modeling]
+    trust: T0
+    cost: "Tier-1"
+  - id: legal-analyst
+    kind: agent
+    ref: legal-analyst
+    use_when: "Contract/NDA review against a playbook, or flagging compliance/legal-risk exposure."
+    not_when: "A substitute for licensed counsel on a real legal decision."
+    provides: [legal_review, compliance_flag]
+    trust: T0
+    cost: "Tier-1"
+
+  # --- Native skills (T0/T2, already in this repo) ----------------------
+  - id: ux-flow
+    kind: native_skill
+    ref: ux-flow
+    use_when: "Producing the states/edge-case/IA contract before frontend builds a new screen."
+    not_when: "The screen already has a spec."
+    provides: [ux_flow]
+    trust: T0
+    cost: "skill load"
+  - id: frontend-design
+    kind: catalog_unit
+    ref: anthropics-skills:frontend-design
+    use_when: "Giving new UI an intentional visual direction instead of templated defaults."
+    not_when: "A backend-only or CLI deliverable."
+    provides: [visual_design]
+    trust: T1
+    cost: "skill load"
+  - id: pen-test-skill
+    kind: native_skill
+    ref: pen_test
+    use_when: "The pen_test agent needs its owned methodology and native probes for an authorized engagement."
+    not_when: "Outside an authorized engagement."
+    provides: [vapt_methodology]
+    trust: T0
+    cost: "skill load; paired with pen-test agent"
+
+  # --- Video / reel / content (T2/T3) -----------------------------------
+  - id: hyperframes
+    kind: catalog_unit
+    ref: heygen-com-hyperframes:hyperframes
+    use_when: "Any request to make/edit a video, animation, motion graphic, captioned clip, or title card."
+    not_when: "Only recording a browser session (no composition)."
+    provides: [video_compose, animation]
+    trust: T2
+    cost: "skill load; render is wall-clock heavy"
+  - id: product-launch-video
+    kind: catalog_unit
+    ref: heygen-com-hyperframes:product-launch-video
+    use_when: "Turning a product/marketing URL or brief into a promo/launch video."
+    not_when: "A general multi-scene piece with no product-launch intent."
+    provides: [promo_video]
+    trust: T2
+    cost: "skill load"
+  - id: media-use
+    kind: catalog_unit
+    ref: heygen-com-hyperframes:media-use
+    use_when: "Sourcing or generating footage, BGM, SFX, or a voiceover for a composition."
+    not_when: "Mixing audio already placed — that's hyperframes-audio."
+    provides: [media_sourcing, voiceover]
+    trust: T2
+    cost: "skill load; may call paid generation"
+  - id: reel-recreate
+    kind: catalog_unit
+    ref: edenfunf-reelmimic:hyperframes
+    use_when: "Recreating the STRUCTURE/style of a reference reel as an original composition."
+    not_when: "Downloading or re-posting someone else's actual footage — that is not done."
+    provides: [reel_structure]
+    trust: T2
+    cost: "skill load"
+  - id: ffmpeg
+    kind: catalog_unit
+    ref: digitalsamba-claude-code-video-toolkit:ffmpeg
+    use_when: "Low-level video/audio transforms: cut, concat, transcode, extract."
+    not_when: "Authoring a composition — that's hyperframes."
+    provides: [video_transform]
+    trust: T2
+    cost: "skill load; needs ffmpeg binary present"
+
+  # --- Platform/channel strategy (agency-agents, T3 — read before use) --
+  - id: instagram-curator
+    kind: repo
+    ref: msitarzewski-agency-agents
+    path: "marketing/marketing-instagram-curator.md"
+    use_when: "Planning Instagram content strategy, cadence, and format (advice, not posting)."
+    not_when: "Actually publishing to an account — no posting integration exists here."
+    provides: [ig_strategy, channel_strategy]
+    trust: T3
+    cost: "read the agent prompt first; it is a role spec, not a tool"
+  - id: content-creator
+    kind: repo
+    ref: msitarzewski-agency-agents
+    path: "marketing/marketing-content-creator.md"
+    use_when: "Multi-platform content planning across IG/YT/short-video."
+    not_when: "Publishing or account automation."
+    provides: [content_strategy, channel_strategy]
+    trust: T3
+    cost: "read the agent prompt first; it is a role spec, not a tool"
+  - id: multi-platform-publisher
+    kind: repo
+    ref: msitarzewski-agency-agents
+    path: "marketing/marketing-multi-platform-publisher.md"
+    use_when: "Planning a repeatable multi-platform publishing workflow (strategy and structure)."
+    not_when: "Automated posting — no account/API integration exists in this repo."
+    provides: [publishing_workflow, channel_strategy]
+    trust: T3
+    cost: "read the agent prompt first; posting itself is a known gap"
+
+  # --- Mobile / app building (T3) ---------------------------------------
+  - id: react-native-patterns
+    kind: catalog_unit
+    ref: affaan-m-ecc:react-native-patterns
+    use_when: "Building a cross-platform mobile app (health tracker, music client, etc.)."
+    not_when: "A web-only app."
+    provides: [mobile_patterns]
+    trust: T3
+    cost: "skill load"
+
+  # --- Health domain (T3) -----------------------------------------------
+  - id: health-phi-compliance
+    kind: catalog_unit
+    ref: affaan-m-ecc:healthcare-phi-compliance
+    use_when: "A health app stores personal health data and needs privacy/handling guidance."
+    not_when: "A tracker holding no identifiable health data."
+    provides: [phi_compliance, privacy_guidance]
+    trust: T3
+    cost: "skill load; guidance, not a legal sign-off"
+
+  # --- Trading domain (T3 — advisory/analysis only) ---------------------
+  - id: trading-agent-security
+    kind: catalog_unit
+    ref: affaan-m-ecc:llm-trading-agent-security
+    use_when: "Reviewing the safety of an LLM-driven trading agent's design before it touches anything live."
+    not_when: "A general security review — that's security-reviewer."
+    provides: [trading_safety_review]
+    trust: T3
+    cost: "skill load"
+
+  # --- Secure coding reference (T3) -------------------------------------
+  - id: ecc-security-review
+    kind: catalog_unit
+    ref: affaan-m-ecc:security-review
+    use_when: "A secure-coding checklist reference during a build, before a formal review."
+    not_when: "A substitute for the security-reviewer agent's independent pass."
+    provides: [secure_coding_ref]
+    trust: T3
+    cost: "skill load"
+
+  # --- Native skills authored 2026-10-24 from Riyan's reference docs ---
+  - id: trading-research-loop
+    kind: native_skill
+    ref: trading-research-loop
+    use_when: "Building/reviewing an AI trading-strategy research system: the research->backtest->paper->memory loop with its safety discipline."
+    not_when: "A price alert or portfolio tracker with no strategy/execution — that's an app build."
+    provides: [trading_research_method, overfitting_defense, trading_kill_switch]
+    trust: T2
+    cost: "skill load; paper-only, live money is an escalation"
+  - id: opportunity-research-loop
+    kind: native_skill
+    ref: opportunity-research-loop
+    use_when: "Finding/validating what is worth building from market signals, with sourced evidence vs. labelled assumptions."
+    not_when: "The user already knows what to build — route to the build/trading/video playbook."
+    provides: [opportunity_discovery, demand_validation]
+    trust: T2
+    cost: "skill load; research-heavy"
+  - id: motion-as-code
+    kind: native_skill
+    ref: motion-as-code
+    use_when: "A voiceover-locked explainer wanted as code (every frame a function of time), on the three.js/bun render path."
+    not_when: "Most video work — HyperFrames is the default; use this only for the code-as-frames approach."
+    provides: [motion_as_code]
+    trust: T2
+    cost: "skill load; needs bun+chrome+ffmpeg"

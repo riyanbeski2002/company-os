@@ -289,13 +289,72 @@ company run TASK-101 --role backend-engineer --detach
 `company run <task-id>` will refuse anything not already staffed — that
 refusal means step 1/2 didn't happen, not that the CLI is broken.
 
+## Goal intake: you decide the how, Riyan gives the what
+
+When Riyan gives a goal ("build an AI trading app", "recreate this reel",
+"do a VAPT on my app"), the how — which skill, which agent, which repo, in
+what order — is YOUR job, not a question for him. The only things you ask are
+goal CLARIFICATION and DETAIL (what it must do, who uses it, what data it
+holds), never "which tool should I use" or "why this approach".
+
+The route is pre-computed. Run it first, before planning:
+
+```bash
+company capability explain "<the goal>"     # the route: kinds, capabilities,
+                                            # hard gates, known gaps — no side effects
+company capability route   "<the goal>" --project <p>   # same, then clones+loads
+                                            # exactly what the route selected
+```
+
+`explain` reads `config/playbooks.yaml` (the standing answer for each kind of
+goal) and `config/capability-map.yaml`, and prints, per step, which agents and
+skills it uses, each with its plain `use when` / `not when` line and trust tier,
+plus the gates and gaps. `route` then clones any missing repo and loads the
+skills, recording one `CAPABILITY_LOADED` each. T4 resources are never
+auto-selected; tools are cloned but never installed.
+
+**Run `explain` FIRST on every goal, before anything else — this is a safety
+step, not a convenience.** Its `gates` apply even when `KINDS` is
+`(none matched)`: they come from the goal's own risk words (health/PII, money/
+trading, posting, exploitation) via the router's risk net, so a reworded or
+unrecognised goal still carries them. You must surface those gates and act on
+them before doing any work. The `prepare`/`search` fallback below selects
+*capabilities* for an unmatched goal; it does **not** replace the gates
+`explain` returned — never let a fallthrough drop a gate.
+
+A low-confidence match (printed as `(low-confidence match)`) still carries that
+kind's gates; treat the route as a starting point and lean harder on the
+clarify questions.
+
+Two things `explain` gives you that you must act on, not bury:
+- **Gates** are hard stops, not questions. Live money movement, posting to
+  someone's accounts, and VAPT against a target not in
+  `config/authorized-targets.yaml` are ESCALATIONS to Riyan or refusals — you
+  do not default into them.
+- **Gaps** are honest "no resource exists for this part yet" notes (e.g. no
+  IG/YT posting integration, no Spotify catalog access, licensed market-data).
+  Surface them in the plan so Riyan knows what is and isn't covered, and raise
+  an escalation or capability proposal rather than silently skipping the part.
+
+If no playbook matches, still honour the gates `explain` returned, then fall
+back to `company capability prepare "<brief>"` (keyword match over the full
+catalog) and `company capability search`, and consider proposing a new
+playbook/map entry via `capability-curator`.
+
+**Auto capability selection for a free-form brief.** When a goal doesn't fit a
+playbook, `company capability prepare "<brief>" --project <p>` ranks the
+catalog (`config/capability-index.yaml`) against the brief, clones any matched
+repo that isn't present yet (`external/<id>/`), loads up to 3 matched skills,
+and records one `CAPABILITY_LOADED` per skill. Every catalog entry is
+approved in `config/capability-registry.yaml`, so no per-repo approval is
+needed. Tools are cloned but their install commands are not run; that stays a
+deliberate act. Name what it loaded in the plan, and load more per task with
+`company capability load <unit_id> --task <id>` if a task needs it.
+
 `company plan`'s JSON also carries `matching_capabilities`: up to 3 catalog
-units per task (`config/capability-index.yaml`) sharing 3+ words with its
-title + owned_globs. It is a hint, not a recommendation — word overlap
-against catalog prose is noisy, and a loaded unit costs context like any
-native skill. Read the description; if one genuinely fits, `company
-capability load <unit_id> --task <id>` (records `CAPABILITY_LOADED`) and name
-it in the packet. Otherwise ignore it. Nothing is loaded for you.
+units per task sharing 3+ words with its title + owned_globs. It is a hint
+for task-level choices. Word overlap is noisy, so read the description before
+loading one, and ignore it when it doesn't fit.
 
 **Recurring work is a routine, not a reminder.** `company routine define
 --cron "<5-field UTC cron>" --spec <plan spec>` stores the same spec you'd

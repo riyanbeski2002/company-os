@@ -1077,3 +1077,259 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-20"
     checked_at: "2026-10-20"
+  # --- Added 2026-10-24 from Riyan's list. Metadata-only review (license,
+  # activity, description). Code and diffs NOT reviewed, so none are T2.
+  - id: kajisho5-ffmpeg-skill
+    type: skill
+    purpose: "Local video editing for coding agents: 42 FFmpeg tools with a machine-readable contract and an MCP server. Metadata-only review; the MCP server would need its own install step."
+    trust_tier: T3
+    source: "https://github.com/kajisho5/ffmpeg-skill"
+    local_path: "external/kajisho5-ffmpeg-skill"
+    pinned_commit: "7c27fbb75e66e4bbbe73be1191992eba4a346276"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: strelov1-freehire
+    type: tool
+    purpose: "Open-source job-search app. Reference for a job-search product, not a skill source. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/strelov1/freehire"
+    local_path: "external/strelov1-freehire"
+    pinned_commit: "19dec971fcbdb81b2172f10b894e507233cabf40"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: jimliu-baocut
+    type: tool
+    purpose: "AI video agent app with an editable timeline. License is 'Other', so treat as reference only. Metadata-only review."
+    trust_tier: T4
+    source: "https://github.com/jimliu/baocut"
+    local_path: "external/jimliu-baocut"
+    pinned_commit: "1eef94bca6550fa89eb3212539ca8a094d7af2c1"
+    license: "Other (unverified)"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: shubhamsaboo-awesome-llm-apps
+    type: skill
+    purpose: "Collection of 100+ agent, skill and RAG example apps. Large mixed content; units are only what the builder finds as SKILL.md. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/shubhamsaboo/awesome-llm-apps"
+    local_path: "external/shubhamsaboo-awesome-llm-apps"
+    pinned_commit: "6c16b23f1bacd0fdf240bb5141ef45e59e82c306"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: wide-trace-open-higgsfield
+    type: tool
+    purpose: "Image and video generation studio app. No license declared, so reference only. Metadata-only review."
+    trust_tier: T4
+    source: "https://github.com/wide-trace/open-higgsfield"
+    local_path: "external/wide-trace-open-higgsfield"
+    pinned_commit: "b16a0efe4d7e2707b56f8ccb02387fd2a9d2eddf"
+    license: "none declared"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: debpalash-voicestudio
+    type: tool
+    purpose: "Local voice cloning and dubbing app. AGPL-3.0 network copyleft, so reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/debpalash/VoiceStudio"
+    local_path: "external/debpalash-voicestudio"
+    pinned_commit: "bc29614a71e63c837ea46cbeca21a308e520e47f"
+    license: "AGPL-3.0"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: every-app-open-seo
+    type: tool
+    purpose: "Open-source SEO analytics app. Reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/every-app/open-seo"
+    local_path: "external/every-app-open-seo"
+    pinned_commit: "2d8236a4fd5d799bf5c089187d0131f4dac4f38c"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: openwhispr-openwhispr
+    type: tool
+    purpose: "Voice dictation app, local and BYOK cloud models. Reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/OpenWhispr/openwhispr"
+    local_path: "external/openwhispr-openwhispr"
+    pinned_commit: "7a6ae826de9ec1caf65f3a6e769475dab2ae829f"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: wheresryan22-anatomy
+    type: skill
+    purpose: "Agent skill for creating interactive isometric illustrations of machines and complex systems. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/wheresryan22/anatomy"
+    local_path: "external/wheresryan22-anatomy"
+    pinned_commit: "1482e8469b0a9e0d8cc18ea2740a01423d29ae80"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: harry0703-moneyprinterturbo
+    type: tool
+    purpose: "Generates short videos from a topic with an AI pipeline. Reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/harry0703/MoneyPrinterTurbo"
+    local_path: "external/harry0703-moneyprinterturbo"
+    pinned_commit: "82bb4a7502704559575f4e3d002b9dcb31d4ed6a"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: jakeschincariol-trader-skill
+    type: skill
+    purpose: "Eleven Claude skills that copy trusted investors' trades (per repo description) and size trades to a budget. Places financial actions. Flag before any use. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/Jakeschincariol/trader-skill"
+    local_path: "external/jakeschincariol-trader-skill"
+    pinned_commit: "5189e79b9a480755a3733ac9713f5353981dbe18"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: jakeschincariol-youtube-agent-skill
+    type: skill
+    purpose: "Claude skills for running a YouTube channel: script hooks, titles, thumbnails. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/Jakeschincariol/youtube-agent-skill"
+    local_path: "external/jakeschincariol-youtube-agent-skill"
+    pinned_commit: "a2feb2104981a375ffd4f87ee04f4f5344ac43c6"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: tauricresearch-tradingagents
+    type: tool
+    purpose: "Multi-agent LLM financial trading framework. Research framework. Check before any live use. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/TauricResearch/TradingAgents"
+    local_path: "external/tauricresearch-tradingagents"
+    pinned_commit: "e8f5503e9b86d5c2710b0c76b1f686703968c9df"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: traderalice-openalice
+    type: tool
+    purpose: "AI trading agent covering equities, crypto and macro. AGPL-3.0, and places trades. Reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/TraderAlice/OpenAlice"
+    local_path: "external/traderalice-openalice"
+    pinned_commit: "57b2f811e9a1a07f6fe9b86b68857e324f610d37"
+    license: "AGPL-3.0"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: comfy-org-comfyui
+    type: tool
+    purpose: "Node-graph diffusion model GUI and backend. GPL-3.0. Reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/comfy-org/comfyui"
+    local_path: "external/comfy-org-comfyui"
+    pinned_commit: "7cebca52227c63b4180ceed448cbd7ad22903b6d"
+    license: "GPL-3.0"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: k2-fsa-omnivoice
+    type: tool
+    purpose: "Voice cloning TTS for 600+ languages. Apache-2.0. Reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/k2-fsa/OmniVoice"
+    local_path: "external/k2-fsa-omnivoice"
+    pinned_commit: "08be0b4ccbac3e13e374e86fbfead4b4cac343e2"
+    license: "Apache-2.0"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: cjpais-handy
+    type: tool
+    purpose: "Offline speech-to-text desktop app. MIT. Reference only. Metadata-only review."
+    trust_tier: T3
+    source: "https://github.com/cjpais/handy"
+    local_path: "external/cjpais-handy"
+    pinned_commit: "5a9451e70aedc90648ce2befd9d7e0304746f9c1"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: skyworkai-skyreels-v2
+    type: tool
+    purpose: "Infinite-length film generative model. Custom 'Other' license and model weights, so reference only. Metadata-only review."
+    trust_tier: T4
+    source: "https://github.com/skyworkai/skyreels-v2"
+    local_path: "external/skyworkai-skyreels-v2"
+    pinned_commit: "9351d13152207cc04de780e055346b08ade0b851"
+    license: "Other (unverified)"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: suifeng9203-heygem-ai
+    type: tool
+    purpose: "Fork of HeyGem with no description, last push April 2025 and 'Other' license. Reference only. Metadata-only review."
+    trust_tier: T4
+    source: "https://github.com/suifeng9203/HeyGem.ai"
+    local_path: "external/suifeng9203-heygem-ai"
+    pinned_commit: "cb5ff4266a182a8eb3ee7d91c5c72a4d74060768"
+    license: "Other (unverified)"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  # --- Added 2026-10-24, requested by Riyan. Metadata-only review.
+  - id: msitarzewski-agency-agents
+    type: skill
+    purpose: "A collection of specialist AI agent definitions (frontend, marketing, community, QA and more), 163k stars, MIT, pushed 2026-10-19. Source for role-level agents the PM can staff against. Metadata-only review; the agent prompts themselves are not reviewed, so each one needs a read before use."
+    trust_tier: T3
+    source: "https://github.com/msitarzewski/agency-agents"
+    local_path: "external/msitarzewski-agency-agents"
+    pinned_commit: "4e3ac3ca6604c75113f52c695dbddcc7af928b46"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  # --- Added 2026-10-24: three native skills authored from Riyan's reference
+  # docs (methodology write-ups, no foreign code vendored). Original text, so
+  # trust is about the SOURCE methodology, not copied code.
+  - id: trading-research-loop
+    type: skill
+    category: "domain.trading"
+    purpose: "Methodology for an AI-assisted trading research loop (research->code->backtest->paper->post-mortem->memory) with paper-only default, a code-level kill switch, and overfitting defenses (sealed test period, walk-forward, Deflated Sharpe, breaker agent, hypothesis ledger). Not financial advice."
+    trust_tier: T2
+    source: "original write-up; methodology from skool.com/raycfu 'Self-Improving AI Trading Research Loop'"
+    license: "original text; no code vendored"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: opportunity-research-loop
+    type: skill
+    category: "domain.research"
+    purpose: "Five-role opportunity-discovery loop (Scout->Researcher->Validator->Strategist->Builder) with a strict honesty rule: cite every claim or label it an assumption, and never confuse finding an opportunity with making money."
+    trust_tier: T2
+    source: "original write-up; methodology from 'Build Your AI Money OS' by @seb.ai"
+    license: "original text; no code vendored"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
+  - id: motion-as-code
+    type: skill
+    category: "design.motion"
+    purpose: "Code-driven, voiceover-locked motion graphics: every frame a deterministic function of time, re-rendered on edit. An alternative render path to HyperFrames for voiceover-synced explainers (three.js/bun/ffmpeg)."
+    trust_tier: T2
+    source: "original write-up; workflow from the 'Motion as Code' starter kit (engine: pdoom-video by mexicat, MIT)"
+    license: "original text; no code vendored"
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"

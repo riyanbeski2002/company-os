@@ -42,8 +42,12 @@ EXTERNAL_DIR = REPO_ROOT / "external"
 
 
 def load_entries():
+    """Only entries whose local_path lives under external/ are clones to sync.
+    An entry pointing at a tracked native skill (skills/...) has nothing to
+    clone; its `source` may be a web page, not a repo."""
     data = yaml.safe_load(REGISTRY.read_text())
-    return [e for e in data.get("entries", []) if e.get("local_path")]
+    return [e for e in data.get("entries", [])
+            if str(e.get("local_path", "")).startswith("external/")]
 
 
 def clone_url(entry):

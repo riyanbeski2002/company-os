@@ -85,5 +85,25 @@ class TestSyncOnePinning(unittest.TestCase):
         self.assertEqual(head, self.sha_b, "unpinned entries still pull to the branch tip")
 
 
+class LoadEntriesTest(unittest.TestCase):
+    def test_native_skill_entries_are_not_clone_targets(self):
+        """An entry whose local_path is a tracked skills/ dir has nothing to
+        clone; it must not reach sync_one (higgsfield-motion regression)."""
+        with tempfile.TemporaryDirectory() as d:
+            reg = Path(d) / "registry.yaml"
+            reg.write_text(
+                "entries:\n"
+                "  - id: cloned\n    local_path: external/cloned\n    source: x\n"
+                "  - id: native\n    local_path: skills/native\n"
+                "    source: https://example.com/blog\n")
+            orig = sec.REGISTRY
+            sec.REGISTRY = reg
+            try:
+                ids = [e["id"] for e in sec.load_entries()]
+            finally:
+                sec.REGISTRY = orig
+        self.assertEqual(ids, ["cloned"])
+
+
 if __name__ == "__main__":
     unittest.main()

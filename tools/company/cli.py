@@ -1657,6 +1657,86 @@ def cmd_capability_load(args):
           "output": printed.getvalue().strip()})
 
 
+def cmd_capability_prepare(args):
+    """Auto-select catalog units for a project brief: clone their repos, load
+    the skills, and record one CAPABILITY_LOADED per loaded unit. The matching
+    and cloning live in tools/capability.py `prepare`; this adds the event log."""
+    capability = _capability()
+    root = company_root(args)
+    project = load_project(root, args.project)
+    actor = args.actor or os.environ.get("COMPANY_ACTOR") or "company-pm"
+    try:
+        result = capability.prepare(" ".join(args.brief))
+    except (RuntimeError, SystemExit) as exc:
+        die(str(exc.code if isinstance(exc, SystemExit) else exc), 1)
+    log = EventLog(root)
+    for unit_id in result["loaded"]:
+        data = {"unit_id": unit_id, "type": "skill", "source": "prepare"}
+        if args.task:
+            data["task"] = args.task
+        log.append(make_event(event="CAPABILITY_LOADED", actor=actor,
+                              project=project, data=data))
+    emit({"ok": True, **result})
+
+
+def _router():
+    """tools/capability_router.py, one directory up from tools/company/."""
+    import importlib
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    return importlib.import_module("capability_router")
+
+
+def cmd_capability_explain(args):
+    """Print the route company-pm would take for a goal: kinds, the
+    capabilities each step uses, hard gates, and known gaps. No side effects —
+    nothing is cloned, loaded, or run. This is the discovery check."""
+    router = _router()
+    emit({"ok": True, **router.explain(" ".join(args.goal))})
+
+
+def cmd_capability_route(args):
+    """Classify a goal into playbook kinds and route it to capabilities,
+    then clone/load exactly what the route selected (the prepare actions),
+    recording one CAPABILITY_LOADED per loaded skill. T4 is never selected;
+    tools are cloned, never installed."""
+    router = _router()
+    capability = _capability()
+    root = company_root(args)
+    project = load_project(root, args.project)
+    actor = args.actor or os.environ.get("COMPANY_ACTOR") or "company-pm"
+    plan = router.route(" ".join(args.goal))
+    cmap = router.load_map()
+    loaded, cloned = [], []
+    for act in plan["prepare_actions"]:
+        if args.explain_only:
+            break
+        if act["action"] == "prepare_unit":
+            try:
+                res = capability.prepare_unit(act["unit_id"])
+            except (RuntimeError, SystemExit) as exc:
+                die(str(exc.code if isinstance(exc, SystemExit) else exc), 1)
+            cloned += res.get("cloned", [])
+            loaded += res.get("loaded", [])
+        elif act["action"] == "ensure_clone":
+            entry = cmap[act["map_id"]]
+            unit_stub = {"path": "external/x", "registry_id": entry["ref"]}
+            try:
+                if capability.ensure_repo(unit_stub):
+                    cloned.append(entry["ref"])
+            except (RuntimeError, SystemExit) as exc:
+                die(str(exc.code if isinstance(exc, SystemExit) else exc), 1)
+    log = EventLog(root)
+    for unit_id in loaded:
+        data = {"unit_id": unit_id, "type": "skill", "source": "route"}
+        if args.task:
+            data["task"] = args.task
+        log.append(make_event(event="CAPABILITY_LOADED", actor=actor,
+                              project=project, data=data))
+    emit({"ok": True, "kinds": plan["kinds"], "gates": plan["gates"],
+          "gaps": plan["gaps"], "cloned": cloned, "loaded": loaded,
+          "prepare_actions": plan["prepare_actions"]})
+
+
 def cmd_capability_search(args):
     """Thin wrapper: the script's own search, output passed through."""
     try:
@@ -2367,6 +2447,26 @@ def build_parser():
     cpl.add_argument("--actor")
     cpl.add_argument("--project")
     cpl.set_defaults(fn=cmd_capability_load)
+    cpp = cpsub.add_parser("prepare", help="auto-select, clone and load the catalog "
+                           "units a project brief needs (tools/capability.py prepare)")
+    cpp.add_argument("brief", nargs="+", help="the project brief, as words")
+    cpp.add_argument("--task")
+    cpp.add_argument("--actor")
+    cpp.add_argument("--project")
+    cpp.set_defaults(fn=cmd_capability_prepare)
+    cpe = cpsub.add_parser("explain", help="show the route the PM would take for a "
+                           "goal (kinds, capabilities, gates, gaps) — no side effects")
+    cpe.add_argument("goal", nargs="+", help="the goal, in plain words")
+    cpe.set_defaults(fn=cmd_capability_explain)
+    cpr = cpsub.add_parser("route", help="classify a goal and clone/load exactly the "
+                           "capabilities its route selected (records CAPABILITY_LOADED)")
+    cpr.add_argument("goal", nargs="+", help="the goal, in plain words")
+    cpr.add_argument("--explain-only", action="store_true",
+                     help="resolve the route but clone/load nothing")
+    cpr.add_argument("--task")
+    cpr.add_argument("--actor")
+    cpr.add_argument("--project")
+    cpr.set_defaults(fn=cmd_capability_route)
     cps = cpsub.add_parser("search", help="units whose id/name/description contain every term")
     cps.add_argument("terms", nargs="+")
     cps.set_defaults(fn=cmd_capability_search)

@@ -766,8 +766,10 @@ by_category:
   - bytedance-deer-flow:smoke-test
   - bytedance-deer-flow:blocking-io-guard
   - bytedance-deer-flow:engineer-system-change
+  - cjpais-handy
   - coleam00-context-engineering-intro:build-with-agent-team
   - coleam00-excalidraw-diagram-skill
+  - comfy-org-comfyui
   - coreyhaines31-marketingskills:competitor-profiling
   - coreyhaines31-marketingskills:marketing-psychology
   - coreyhaines31-marketingskills:ads
@@ -822,6 +824,10 @@ by_category:
   - darkroomengineering-lenis
   - davidhdev-react-bits
   - daytonaio-daytona
+  - debpalash-voicestudio:voicestudio-maintainer
+  - debpalash-voicestudio:voicestudio
+  - debpalash-voicestudio:vite
+  - debpalash-voicestudio:fastapi-python
   - denoland-celld
   - dietrichgebert-ponytail:ponytail
   - dietrichgebert-ponytail:ponytail-audit
@@ -895,6 +901,33 @@ by_category:
   - emilkowalski-skills:animation-vocabulary
   - emilkowalski-skills:animate-expo
   - emilkowalski-skills:emil-design-eng
+  - every-app-open-seo:ai-prompt-research
+  - every-app-open-seo:observability-triage
+  - every-app-open-seo:seo-audit
+  - every-app-open-seo:keyword-research
+  - every-app-open-seo:seo-coach
+  - every-app-open-seo:competitive-landscape
+  - every-app-open-seo:simple-issue-description
+  - every-app-open-seo:review-simplify
+  - every-app-open-seo:openseo-review-web-content
+  - every-app-open-seo:verify-local-mcp
+  - every-app-open-seo:create-repo-skill
+  - every-app-open-seo:merge-ready
+  - every-app-open-seo:competitor-analysis
+  - every-app-open-seo:link-prospecting
+  - every-app-open-seo:seo-report
+  - every-app-open-seo:deslop
+  - every-app-open-seo:evaluate-skill
+  - every-app-open-seo:seo-project-setup
+  - every-app-open-seo:review-brief
+  - every-app-open-seo:papercuts
+  - every-app-open-seo:setup-openseo
+  - every-app-open-seo:review-ui-states
+  - every-app-open-seo:ai-visibility-audit
+  - every-app-open-seo:openseo-release-notes
+  - every-app-open-seo:keyword-clustering
+  - every-app-open-seo:test-audit
+  - every-app-open-seo:local-seo
   - fishaudio-fish-audio-plugin:fish-audio
   - fishaudio-fish-audio-plugin:fish-audio-api
   - fishaudio-fish-audio-plugin:fish-audio-sdk
@@ -1096,6 +1129,7 @@ by_category:
   - google-skills:google-mobile-ads-android-migrate-to-next-gen
   - graphify-labs-graphify:graphify
   - gztchan-awesome-design
+  - harry0703-moneyprinterturbo:skill
   - hassancs91-claude-image-generation:level-3-image-generator
   - hassancs91-claude-image-generation:scene-splitter
   - hassancs91-claude-image-generation:level-2-image-generator
@@ -1144,8 +1178,56 @@ by_category:
   - hiteshk03-davinci-resolve-mcp
   - imaginpro-imaginepro-claude-plugin
   - img2threejs-img2threejs
+  - jakeschincariol-trader-skill:trader-copycat
+  - jakeschincariol-trader-skill:trader-news
+  - jakeschincariol-trader-skill:trader-alerts
+  - jakeschincariol-trader-skill:trader-analyst
+  - jakeschincariol-trader-skill:trader-pelosi
+  - jakeschincariol-trader-skill:trader-budget
+  - jakeschincariol-trader-skill:trader-risk
+  - jakeschincariol-trader-skill:trader-broker
+  - jakeschincariol-trader-skill:trader-tax
+  - jakeschincariol-trader-skill:trader-screener
+  - jakeschincariol-trader-skill:trader-rebalance
+  - jakeschincariol-youtube-agent-skill:yt-audit
+  - jakeschincariol-youtube-agent-skill:yt-plan
+  - jakeschincariol-youtube-agent-skill:yt-package
+  - jakeschincariol-youtube-agent-skill:yt-seo
+  - jakeschincariol-youtube-agent-skill:yt-script
+  - jakeschincariol-youtube-agent-skill:yt-viral
+  - jakeschincariol-youtube-agent-skill:yt-shorts
+  - jakeschincariol-youtube-agent-skill:yt-retention
+  - jakeschincariol-youtube-agent-skill:yt-comment
+  - jakeschincariol-youtube-agent-skill:yt-edit
+  - jakeschincariol-youtube-agent-skill:yt-chapters
   - jarrodwatts-claude-hud
   - jcodesmore-ai-website-cloner-template:clone-website
+  - jimliu-baocut:baocut
+  - jimliu-baocut:translate-subtitles
+  - jimliu-baocut:explainer-video
+  - jimliu-baocut:design
+  - jimliu-baocut:narration
+  - jimliu-baocut:video-blog
+  - jimliu-baocut:clip-montage
+  - jimliu-baocut:video-chapters
+  - jimliu-baocut:docs
+  - jimliu-baocut:slides
+  - jimliu-baocut:speaker-labeling
+  - jimliu-baocut:cross-video-qa
+  - jimliu-baocut:motion-graphics
+  - jimliu-baocut:cover-and-title
+  - jimliu-baocut:subtitle-workflow
+  - jimliu-baocut:talking-head-cut
+  - jimliu-baocut:titles-and-description
+  - jimliu-baocut:production-scripts
+  - jimliu-baocut:shorts-segments
+  - jimliu-baocut:design-system
+  - jimliu-baocut:polish-transcript
+  - jimliu-baocut:video-summary
+  - jimliu-baocut:video-production
+  - jimliu-baocut:demo-polish
+  - jimliu-baocut:demo-chapters
+  - jimliu-baocut:bcut-release
   - juliusbrussee-caveman:caveman-help
   - juliusbrussee-caveman:caveman-evidence-review
   - juliusbrussee-caveman:investigate-first
@@ -1168,6 +1250,21 @@ by_category:
   - juliusbrussee-caveman:caveman-commit
   - juliusbrussee-caveman:lean-build
   - juliusbrussee-caveman:migration
+  - k2-fsa-omnivoice
+  - kajisho5-ffmpeg-skill:release-management
+  - kajisho5-ffmpeg-skill:concurrent-branches
+  - kajisho5-ffmpeg-skill:mcp-server-design
+  - kajisho5-ffmpeg-skill:defect-reports
+  - kajisho5-ffmpeg-skill:verifying-external-behavior
+  - kajisho5-ffmpeg-skill:reproducing-ci-locally
+  - kajisho5-ffmpeg-skill:code-review
+  - kajisho5-ffmpeg-skill:ci-pipeline-synthesizer
+  - kajisho5-ffmpeg-skill:build-artifacts
+  - kajisho5-ffmpeg-skill:destructive-operations
+  - kajisho5-ffmpeg-skill:cross-surface-changes
+  - kajisho5-ffmpeg-skill:git-hygiene
+  - kajisho5-ffmpeg-skill:github-actions
+  - kajisho5-ffmpeg-skill
   - khazp-vibe-coding-prompt-template:vibe-verify
   - khazp-vibe-coding-prompt-template:vibe-change
   - khazp-vibe-coding-prompt-template:vibe-research
@@ -1205,6 +1302,7 @@ by_category:
   - morluto-rea:rea-changelog-update
   - morluto-rea:rea-tool-design
   - morluto-rea:incur
+  - msitarzewski-agency-agents
   - multica-ai-andrej-karpathy-skills:karpathy-guidelines
   - mvanhorn-last30days-skill:last30days
   - nextlevelbuilder-ui-ux-pro-max-skill:ui-ux-pro-max
@@ -1215,6 +1313,8 @@ by_category:
   - nextlevelbuilder-ui-ux-pro-max-skill:slides
   - nextlevelbuilder-ui-ux-pro-max-skill:design-system
   - nilbuild-driverjs
+  - openwhispr-openwhispr:openwhispr-cli
+  - openwhispr-openwhispr:openwhispr-api
   - paperclipai-paperclip:design-guide
   - paperclipai-paperclip:complain
   - paperclipai-paperclip:paperclip
@@ -1662,14 +1762,44 @@ by_category:
   - serafimcloud-21st
   - shadcn-ui-ui:shadcn
   - shadcn-ui-ui:migrate-radix-to-base
+  - shubhamsaboo-awesome-llm-apps:advisor-orchestrator-worker
+  - shubhamsaboo-awesome-llm-apps:commit-archaeologist
+  - shubhamsaboo-awesome-llm-apps:first-reader
+  - shubhamsaboo-awesome-llm-apps:thinking-out-loud
+  - shubhamsaboo-awesome-llm-apps:scope-creep-detector
+  - shubhamsaboo-awesome-llm-apps:dependency-doctor
+  - shubhamsaboo-awesome-llm-apps:project-graveyard
+  - shubhamsaboo-awesome-llm-apps:mcp-apps-builder
+  - shubhamsaboo-awesome-llm-apps:chatgpt-app-builder
+  - shubhamsaboo-awesome-llm-apps:mcp-builder
+  - skyworkai-skyreels-v2
+  - strelov1-freehire
+  - suifeng9203-heygem-ai
   - tailark-blocks
   - tashfeenahmed-freellmapi
+  - tauricresearch-tradingagents
   - theartofhacking-h4cker:codeguard
   - themesberg-neumorphism-ui-free
+  - traderalice-openalice:file-delivery
+  - traderalice-openalice:traderhub
+  - traderalice-openalice:market-data
+  - traderalice-openalice:retrospective
+  - traderalice-openalice:alice
+  - traderalice-openalice:alice-analysis
+  - traderalice-openalice:self-scheduling
+  - traderalice-openalice:sector-rotation
+  - traderalice-openalice:opencli-reader
+  - traderalice-openalice:build-thesis
+  - traderalice-openalice:workspace-manager
+  - traderalice-openalice:delegate-autoquant
+  - traderalice-openalice:alice-uta
+  - traderalice-openalice:scan-value-chain
   - tuzhechen2005-painted-animation:painted-animation
   - tuzhechen2005-painted-animation:kinetic-reel
   - uiverse-io-galaxy
   - watermeloncorp-watermellon-registry
+  - wheresryan22-anatomy
+  - wide-trace-open-higgsfield
   - yihui-dev-awesome-opus5-5-videos
   - yuvalsuede-agent-media-skill
   - motion-vocabulary
@@ -11175,6 +11305,16 @@ units:
   pairs_with: []
   source_commit: ec07de9618b4194533fea3d8bf8a2e4fbcca5385
   content_shape: markdown_only
+- unit_id: cjpais-handy
+  registry_id: cjpais-handy
+  type: reference
+  path: external/cjpais-handy
+  name: cjpais-handy
+  description: Offline speech-to-text desktop app. MIT. Reference only. Metadata-only review.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5a9451e70aedc90648ce2befd9d7e0304746f9c1
+  content_shape: scripts_executables
 - unit_id: coleam00-context-engineering-intro:build-with-agent-team
   registry_id: coleam00-context-engineering-intro
   type: skill
@@ -11196,6 +11336,16 @@ units:
   category: uncategorized
   pairs_with: []
   source_commit: 8646fcc9f74f38539c6cdb4c969723336a96ddcd
+  content_shape: scripts_executables
+- unit_id: comfy-org-comfyui
+  registry_id: comfy-org-comfyui
+  type: reference
+  path: external/comfy-org-comfyui
+  name: comfy-org-comfyui
+  description: Node-graph diffusion model GUI and backend. GPL-3.0. Reference only. Metadata-only review.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7cebca52227c63b4180ceed448cbd7ad22903b6d
   content_shape: scripts_executables
 - unit_id: coreyhaines31-marketingskills:competitor-profiling
   registry_id: coreyhaines31-marketingskills
@@ -12104,6 +12254,51 @@ units:
   category: uncategorized
   pairs_with: []
   source_commit: ec4c21b2d597091ac09ecc278f3bcc172575a987
+  content_shape: markdown_only
+- unit_id: debpalash-voicestudio:voicestudio-maintainer
+  registry_id: debpalash-voicestudio
+  type: skill
+  path: external/debpalash-voicestudio/skills/voicestudio-maintainer
+  name: voicestudio-maintainer
+  description: Triage GitHub issues, review contributor pull requests, diagnose CI, and prepare explicitly
+    requested releases for VoiceStudio's Electron desktop app and Python backend. Use for repository maintenance
+    work, not ordinary VoiceStudio audio generation.
+  category: uncategorized
+  pairs_with: []
+  source_commit: bc29614a71e63c837ea46cbeca21a308e520e47f
+  content_shape: markdown_only
+- unit_id: debpalash-voicestudio:voicestudio
+  registry_id: debpalash-voicestudio
+  type: skill
+  path: external/debpalash-voicestudio/skills/voicestudio
+  name: voicestudio
+  description: Generate local speech with saved or designed voices, transcribe audio, and automate dubbing
+    or narration workflows through VoiceStudio's REST API or MCP server. Use when the user wants to work
+    with VoiceStudio audio or connect it to an agent or automation.
+  category: uncategorized
+  pairs_with: []
+  source_commit: bc29614a71e63c837ea46cbeca21a308e520e47f
+  content_shape: markdown_only
+- unit_id: debpalash-voicestudio:vite
+  registry_id: debpalash-voicestudio
+  type: skill
+  path: external/debpalash-voicestudio/.agents/skills/vite
+  name: vite
+  description: Expert guidance for Vite development with modern build tooling, HMR, framework integrations,
+    and performance optimization
+  category: uncategorized
+  pairs_with: []
+  source_commit: bc29614a71e63c837ea46cbeca21a308e520e47f
+  content_shape: markdown_only
+- unit_id: debpalash-voicestudio:fastapi-python
+  registry_id: debpalash-voicestudio
+  type: skill
+  path: external/debpalash-voicestudio/.agents/skills/fastapi-python
+  name: fastapi-python
+  description: Expert in FastAPI Python development with best practices for APIs and async operations
+  category: uncategorized
+  pairs_with: []
+  source_commit: bc29614a71e63c837ea46cbeca21a308e520e47f
   content_shape: markdown_only
 - unit_id: denoland-celld
   registry_id: denoland-celld
@@ -13122,6 +13317,330 @@ units:
   category: uncategorized
   pairs_with: *id004
   source_commit: 2d228630ba1446365f614a108cb8252f1feda202
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:ai-prompt-research
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/ai-prompt-research
+  name: ai-prompt-research
+  description: Find the questions people ask about a market, how ChatGPT answers them, and which sites
+    get cited in the answers. Use when the user asks what people ask AI about their niche, wants prompt
+    ideas, or wants to know where their brand is missing before choosing prompts to track. Research only;
+    it never saves tracking or starts answer collection.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:observability-triage
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/observability-triage
+  name: observability-triage
+  description: Triage OpenSEO production errors in Cloudflare Workers Observability — verified query recipes,
+    counting gotchas, a known-noise filter list applied automatically, and the on-demand CPU/heap profiling
+    recipe. Use when asked to review Cloudflare logs/observability, count OOMs or worker errors, compare
+    error rates between periods, investigate a prod error spike, or find where a worker spends CPU or
+    memory (profiles, flamegraphs).
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:seo-audit
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/seo-audit
+  name: seo-audit
+  description: Audit a website, investigate its real search opportunities, and deliver a short data-backed
+    report on the few changes most likely to grow organic traffic that converts.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:keyword-research
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/keyword-research
+  name: keyword-research
+  description: Discover keyword opportunities, evaluate metrics and SERPs, and save/tag promising terms.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:seo-coach
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/seo-coach
+  name: seo-coach
+  description: Enter a friendly OpenSEO coach mode that explains workflows, recommends next steps, and
+    helps users use agents, web search, scraping, and MCP data effectively.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:competitive-landscape
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/competitive-landscape
+  name: competitive-landscape
+  description: Map SEO market leaders, winning content themes, keyword coverage, backlinks, and strategic
+    gaps.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:simple-issue-description
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/simple-issue-description
+  name: simple-issue-description
+  description: Turn a rough bug report, feature request, support note, or pull request into a short, plain-language
+    issue focused on the problem and desired behavior. Use when a contributor asks to simplify an issue,
+    explain what a PR is for, create the corresponding issue for a PR, remove implementation detail from
+    a report, or invokes /simple-issue-description.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:review-simplify
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/review-simplify
+  name: review-simplify
+  description: Review a PR for code that can be deleted or simplified. Use when asked to review for simplicity
+    or unnecessary edge-case overengineering.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:openseo-review-web-content
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/openseo-review-web-content
+  name: openseo-review-web-content
+  description: Write and review content for the OpenSEO website (web/), including blog posts, guides,
+    feature pages, FAQs. Makes sure each page delivers real value to its target reader. Use whenever adding
+    or editing user-facing prose in web/content or web/src.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:verify-local-mcp
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/verify-local-mcp
+  name: verify-local-mcp
+  description: Verify the OpenSEO MCP server end-to-end on a local dev server — protocol-level correctness
+    against real DataForSEO, then a headless-agent consumer probe that tests tool ergonomics (descriptions,
+    schemas, output size, errors, async flows) without the maintainer manually driving an MCP client.
+    Use after adding or changing MCP tools, or when asked to check that the MCP "works" or "is ergonomic".
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:create-repo-skill
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/create-repo-skill
+  name: create-repo-skill
+  description: Create or update a skill in this repository the right way — canonical home in .agents/skills,
+    internal-vs-public marking, symlink mirroring into .claude/skills, and public docs registration for
+    product skills. Use whenever adding a new skill, converting a workflow into a skill, or when .claude/skills
+    and .agents/skills look out of sync.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:merge-ready
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/merge-ready
+  name: merge-ready
+  description: Get a branch ready for the maintainer's final review. Review it for security, simplicity,
+    and billing abuse, fix what's real, get checks passing, and open or update the PR. Use whenever the
+    user says a feature, fix, or branch should be "merge ready", asks to get changes ready for review,
+    or appends this to a build request ("build X and make it merge-ready").
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:competitor-analysis
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/competitor-analysis
+  name: competitor-analysis
+  description: Analyze one competitor's organic footprint, ranking keywords, content themes, backlinks,
+    and gaps.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:link-prospecting
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/link-prospecting
+  name: link-prospecting
+  description: Find link prospects, discover contact paths, and draft outreach from SERPs and backlink
+    signals.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:seo-report
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/seo-report
+  name: seo-report
+  description: Write and save an OpenSEO report as one self-contained HTML page. Use when a skill has
+    finished its research, and whenever the user asks for a report, check-in, or summary, or names a report
+    template.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:deslop
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/deslop
+  name: deslop
+  description: Remove AI writing patterns from prose so it reads like a person wrote it. Use when writing,
+    editing, or reviewing user-facing text (blog posts, docs, marketing copy, PR descriptions), or when
+    asked to "deslop", "de-AI", or "make it sound human".
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:evaluate-skill
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/evaluate-skill
+  name: evaluate-skill
+  description: Test a candidate OpenSEO skill end to end by running fresh, isolated Codex sessions against
+    the local backend and scoring the reports they save. Use when editing a product skill (seo-audit,
+    keyword-research, ...) and you need evidence that the new instructions produce better output, not
+    just a cleaner file.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:seo-project-setup
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/seo-project-setup
+  name: seo-project-setup
+  description: Populate a project's shared OpenSEO context — site scope, goals, positioning, competitors,
+    key pages, and preferences — plus MCP checks and Search Console intake.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:review-brief
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/review-brief
+  name: review-brief
+  description: Produce a scannable review brief for a branch or PR so the maintainer can approve without
+    reading the whole diff. Use when the user asks "how do I review this", "summarize the changes", "what
+    should I look at", or wants to understand a PR in under two minutes.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:papercuts
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/papercuts
+  name: papercuts
+  description: 'Log genuine, recurring repository friction to .agents/PAPERCUTS.md — confusing setup,
+    a flaky repo command or script, a misleading in-repo error, stale generated files, or a non-obvious
+    gotcha that will cost the next contributor time. Also use to review, deduplicate, and resolve existing
+    entries. Gate hard before logging: only friction the repository itself can fix counts. Never log the
+    agent''s own sandbox/permission errors, shell-scripting mistakes, transient flakiness, or third-party
+    tool quirks the repo can''t change.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:setup-openseo
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/setup-openseo
+  name: setup-openseo
+  description: Set up OpenSEO in the current AI agent. Use when a user pastes the OpenSEO installation
+    prompt or asks to connect its plugin, MCP, and skills.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:review-ui-states
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/review-ui-states
+  name: review-ui-states
+  description: Enumerate and screenshot every UI state a PR adds or changes. Use when asked to show, capture,
+    or screenshot the UI states of a PR or branch.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:ai-visibility-audit
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/ai-visibility-audit
+  name: ai-visibility-audit
+  description: Audit how a brand shows up in AI answers about its market and deliver a short report on
+    the few changes most likely to get it mentioned or cited, such as a third-party page to get onto,
+    an owned page to improve, or an access problem to fix. Use when the user asks for an AI visibility
+    audit, a GEO or AEO audit, why AI recommends competitors instead of them, or how to show up in ChatGPT,
+    Gemini or Google AI answers.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:openseo-release-notes
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/openseo-release-notes
+  name: openseo-release-notes
+  description: 'Cut an OpenSEO release — bump the version, draft user-facing release notes from commits
+    since the last tag, run a review + subagent-verification pass, and open a "release: vX.X.X" PR. Use
+    when the user asks to prepare a release, bump the version, or write release notes.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:keyword-clustering
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/keyword-clustering
+  name: keyword-clustering
+  description: Cluster keywords by intent and map them to existing or proposed pages.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:test-audit
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/test-audit
+  name: test-audit
+  description: Invoke whenever writing, changing, reviewing, or sweeping Vitest tests in this repo. Authoring
+    gate for new or changed tests, plus an audit workflow for low-value, implementation-coupled, or duplicative
+    tests and the test-only production seams they keep alive. Use when asked to add tests, review tests,
+    clean up tests, or when a PR touches *.test.ts.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
+  content_shape: markdown_only
+- unit_id: every-app-open-seo:local-seo
+  registry_id: every-app-open-seo
+  type: skill
+  path: external/every-app-open-seo/.agents/skills/local-seo
+  name: local-seo
+  description: Audit a Google Business Profile, compare it to local competitors, and map Maps visibility
+    around a location.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 2d8236a4fd5d799bf5c089187d0131f4dac4f38c
   content_shape: markdown_only
 - unit_id: fishaudio-fish-audio-plugin:fish-audio
   registry_id: fishaudio-fish-audio-plugin
@@ -16294,6 +16813,21 @@ units:
   pairs_with: []
   source_commit: 89f81119a482c9c49c399c481a78ff6d82fd974c
   content_shape: markdown_only
+- unit_id: harry0703-moneyprinterturbo:skill
+  registry_id: harry0703-moneyprinterturbo
+  type: skill
+  path: external/harry0703-moneyprinterturbo/docs/skill
+  name: moneyprinterturbo-video
+  description: Use this skill whenever the user wants to create a finished video from a topic, title,
+    idea, prompt, or script with MoneyPrinterTurbo. This includes short-form, voice-over, educational,
+    marketing, social-media, and stock-footage videos. Also use it when the user mentions MoneyPrinterTurbo,
+    provides this Skill URL, asks an AI agent to install or configure MoneyPrinterTurbo, needs missing
+    API keys identified, wants a failed generation repaired, or wants a generated MP4 located and delivered.
+    Use this skill when the expected outcome is a final video file, not setup instructions.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 82bb4a7502704559575f4e3d002b9dcb31d4ed6a
+  content_shape: scripts_executables
 - unit_id: hassancs91-claude-image-generation:level-3-image-generator
   registry_id: hassancs91-claude-image-generation
   type: skill
@@ -16993,6 +17527,313 @@ units:
   pairs_with: []
   source_commit: d508b596cb221f1509f6e50ab68fce275a5cfb44
   content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-copycat
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-copycat
+  name: trader-copycat
+  description: 'The Reverse Engineer. Reads a famous investor''s public SEC filings (the quarterly 13F-HR,
+    plus Form 4 if you want the insider trades) and rebuilds their portfolio as weights you can copy:
+    every position, its share of the fund, what they bought, added, trimmed and sold since the last quarter,
+    with tickers matched to every CUSIP. Then it writes trader/targets.json so the budget skill can size
+    it to your money. Use when the user says "copy Buffett", "copy Berkshire", "what does Ackman own",
+    "reverse engineer this investor", "show me their 13F", "what did they buy last quarter", "copy the
+    top 5", or names any fund or famous investor.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-news
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-news
+  name: trader-news
+  description: 'The News Monitor. Watches breaking market news and SEC filings for the stocks you hold
+    (or are about to copy): Yahoo Finance headlines per ticker and each company''s 8-K filings on SEC
+    EDGAR (earnings, CEO changes, deals, restatements, bankruptcy). Shows only what is new since the last
+    check, newest first, flags what touches your positions and why it matters, and never repeats an item.
+    Use when the user says "any news on my stocks", "what''s happening with Apple", "monitor the news",
+    "watch my portfolio", "did anything break", "check the 8-Ks", or "morning briefing".'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-alerts
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-alerts
+  name: trader-alerts
+  description: 'Price Alerts. Rings when a price target, a stop or the opening bell hits: above / below
+    / stop rules, percent moves from the previous close, and the NYSE opening bell, each ringing once
+    so you are not spammed. Knows NYSE hours with the 2026 and 2027 holidays and 1:00 p.m. early closes,
+    fetches free delayed quotes (Yahoo chart JSON, Stooq CSV) one ticker at a time, and writes trader/prices.json
+    for the other skills. Use when the user says "alert me when", "tell me if AAPL hits", "set a stop",
+    "price target", "watch my stocks", "is the market open", "when does the market open", "get me prices",
+    or to refresh prices before sizing, risk or tax.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-analyst
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-analyst
+  name: trader-analyst
+  description: 'The Earnings Analyst. Reads a company''s reported numbers straight from SEC EDGAR (XBRL
+    company facts from its 10-Qs and 10-Ks, plus the latest earnings 8-K and its press release) and sums
+    up what changed: revenue, gross, operating and net margins, net income and diluted EPS, quarter by
+    quarter, each against the same quarter a year earlier, with the trailing twelve months. Writes a metrics
+    file the screener reads. Use when the user says "how did Apple''s earnings look", "analyze the earnings",
+    "what changed this quarter", "is revenue growing", "check the 10-Q", "compare margins", or "run the
+    analyst on my holdings".'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-pelosi
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-pelosi
+  name: trader-pelosi
+  description: 'The Pelosi Tracker. Watches the stock trades members of Congress must disclose under the
+    STOCK Act: reads the House Clerk''s public Periodic Transaction Reports (PTRs) as soon as they are
+    posted, alerts once per new filing, and turns each PDF into clean rows (who, owner, stock, ticker,
+    buy or sell, options strike and expiry, trade date, amount range, how many days it took to disclose).
+    Flags trades in stocks you hold. Senate reports are covered by a documented manual route. Use when
+    the user says "what is Pelosi buying", "track Nancy Pelosi", "Congress trades", "politician stock
+    trades", "did any congressman buy X", "alert me when Pelosi files", or "run the Pelosi skill".'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-budget
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-budget
+  name: trader-budget
+  description: 'Budget Manager. Sizes every position to your budget before anything is bought: keeps a
+    cash buffer, caps any one stock (the excess is shared out to the others), drops slices under your
+    minimum order, rounds so every dollar is used, supports fractional or whole shares, and writes the
+    proposed buy orders to trader/orders.json in the exact shape of Alpaca''s place_stock_order (notional
+    as a string). Nothing is placed. Use when the user says "I have $5,000", "size my trades", "how much
+    of each should I buy", "manage my budget", "split my money", "keep 10% in cash", "no stock over 25%",
+    "set my rules", or after /trader-copycat writes targets.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-risk
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-risk
+  name: trader-risk
+  description: 'Risk Manager. Checks every proposed order against your limits before it can reach the
+    broker and blocks anything over them: blocked tickers, max order size, minimum order, max position
+    percent after the fill, the cash buffer, margin, short sales, options and crypto (off unless allowed),
+    malformed orders, duplicates and a daily order limit. Prints PASS or BLOCK with the reason for each
+    order and records the verdicts so trader-broker only shows an order that passed. Use when the user
+    says "check my orders", "is this safe", "risk check", "does this break my rules", "can I place this",
+    or before /trader-broker, always.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-broker
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-broker
+  name: trader-broker
+  description: Order Executor. Places APPROVED orders through your brokerage connector, one at a time,
+    and never without your explicit yes. Shows each order as a plain ticket plus the exact JSON for Alpaca's
+    place_stock_order, records your yes word for word, then Claude's own Allow once / Deny card asks again.
+    Covers setting up Alpaca's official MCP server in Claude Desktop (paper trading by default, keys in
+    env vars, never in chat), the Interactive Brokers connector (orders go to your IBKR account for your
+    approval), and setting order tools to "Needs approval". Use when the user says "place the orders",
+    "buy it", "execute", "send it to my broker", "connect Alpaca", "connect Interactive Brokers", "set
+    up paper trading", or after /trader-risk passes.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-tax
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-tax
+  name: trader-tax
+  description: Tax Optimizer. Tracks cost-basis lots for every position (FIFO, highest cost first, or
+    specific lots), shows unrealized gains and losses by lot with short or long term, works out what a
+    sale would realize before you sell, finds tax-loss harvesting candidates over a loss threshold, checks
+    the wash sale rule (30 days before and after, GOOG and GOOGL as one family), and writes harvest sells
+    only as proposals. Not tax advice. Use when the user says "what are my gains", "cost basis", "tax
+    lots", "tax-loss harvest", "what would selling cost me in tax", "short or long term", "wash sale",
+    or before selling anything.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-screener
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-screener
+  name: trader-screener
+  description: The Stock Screener. Checks a list of companies against the user's own rules (revenue growth,
+    margins, EPS, P/E, earnings yield, sector, anything in the metrics file), says exactly which rule
+    each company passes or fails and by how much, and ranks the ones that pass into a shortlist. Reads
+    the metrics /trader-analyst writes from SEC filings, or any CSV. Use when the user says "screen for
+    stocks", "find me companies that", "filter my watchlist", "which of these pass my rules", "shortlist
+    candidates", "rank these stocks", or "growing companies under 30 times earnings".
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-trader-skill:trader-rebalance
+  registry_id: jakeschincariol-trader-skill
+  type: skill
+  path: external/jakeschincariol-trader-skill/trader-rebalance
+  name: trader-rebalance
+  description: 'Rebalancer. Brings the portfolio back to its target weights when it drifts: values every
+    holding at current prices, works out each stock''s drift from its target in percentage points, trades
+    only the stocks outside a band (default 5 points), keeps the cash buffer and the per-stock cap, skips
+    tiny trades, lists sells before buys, and writes the trades to trader/orders.json as proposals. Use
+    when the user says "rebalance", "my portfolio drifted", "bring it back to the targets", "I added money",
+    "the new 13F changed the weights", "am I overweight", or on a schedule (monthly or quarterly) after
+    /trader-copycat updates the targets.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 5189e79b9a480755a3733ac9713f5353981dbe18
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-youtube-agent-skill:yt-audit
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-audit
+  name: yt-audit
+  description: Audit a YouTube channel end to end - packaging, consistency, the first fifteen seconds,
+    and what to fix first. Use for "audit my channel", "why isn't my channel growing", "review my videos",
+    or a pasted channel URL.
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: markdown_only
+- unit_id: jakeschincariol-youtube-agent-skill:yt-plan
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-plan
+  name: yt-plan
+  description: Plan a week or a month of YouTube uploads - what to post, when, and in what order, sized
+    to the creator's actual capacity. Use for "plan my week", "content calendar", "what should I post",
+    "I have no idea what to make next".
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: markdown_only
+- unit_id: jakeschincariol-youtube-agent-skill:yt-package
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-package
+  name: yt-package
+  description: Write and lint the title and thumbnail for a YouTube video as one pairing, checking truncation,
+    duplication and vagueness before publish. Use for "title ideas", "what should I call this", "thumbnail
+    text", "my CTR is bad", packaging, or any request to rename or repackage an existing video.
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-youtube-agent-skill:yt-seo
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-seo
+  name: yt-seo
+  description: Write the description, tags and search-facing text for a YouTube video, aimed at the query
+    a real person types. Use for "write my description", "tags", "SEO", "help this video get found", "nobody
+    is finding this".
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: markdown_only
+- unit_id: jakeschincariol-youtube-agent-skill:yt-script
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-script
+  name: yt-script
+  description: Write a YouTube video script from a raw idea - hook options off 21 formulas, scored, then
+    the full spoken script with the retention beats marked. Use whenever the user wants a video script,
+    a hook, an opening line, "what should I say", "write my next video", or is about to record and does
+    not have the first fifteen seconds yet.
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-youtube-agent-skill:yt-viral
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-viral
+  name: yt-viral
+  description: Find what is actually working in the user's niche on YouTube and rank it by how far each
+    video beat its own channel, then name the formula. Use for "what's working right now", "find viral
+    videos in my niche", "why did this blow up", competitor research, or a swipe file.
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-youtube-agent-skill:yt-shorts
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-shorts
+  name: yt-shorts
+  description: Find the Shorts hiding inside a long video and write them, using the transcript to pick
+    self-contained moments. Use for "cut this into shorts", "clip this", "repurpose this video", "what
+    should I clip".
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: markdown_only
+- unit_id: jakeschincariol-youtube-agent-skill:yt-retention
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-retention
+  name: yt-retention
+  description: Read a YouTube Studio audience-retention export and find where viewers actually leave,
+    then say what to change. Use for "why do people stop watching", "my retention is bad", a pasted retention
+    chart or CSV, or "fix my pacing".
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-youtube-agent-skill:yt-comment
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-comment
+  name: yt-comment
+  description: Draft replies to YouTube comments in the creator's voice, triaged by which ones are worth
+    answering. Use for "reply to my comments", "handle the comment section", "someone asked X", or a pasted
+    comment thread.
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: markdown_only
+- unit_id: jakeschincariol-youtube-agent-skill:yt-edit
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-edit
+  name: yt-edit
+  description: Turn a raw recording's transcript into an edit decision list - dead air, filler cues and
+    retakes, with timecodes. Use for "edit this", "cut the dead space", "tighten this video", "I rambled",
+    or any request to shorten footage from a transcript.
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: scripts_executables
+- unit_id: jakeschincariol-youtube-agent-skill:yt-chapters
+  registry_id: jakeschincariol-youtube-agent-skill
+  type: skill
+  path: external/jakeschincariol-youtube-agent-skill/skills/yt-chapters
+  name: yt-chapters
+  description: Write YouTube chapters from a transcript, validated against YouTube's own rules so they
+    actually render. Use for "add chapters", "timestamps", "break this video into sections".
+  category: uncategorized
+  pairs_with: []
+  source_commit: a2feb2104981a375ffd4f87ee04f4f5344ac43c6
+  content_shape: scripts_executables
 - unit_id: jarrodwatts-claude-hud
   registry_id: jarrodwatts-claude-hud
   type: reference
@@ -17016,6 +17857,277 @@ units:
   category: uncategorized
   pairs_with: []
   source_commit: ee3f5a2f31fd549b9593fa4f7cf6d2955ee593bb
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:baocut
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut
+  name: baocut
+  description: 用 BaoCut 处理视频与音频：转录、字幕、翻译、配音、剪口播、切短视频、分章、总结写稿、从链接下载、压缩转码、导出成片，或从零做一条成片。有媒体文件、视频链接、字幕文件或
+    BaoCut 视频时用；只翻译纯文本、与视频无关的写作或作图、别的剪辑器与 FFmpeg 的用法、BaoCut 源码开发不用。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: scripts_executables
+- unit_id: jimliu-baocut:translate-subtitles
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/translate-subtitles
+  name: translate-subtitles
+  description: 用户要把视频的转写或字幕翻译成另一种语言、做双语字幕，或更新原文改动后过期的译文时用：逐句翻译写成视频里的译文文档，再放到画面上、按需导出。有媒体时「翻译」默认指字幕翻译。不用于翻译与视频无关的文章、文档或一段纯文本；对话里没有视频或字幕、又看不出指的是什么时先问一次。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:explainer-video
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/explainer-video
+  name: explainer-video
+  description: 做知识讲解、科普、教学类视频时读的手艺页：把一个概念、一条新闻、一篇论文或一份资料，讲成没有背景的人也看得懂、愿意看完、看完能复述。给的是判断与手法，不是模板与流程：从观众的疑问找讲法，给这期找一个贯穿全片、自己会讲道理的主体，画面与旁白由同一份事实驱动，核实事实，像审片人一样看一遍；每一版交付成片、封面图与发布稿。制作照
+    video-production 与 narration。分步操作教程、剪口播不用。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:design
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/design
+  name: design
+  description: 用户要做界面、网页、海报、图表或信息图、示意图、原型这类视觉设计稿时用：在工作目录写一份设计稿（canvas.json 加每块画板一个 .dc.html），校验通过后线程里出现设计稿卡片，用户在功能区预览、编辑与标注。也用于按用户的意见或设计稿标注改已有的设计稿。幻灯片不用它（用
+    slides），视频画面里的字卡与动效也不用它（用动效图形）。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:narration
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/narration
+  name: narration
+  description: 做一条由旁白带着走的成片（资讯快评、知识讲解、产品介绍、步骤教程），或给已有画面配一段多句的旁白时用：先按实测语速算出稿子该有多少字、按句分行写稿，再选一个全片不变的音色、用同一套语气说明一次合成，量时长、查接缝、只重配不合格的句子，最后把画面剪到旁白上。不用于把视频配成另一种语言（翻译配音），也不用于只念一句话。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:video-blog
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/video-blog
+  name: video-blog
+  description: 用户要把一个视频写成博客文章、公众号或专栏文章、图文稿时用：一篇不看视频也能读明白的完整文章，分作者视角（用户自己的视频，以用户名义发布）与观众视角（别人的视频，带出处的转述）。需要视频的转写。不用于只要摘要要点（用视频内容总结），也不用于与视频无关的写作。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:clip-montage
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/clip-montage
+  name: clip-montage
+  description: 旁白、视频切片与文字动画混搭的成片：拿一条新闻、一件事、一段八卦、一个产品或人物的故事，从网上与用户的视频库里搜素材、切当事人的原声，配旁白剪成一条画面一直在动的片子，推文、引语、日期、数字做成压在画面上的卡片。题材不限；别的成片里要加一段这样的切片也用它。整段画面由代码画出来的讲解片走
+    explainer-video，剪已有的口播走 talking-head-cut。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:video-chapters
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/video-chapters
+  name: video-chapters
+  description: 用户要给视频分章节、加章节或时间轴目录、按作者给的时间大纲生成章节，或调整章节的粗细时用：在自然的话题转换处分章，每章一个标题和一句话摘要，写进视频的章节。需要视频的转写。不用于只想在简介里列出已有章节（用起标题与写简介），也不用于给文章分节。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:docs
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/docs
+  name: docs
+  description: 用户要一份文档时用：报告、提案、计划、简历、求职信、信件、合同、制度、表单、模板、作文、手册、指南、操作说明、速查表这类要保留、共享、评论、导出或打印的文字。用 docs_*
+    工具在工作目录建一份文档，先发骨架再一节一节填，线程里出现文档卡片，用户在功能区编辑与评论。也用于按文档评论或请求改已有文档。聊天里问的计划、对比、摘要留在聊天；幻灯片用 slides，视觉设计用
+    design。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:slides
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/slides
+  name: slides
+  description: 用户要做幻灯片、演示文稿、讲稿或汇报用的页面时用：在工作目录里写一份 deck（deck.json 加每页一个 HTML 文件），校验通过后线程里出现幻灯片卡片，用户在功能区预览、编辑与标注。可以套用工作目录里的设计系统；需要插图时可以用图片生成模型画好放进页面。也用于按用户的意见或标注改已有的幻灯片。视频画面里的字卡、下横栏与动效不用它（用动效图形）。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:speaker-labeling
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/speaker-labeling
+  name: speaker-labeling
+  description: 视频里有几个人说话、要区分是谁在说或给说话人标名字时用：没区分说话人的文稿按声纹重新转录并区分，再从文稿与来源信息里找证据给每位起真名，写回转写的 speakers。只改说话人，不改正文的字。只有一个人说话、或用户只要校对错字时不用。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:cross-video-qa
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/cross-video-qa
+  name: cross-video-qa
+  description: 用户问「我哪一期讲过 X」「这几部视频里谁说过 Y」「X 在我的视频里是怎么讲的」「有哪些讲 X 的视频」这类要在多部视频里找答案的问题时用：按意思检索、按视频去重、按当前版本重新定位，只凭找回来的原话回答，每条论断注明视频与时间，覆盖不全时说明。不用于总结或改写一部视频（那是总结、博客），也不改视频。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:motion-graphics
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/motion-graphics
+  name: motion-graphics
+  description: 给音频视频定制内容背景与标题，或要在视频上加一段动效图形时用：下横栏（姓名职务）、关键词字幕、大数字与图表、标注与引导、品牌贴片与片尾、倒计时与进度。不选模板，按规则写一个自包含的
+    HTML 画面（时间的纯函数），打包成代码包导入后放上时间线。只加静态文字、贴纸或已有的文字动画预设时不用；声波一律用内置的声波元素，不用本 skill 画；整条成片的规划看「从简报到成片」。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:cover-and-title
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/cover-and-title
+  name: cover-and-title
+  description: 用户要给视频做封面、要封面大字，或要标题和封面一起出时用：读文稿提炼卖点，给几组标题与封面文案，用户挑定后按视频画幅生成封面图，放进这个视频的候选素材。每句都由视频兑现。只要标题或简介、不要封面时用起标题与写简介。需要视频的转写。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:subtitle-workflow
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/subtitle-workflow
+  name: subtitle-workflow
+  description: 用户给了视频链接或本机音视频，要转录、加字幕、做译文字幕或双语字幕时用：建可编辑视频并导入，转写、润色，需要时翻译，把字幕层放到画面上，再按需导出字幕文件或成片。有媒体时「转录」「加字幕」「翻译成某种语言」都按这个流程。不用于与视频无关的文字翻译。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:talking-head-cut
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/talking-head-cut
+  name: talking-head-cut
+  description: 一两个人对着镜头说话的录音要剪成能发布的视频时用：去掉口癖、长停顿、录废重来的部分和离题的话，在几遍重录里挑一遍，收紧句间停顿，把最有力的原话挪到开头，再按需要加放大强调、B-roll、竖屏取景和配乐闪避。需要视频的转写。只想从长视频里挑几段短视频时用切短视频。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:titles-and-description
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/titles-and-description
+  name: titles-and-description
+  description: 用户要为准备发布的视频起标题、要几个标题候选、再来一批或照某个再来几个，或要写视频简介（视频页标题下的说明文字、章节列表、标签）时用。写给发布视频的人：吸引人，并且每句都由视频兑现。需要视频的转写。不用于给文章起标题等与视频无关的写作。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:production-scripts
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/production-scripts
+  name: production-scripts
+  description: 有命令行环境、旁白按段配、画面按段上时间线的片子（讲解、解说混剪、旁白片、歌词视频……）要跑脚本时用：配音、对齐字时间、把场景代码打成代码包、按段摆上时间线并处理变长变短的波纹、按稿子建字幕、剪实拍与水印叠上去或垫在底下、量画面占比。脚本是一条省事的路，不规定片子的形态；形态和它不合时用
+    baocut CLI 自己写。只是加一段动效图形或配一句旁白时不用。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:shorts-segments
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/shorts-segments
+  name: shorts-segments
+  description: 用户有一个长视频（访谈、讲座、直播回放、口播），想从中切出几支能单独发布的短视频时用：读转写找出最值得发的话题，每个话题从开头的钩子剪到讲完，建成可编辑的子视频，用户在编辑器里接着调；几支、每支多长可以交给你按话题定。需要视频的转写。不用于按主题从零做一个新的短视频，也不用于把整段口播剪干净（用剪口播）。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:design-system
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/design-system
+  name: design-system
+  description: 用户要建立或修改设计系统时用：品牌的颜色、文字样式、间距与圆角 tokens，给智能体看的品牌手册 README，bundle 与预览，标志、图标与字体。在工作目录写一个设计系统目录（design-system.json
+    加 tokens.json、README.md、components/、assets/、fonts/），可以从代码仓库或设计工具里的真实来源整理；图片、视频与 PDF 导入设计系统的素材库，校验通过后线程里出现设计系统卡片，用户在功能区预览与编辑；做好的设计系统可以装进设计稿。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:polish-transcript
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/polish-transcript
+  name: polish-transcript
+  description: 视频的转写要校对或润色时用：改错字与误听，统一术语与专名，补正标点与分句，写回同一份转写，词的时间不变。做译文之前先做这一步；已经建好的原文字幕层写回时跟着改字。默认不改语法、不删口癖、不精简；去掉口癖与停顿是剪辑，不在这里做。不用于润色与视频无关的文章或纯文本。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:video-summary
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/video-summary
+  name: video-summary
+  description: 用户要总结一个视频、提炼要点、写内容摘要或会议纪要式的回顾时用：挑出这一期最值得带走的两三件事，从读者关心的问题讲起、讲透，其余少说或不说；另附一组带视频时间的要点，方便跳回那一段。适用于访谈、播客、演讲、教程、评测、会议、圆桌等任何有转写的视频。不用于总结与视频无关的文章或纯文本，也不用于写博客文章（那是另一种产出）。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:video-production
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/skills/baocut/built-in-skills/video-production
+  name: video-production
+  description: 从零做一条完整成片时用：推广短片、知识讲解、故事短片、发布片、资讯快评、数据故事、排版动效、歌曲 MV 与歌词视频，或用户选了场景模板、作品示例说「做一条视频」。简报定下后，先写风格与角色设定、分镜与声音规划，再出参考图，逐镜用素材、生成图片或代码画面做出来，配旁白、混音、导出验收。只转录、加字幕、翻译、配音或剪已有视频时不用。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: scripts_executables
+- unit_id: jimliu-baocut:demo-polish
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/packages/runtime-core/src/skills/testing/agent-skill-fixture/skills/baocut/built-in-skills/demo-polish
+  name: 示例润色
+  description: 测试用的 craft：润色一份转写。只用于渲染器与同步脚本的测试。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:demo-chapters
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/packages/runtime-core/src/skills/testing/agent-skill-fixture/skills/baocut/built-in-skills/demo-chapters
+  name: 示例分章
+  description: 测试用的 craft：分章节。
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
+  content_shape: markdown_only
+- unit_id: jimliu-baocut:bcut-release
+  registry_id: jimliu-baocut
+  type: skill
+  path: external/jimliu-baocut/.agents/skills/bcut-release
+  name: bcut-release
+  description: Release BaoCut Electron desktop apps through GitHub Actions tags by default; use local/manual
+    packaging only when explicitly requested. Also handles App version bumps, release continuation and
+    portable signing backups; excludes craft skills and legacy standalone CLI releases.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1eef94bca6550fa89eb3212539ca8a094d7af2c1
   content_shape: markdown_only
 - unit_id: juliangarnier-anime
   registry_id: juliangarnier-anime
@@ -17280,6 +18392,235 @@ units:
   pairs_with: []
   source_commit: d262ab3882952a59312ff3537cd86d894523c5ab
   content_shape: markdown_only
+- unit_id: k2-fsa-omnivoice
+  registry_id: k2-fsa-omnivoice
+  type: tool
+  path: external/k2-fsa-omnivoice
+  name: k2-fsa-omnivoice
+  description: Voice cloning TTS for 600+ languages. Apache-2.0. Reference only. Metadata-only review.
+  category: uncategorized
+  load_cmd: 'pip install -e . (scripts: omnivoice-infer, omnivoice-infer-batch, omnivoice-demo, omnivoice-merge-lora)'
+  pairs_with: []
+  source_commit: 08be0b4ccbac3e13e374e86fbfead4b4cac343e2
+  content_shape: scripts_executables
+- unit_id: kajisho5-ffmpeg-skill:release-management
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/release-management
+  name: managing-python-releases
+  description: Manages Python library releases including semantic versioning, changelog maintenance (Keep
+    a Changelog format), release automation with GitHub Actions, and deprecation workflows. Use when planning
+    releases, writing changelogs, automating release pipelines, or communicating breaking changes.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:concurrent-branches
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/concurrent-branches
+  name: concurrent-branches
+  description: Resolve conflicts and merges when several branches are open against one repo at the same
+    time — the hotspot files every change must touch (registry manifests, a single version field, shared
+    tool config, one aggregated test module, tracked build output), union-vs-recompute-vs-rebuild as three
+    different correct resolutions, generated artifacts that must never be merged, non-deterministic serialization
+    that makes every branch conflict, renumbered identifiers that git cannot show you, and why a clean
+    auto-merge is not a passing test. Use when rebasing or merging a long-lived branch, resolving conflict
+    markers, reviewing a merge commit, deciding what a repo should commit vs generate, or setting up a
+    repo that will take parallel contributions.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:mcp-server-design
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/mcp-server-design
+  name: building-python-mcp-servers
+  description: Builds robust Python MCP (Model Context Protocol) servers with FastMCP — tool design, error
+    contracts, event-loop-safe blocking work, subprocess/CLI wrapping, single-file vs packaged distribution,
+    global-state-free testing, and prompt-injection awareness. Use when writing an MCP server, exposing
+    a tool or CLI to an LLM client, debugging tool registration/packaging, or testing MCP tools.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:defect-reports
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/defect-reports
+  name: writing-defect-reports
+  description: Establish a finding before you publish it, and correct it after — headlines that overstate
+    what actually reproduces at the layer a user sees, reporting code that no entry point can reach or
+    that is already dead, filing a caveat the project's own records already answered, re-verifying your
+    prior notes against the tree instead of against the note, choosing the narrowest injection point that
+    reproduces a failure without breaking the run first, capturing probe output a harness swallows, and
+    withdrawing a published claim in the thread where you published it. Use when filing an issue, writing
+    the body of a PR or code review that asserts a defect, triaging someone else's report, or deciding
+    whether a suspicious observation is reportable at all.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:verifying-external-behavior
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/verifying-external-behavior
+  name: verifying-external-behavior
+  description: Confirms what a third-party library, remote API, build backend, or scraped document actually
+    does before writing code that depends on it — throwaway probes that run in seconds, permissive clients
+    that forward wrong arguments instead of rejecting them, per-endpoint docs that don't generalize, response
+    shapes that make a "fast path" always-false, fakes that encode your assumption rather than the service's
+    behavior, and dry-runs that skip the step that fails. Use when integrating a new dependency or endpoint,
+    writing a tolerated-status or error branch, choosing a client argument name, testing against a fake,
+    or reviewing code that asserts an upstream contract.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:reproducing-ci-locally
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/reproducing-ci-locally
+  name: reproducing-ci-locally
+  description: Run the CI gate on your machine so it agrees with the runner — deriving the exact command,
+    paths, markers, and env from the workflow file instead of the Makefile, unblocking gate steps that
+    short-circuit and hide the next failure, pinning the linter version CI resolves, building the interpreter/toolchain
+    environment the runner builds, and confirming the run is green instead of explaining a red job away.
+    Use when a check passes locally but fails in CI (or the reverse), when a lint/format job goes red
+    on an untouched file, when setting up a local dev loop for an unfamiliar repo, or before pushing a
+    branch you expect to merge.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:code-review
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/code-review
+  name: reviewing-ffmpeg-skill-changes
+  description: Review a change to the ffmpeg-skill repository for the failures its own contract makes
+    possible — a claim in a result document that is true at one layer and false at the layer a caller
+    reads, a new flag that reaches the code but not the contract/docs/demo surfaces, a "bug" that docs/design-decisions.md
+    already decided with a pinning test, a fix with no regression test, a new runtime dependency or a
+    raw ffmpeg shell call that breaks the scope boundary, a SKILL.md line added without one trimmed, a
+    review that re-derives findings from a summary instead of the tree at the reviewed commit. Use when
+    asked to review a PR or diff in this repository, when authoring code here and needing a pre-commit
+    check, or when triaging an external review or audit report about this codebase.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:ci-pipeline-synthesizer
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/ci-pipeline-synthesizer
+  name: ci-pipeline-synthesizer
+  description: Generate GitHub Actions CI/CD pipeline configurations for automated building and testing
+    of library and package projects. Use when creating or updating CI workflows for npm packages, Python
+    packages, Go modules, Rust crates, or other library projects that need automated build and test pipelines.
+    Includes templates for common package ecosystems with best practices for dependency caching, matrix
+    testing, and artifact publishing.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:build-artifacts
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/build-artifacts
+  name: shipping-build-artifacts
+  description: Make the build step a real gate on what you actually distribute — build scripts that warn
+    and exit 0 on a missing input, size checks with only an upper bound, hand-maintained file lists that
+    drift from the entrypoints they must cover, committed bundles that go stale when only the source changes,
+    GNU-only shell in release scripts that aborts on the other OS, and verification that runs against
+    the source tree instead of the artifact. Use when writing or reviewing a build/package script, a `dist/`
+    copy step, a release workflow that uploads a zip or installer, or a committed compiled asset.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:destructive-operations
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/destructive-operations
+  name: guarding-destructive-operations
+  description: Add and review preconditions on operations that delete, overwrite, rewrite history, or
+    resolve a caller-supplied name to a filesystem path — refusing instead of warning, placing the guard
+    ahead of the first mutation, structural classification rather than string-prefix matching, name validation
+    plus resolved-path containment as two independent checks, why a guard on the destructive path is invisible
+    to the dry-run, and mutation-testing each half separately. Use when writing or reviewing a `--rebuild`/`--reset`/`--purge`
+    command, a bulk delete, a history rewrite, an `rm -rf`-shaped step, or any code that turns an argument
+    into a file path.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:cross-surface-changes
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/cross-surface-changes
+  name: shipping-across-surfaces
+  description: Land a change everywhere the same fact is stated — enumerating the full surface inventory
+    (landing copy, docs, machine-readable summaries, changelog badges repeated across every page, sitemap,
+    README, descriptions embedded in code, and untyped frontend consumers of typed responses), generating
+    a surface instead of restating it, drift tests where you cannot generate, never hand-maintaining a
+    copy of a surface another codebase owns, shipping a paired PR when you change a format a different
+    codebase decodes, and keeping overloaded product words apart. Use when adding or renaming a user-facing
+    feature, editing product/marketing copy or docs, renaming a serialized response field, changing a
+    serialization or share-link format, wiring one repo's output into another's checks, or reviewing a
+    PR that touched only one place a fact appears.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:git-hygiene
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/git-hygiene
+  name: keeping-git-repos-clean
+  description: Prevents, detects, and remediates files that should never be committed — secrets (.env,
+    API tokens, hardcoded credentials) and dev artifacts (build output, scratch databases, editor/OS files).
+    Covers .gitignore (and why it does not untrack), git rm --cached, auditing tracked files, history
+    scrubbing, and credential rotation. Use when a repo has committed secrets or junk, when setting up
+    a new repo's ignore rules, or when reviewing what a repo actually tracks.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill:github-actions
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill/.claude/skills/github-actions
+  name: running-github-actions-efficiently
+  description: Cut GitHub Actions minutes and wall-clock time without losing coverage — the OS billing
+    multiplier (macOS 10x / Windows 2x / Linux 1x), trigger hygiene that stops push+pull_request double-firing,
+    concurrency that cancels superseded runs, dependency caching keyed on lockfiles, matrix discipline,
+    and auditing scheduled crons that bill 24/7. Use when CI is burning included minutes, when runs feel
+    slow, when setting up a new repo's workflows, or when reviewing an existing workflow for waste.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: markdown_only
+- unit_id: kajisho5-ffmpeg-skill
+  registry_id: kajisho5-ffmpeg-skill
+  type: skill
+  path: external/kajisho5-ffmpeg-skill
+  name: ffmpeg-skill
+  description: 'Edit video and audio with local FFmpeg from natural-language requests: cut, trim, join,
+    resize/reframe (9:16, 1:1), speed change, captions and subtitles (SRT/ASS, animated, karaoke), logos
+    and text overlays, lower-thirds and titles, silence removal, multicam and external-mic sync, loudness
+    normalisation, HDR/Dolby Vision to SDR, LUTs, background music with ducking, platform exports (YouTube,
+    Reels, TikTok, X), compliance checks, scene detection and highlight reels, contact sheets to inspect
+    results, and whole-edit project files. Use this skill whenever the user mentions a video or audio
+    file (mp4, mov, mkv, wav, m4a), footage, a clip, captions, subtitles, a reel or short, YouTube/Instagram/TikTok
+    delivery, LUFS, sync, transcoding, ffmpeg, or asks to make something "60 seconds", "vertical", "louder",
+    "captioned" — even when they do not say "edit". Python 3.10+ standard library only (3.9 deprecated),
+    no cloud, no API keys.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7c27fbb75e66e4bbbe73be1191992eba4a346276
+  content_shape: scripts_executables
 - unit_id: khazp-vibe-coding-prompt-template:vibe-verify
   registry_id: khazp-vibe-coding-prompt-template
   type: skill
@@ -17787,6 +19128,18 @@ units:
   pairs_with: []
   source_commit: a7df1f379561f6b4030e94c1d93f4fcd25b3493a
   content_shape: markdown_only
+- unit_id: msitarzewski-agency-agents
+  registry_id: msitarzewski-agency-agents
+  type: reference
+  path: external/msitarzewski-agency-agents
+  name: msitarzewski-agency-agents
+  description: 'A collection of specialist AI agent definitions (frontend, marketing, community, QA and
+    more), 163k stars, MIT, pushed 2026-10-19. Source for role-level agents the PM can staff against.
+    Metadata-only '
+  category: uncategorized
+  pairs_with: []
+  source_commit: 4e3ac3ca6604c75113f52c695dbddcc7af928b46
+  content_shape: scripts_executables
 - unit_id: multica-ai-andrej-karpathy-skills:karpathy-guidelines
   registry_id: multica-ai-andrej-karpathy-skills
   type: skill
@@ -17916,6 +19269,35 @@ units:
   pairs_with: []
   source_commit: ca44ea064a8a57ab4acb197e57c6f514d2df4da1
   content_shape: scripts_executables
+- unit_id: openwhispr-openwhispr:openwhispr-cli
+  registry_id: openwhispr-openwhispr
+  type: skill
+  path: external/openwhispr-openwhispr/agent-skills/openwhispr-cli
+  name: openwhispr-cli
+  description: Use this skill whenever the user wants to operate on OpenWhispr notes, folders, transcriptions,
+    or audio from a terminal or shell. The OpenWhispr CLI (`openwhispr` binary, npm package `@openwhispr/cli`)
+    talks to either the local desktop app or the cloud API and exposes every operation needed for managing
+    notes, folders, transcriptions, audio, plus auth and config. Trigger this skill when the user mentions
+    "openwhispr cli", running shell commands against OpenWhispr, automating note workflows, cleaning up
+    a transcription, building agent integrations against OpenWhispr, or scripting any OpenWhispr operation
+    — even if they don't say "CLI" explicitly.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7a6ae826de9ec1caf65f3a6e769475dab2ae829f
+  content_shape: markdown_only
+- unit_id: openwhispr-openwhispr:openwhispr-api
+  registry_id: openwhispr-openwhispr
+  type: skill
+  path: external/openwhispr-openwhispr/agent-skills/openwhispr-api
+  name: openwhispr-api
+  description: Use this skill when building integrations with the OpenWhispr REST API, calling OpenWhispr
+    endpoints, managing notes/folders/transcriptions programmatically, accessing team-space content with
+    workspace keys, or connecting to the OpenWhispr MCP server. Covers authentication, all V1 endpoints,
+    spaces, pagination, rate limits, error handling, and the remote MCP server.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 7a6ae826de9ec1caf65f3a6e769475dab2ae829f
+  content_shape: markdown_only
 - unit_id: paperclipai-paperclip:design-guide
   registry_id: paperclipai-paperclip
   type: skill
@@ -22911,6 +24293,223 @@ units:
   pairs_with: []
   source_commit: c2477f311c19982ef6e246085438e6cfec3e35ea
   content_shape: markdown_only
+- unit_id: shubhamsaboo-awesome-llm-apps:advisor-orchestrator-worker
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/agent_skills/advisor-orchestrator-worker
+  name: advisor-orchestrator-worker
+  description: Use when a task is too large for one model pass, needs parallel research or generation
+    across many subtasks (like researching a dozen competitors at once), or the user asks to orchestrate
+    multiple models, split work across a model team, run an advisor-worker loop, have a stronger model
+    review the plan while cheap workers execute, or says "too big for one model" or "fan this out". Not
+    for single-file edits or tasks one model handles in one pass.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: markdown_only
+- unit_id: shubhamsaboo-awesome-llm-apps:commit-archaeologist
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/agent_skills/commit-archaeologist
+  name: commit-archaeologist
+  description: Reconstructs why code exists from local git history, including the introducing commit,
+    later changes, current authors, repeated companion files, and likely intent. Use when the user asks
+    "why does this code exist", "who wrote this function and why", or to "explain the history of this
+    function" before a rewrite, refactor, or risky edit. Runs entirely locally.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: scripts_executables
+- unit_id: shubhamsaboo-awesome-llm-apps:first-reader
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/agent_skills/first-reader
+  name: first-reader
+  description: Beta readers for any draft, run by simulating how a real reader experiences it, moment
+    by moment. A skim gate, a no-lookahead timed read producing an attention transcript with quit points,
+    a recall test of what a reader remembers the next day, and a trust ledger of the implied author. Use
+    when the user asks for a beta read, beta readers, test readers, human review, reader review, to read
+    something like a human, to be a first reader, whether a piece holds attention or will actually get
+    read, for a quick read of whether a busy skimmer would even open a post, what readers will remember
+    or take away tomorrow, where readers stop reading or bounce, or why a draft still feels off or hollow
+    after anti-slop or humanizer edits. Final gate before publishing; reports where the reading broke;
+    never rewrites.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: scripts_executables
+- unit_id: shubhamsaboo-awesome-llm-apps:thinking-out-loud
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/agent_skills/thinking-out-loud
+  name: thinking-out-loud
+  description: 'A contract for what the agent does when a long, messy, stream-of-consciousness ramble
+    arrives (usually voice dictation): act on nothing until the echo brief is approved. The echo audits
+    the entire transfer, mission, locked decisions and constraints, open questions, flips and parked tangents,
+    with the model''s inferences and guesses quarantined away from the user''s own phrasing, so the user
+    verifies what the model believes, not just what it doubts. Use when the user says "let me think out
+    loud" or wants to ramble a bit before building anything, when a message opens with a speech-to-text
+    preamble like "switching to voice, sorry for typos", when input is a long weakly punctuated stream
+    with restarts and mid-message reversals ("actually no, wait, scrap that idea entirely"), or when the
+    user asks to be interviewed about a fuzzy half-formed idea. Includes an optional capture mode for
+    rambles spread across several messages and an optional targeted interview.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: markdown_only
+- unit_id: shubhamsaboo-awesome-llm-apps:scope-creep-detector
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/agent_skills/scope-creep-detector
+  name: scope-creep-detector
+  description: Analyzes git diffs against a stated intent to detect scope creep, unrelated files, broad
+    pull requests, changes that grew beyond a fix, dependency additions, public API renames, config or
+    CI edits, oversized hunks, and formatting-only files. Use when the user asks whether a change grew
+    beyond the fix, a PR is too broad, or what unrelated stuff they touched, and wants keep, split, or
+    justify guidance. Operates locally and offline.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: scripts_executables
+- unit_id: shubhamsaboo-awesome-llm-apps:dependency-doctor
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/agent_skills/dependency-doctor
+  name: dependency-doctor
+  description: 'Checks requirements.txt, pyproject.toml, and package.json dependency manifests for surface-level
+    direct-dependency footguns: standard-library shadowing pins, abandoned backports, unpinned dependencies,
+    and obvious intra-manifest conflicts, plus opt-in PyPI yanked releases. Use when the user asks to
+    check a manifest for dependency problems, asks why dependencies won''t install or whether anything
+    is wrong with their dependencies, wants a dependency autopsy, or suspects dependency manifest rot.
+    Runs offline by default as a local tool for the user''s own project, not repository CI.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: scripts_executables
+- unit_id: shubhamsaboo-awesome-llm-apps:project-graveyard
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/agent_skills/project-graveyard
+  name: project-graveyard
+  description: Scans the developer's machine for dead side projects, autopsies each one from its git history
+    (died at the payments wall, killed by a newer project, finished but never shipped), surfaces their
+    personal death patterns, and picks the corpse most worth resurrecting — then helps ship it. Use when
+    the user mentions abandoned, unfinished, or old side projects, asks "what should I finish", wants
+    to revive or resurrect a project, says "run the graveyard", wonders why they never finish anything,
+    or is about to start a new project that sounds like one they already built. Runs entirely locally.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: scripts_executables
+- unit_id: shubhamsaboo-awesome-llm-apps:mcp-apps-builder
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/generative_ui_agents/ai-mcp-app-builder/apps/mcp-use-server/.agent/skills/mcp-apps-builder
+  name: mcp-apps-builder
+  description: '**MANDATORY for ALL MCP server work** - mcp-use framework best practices and patterns.
+
+
+    **READ THIS FIRST** before any MCP server work, including:
+
+    - Creating new MCP servers
+
+    - Modifying existing MCP servers (adding/updating tools, resources, prompts, widgets)
+
+    - Debugging MCP server issues or errors
+
+    - Reviewing MCP server code for quality, security, or performance
+
+    - Answering questions about MCP development or mcp-use patterns
+
+    - Making ANY changes to server.tool(), server.resource(), server.prompt(), or widgets
+
+
+    This skill contains critical architecture decisions, security patterns, and common pitfalls.
+
+    Always consult the relevant reference files BEFORE implementing MCP features.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: markdown_only
+- unit_id: shubhamsaboo-awesome-llm-apps:chatgpt-app-builder
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/generative_ui_agents/ai-mcp-app-builder/apps/mcp-use-server/.agent/skills/chatgpt-app-builder
+  name: chatgpt-app-builder
+  description: 'DEPRECATED: This skill has been replaced by `mcp-app-builder`.
+
+    Check if `mcp-app-builder` is available in the skills folder. If not, install it:
+
+    `npx skills install mcp-use/mcp-use --skill mcp-app-builder`
+
+    Use `mcp-app-builder` instead of this skill.
+
+
+    Build ChatGPT apps with interactive widgets using mcp-use and OpenAI Apps SDK.
+
+    Use when creating ChatGPT apps, building MCP servers with widgets, defining React widgets,
+
+    working with Apps SDK, or when user mentions ChatGPT widgets, mcp-use widgets, or Apps SDK development.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: markdown_only
+- unit_id: shubhamsaboo-awesome-llm-apps:mcp-builder
+  registry_id: shubhamsaboo-awesome-llm-apps
+  type: skill
+  path: external/shubhamsaboo-awesome-llm-apps/generative_ui_agents/ai-mcp-app-builder/apps/mcp-use-server/.agent/skills/mcp-builder
+  name: mcp-builder
+  description: 'DEPRECATED: This skill has been replaced by `mcp-app-builder`.
+
+    Check if `mcp-app-builder` is available in the skills folder. If not, install it:
+
+    `npx skills install mcp-use/mcp-use --skill mcp-app-builder`
+
+    Use `mcp-app-builder` instead of this skill.
+
+
+    Build Model Context Protocol (MCP) servers with mcp-use framework.
+
+    Use when creating MCP servers, defining tools/resources/prompts, working with mcp-use,
+
+    bootstrapping MCP projects, or when user mentions MCP development, tools, resources, or prompts.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 6c16b23f1bacd0fdf240bb5141ef45e59e82c306
+  content_shape: markdown_only
+- unit_id: skyworkai-skyreels-v2
+  registry_id: skyworkai-skyreels-v2
+  type: reference
+  path: external/skyworkai-skyreels-v2
+  name: skyworkai-skyreels-v2
+  description: Infinite-length film generative model. Custom 'Other' license and model weights, so reference
+    only. Metadata-only review.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 9351d13152207cc04de780e055346b08ade0b851
+  content_shape: scripts_executables
+- unit_id: strelov1-freehire
+  registry_id: strelov1-freehire
+  type: reference
+  path: external/strelov1-freehire
+  name: strelov1-freehire
+  description: Open-source job-search app. Reference for a job-search product, not a skill source. Metadata-only
+    review.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 19dec971fcbdb81b2172f10b894e507233cabf40
+  content_shape: scripts_executables
+- unit_id: suifeng9203-heygem-ai
+  registry_id: suifeng9203-heygem-ai
+  type: reference
+  path: external/suifeng9203-heygem-ai
+  name: suifeng9203-heygem-ai
+  description: Fork of HeyGem with no description, last push April 2025 and 'Other' license. Reference
+    only. Metadata-only review.
+  category: uncategorized
+  pairs_with: []
+  source_commit: cb5ff4266a182a8eb3ee7d91c5c72a4d74060768
+  content_shape: scripts_executables
 - unit_id: sunwood-ai-labs-hyperframes-motion-reel-skill
   registry_id: sunwood-ai-labs-hyperframes-motion-reel-skill
   type: skill
@@ -22947,6 +24546,18 @@ units:
   - berriai-litellm
   source_commit: 53f01e871a817e29531e7cc2d06e7763c69260b8
   content_shape: scripts_executables
+- unit_id: tauricresearch-tradingagents
+  registry_id: tauricresearch-tradingagents
+  type: tool
+  path: external/tauricresearch-tradingagents
+  name: tauricresearch-tradingagents
+  description: Multi-agent LLM financial trading framework. Research framework. Check before any live
+    use. Metadata-only review.
+  category: uncategorized
+  load_cmd: 'pip install -e . (scripts: tradingagents)'
+  pairs_with: []
+  source_commit: e8f5503e9b86d5c2710b0c76b1f686703968c9df
+  content_shape: scripts_executables
 - unit_id: theartofhacking-h4cker:codeguard
   registry_id: theartofhacking-h4cker
   type: skill
@@ -22970,6 +24581,203 @@ units:
   pairs_with: []
   source_commit: d17658d0fea92c140b508088f1fca8a50afdd7c4
   content_shape: scripts_executables
+- unit_id: traderalice-openalice:file-delivery
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/file-delivery
+  name: file-delivery
+  description: Send Workspace files as attachments in a Connector conversation reply using [[relative/path.ext]].
+    Use when the user wants a file, image, or report sent in the current chat, or when distinguishing
+    reply attachments from an Inbox notification.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:traderhub
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/traderhub
+  name: traderhub
+  description: 'How to pull LOW-FREQUENCY market data from the `traderhub` CLI: finished market boards
+    (macro, movers, calendars, global macro, Fed, shipping, term structure, sector rotation), equity fundamentals
+    (profile, financials, ratios, estimates, insiders, short interest), ETF drilldowns, FRED/BLS/EIA macro
+    series, OECD cross-country indicators, IMF PortWatch shipping, and Deribit crypto curves. Use whenever
+    you need a macro number, a fundamental, a calendar, or a ready-made board: "what''s CPI", "AAPL ratios",
+    "earnings this week", "which sectors are rotating in", "Suez canal traffic", "Fed balance sheet".
+    Data is served hub-first (hosted TraderHub) with local fallback — no API keys needed. Discover flags
+    live with `traderhub <group> <verb> --help`; do NOT guess flags.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:market-data
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/market-data
+  name: market-data
+  description: Use for price history, OHLCV/K-lines, market-data source discovery, or showing a candlestick
+    chart in a conversation. Fetch data for local analysis or share a chart using OpenAlice market references.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:retrospective
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/retrospective
+  name: retrospective
+  description: 'Subjective retrospective / time-machine analysis: rewind a name to a past point, reconstruct
+    what it looked like THEN (no future knowledge), align the news catalysts to the price path, and pressure-test
+    "if I''d entered there, would it have worked?". Use when the question is about a past moment or a
+    hypothetical entry: "rewind XLE to early April", "what did NVDA look like before earnings", "if we''d
+    bought energy after the Iran headline, easy money?", "replay the SMH spike — policy or earnings?",
+    "was there an entry signal at the time", "would an 8% trailing stop have saved me", "event study on
+    the Hormuz escalation". It strings together the as-of snapshot, the date-windowed news, and Workspace
+    research code into one honest replay — and it is ruthless about data freshness, because a retro built
+    on a stale or future-leaking price is worse than no retro.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:alice
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/alice
+  name: alice
+  description: 'Research data and Workspace collaboration through the `alice` CLI: symbol discovery, K-line
+    analysis, optional subscribed-article lookup, peer conversations, Inbox and Issues. Use CLI help for
+    command parameters. Also use alice for Workspace collaboration: peer discovery, Agent conversations,
+    Inbox delivery, Issues, Session identity, tracked assets and template upgrades. Read references/collaboration.md
+    for these workflows.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:alice-analysis
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/alice-analysis
+  name: alice-analysis
+  description: Optional technical-analysis formulas and snapshots through alice analysis. Documents the
+    bounded expression language, barId source selection and panels. Raw K-lines for local scripts are
+    available through alice market bars.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:self-scheduling
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/self-scheduling
+  name: self-scheduling
+  description: 'Define durable work and scheduled/headless execution with `.alice/issues/<id>.md`: structured
+    ownership and optional `when` frontmatter plus one canonical markdown What. Use for creating or editing
+    an Issue, choosing its assignee, schedule, prompt, delivery behavior, or health state. Use the `alice`
+    skill instead when the goal is to ask another Session for an answer.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:sector-rotation
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/sector-rotation
+  name: sector-rotation
+  description: 'Read what''s moving across the whole market right now — which sectors are surging vs crashing,
+    and where capital is rotating between them, across long / medium / short timeframes. The right-side,
+    top-of-funnel "what is the market actually doing" read. Use when the user has no specific target and
+    wants the lay of the land: "what''s hot right now", "what sectors are surging / crashing", "where
+    is money rotating", "what''s leading and lagging", "is this risk-on or risk-off", "what should I be
+    looking at this week", "show me the rotation map". Hands the standout movers off to a value-chain
+    scan to dig into.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:opencli-reader
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/opencli-reader
+  name: opencli-reader
+  description: Use the optional community opencli CLI for read-only website access when the user requests
+    it or an available adapter fits the task. Covers command discovery and browser-backed adapters. OpenAlice
+    does not bundle opencli.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:build-thesis
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/build-thesis
+  name: build-thesis
+  description: 'Build a two-sided, falsifiable thesis on a specific name — the left side (does the number
+    stand up, and where do you differ from consensus) and the right side (is the market itself favoring
+    this — sector, capital, macro, trend). Use when the user has a ticker but no conviction yet: "is the
+    NVDA thesis real", "build a thesis on X", "should I believe the X story", "bull and bear case for
+    Y", "stress-test my view on Z", "is X already priced in", "left side or right side on X", "everyone''s
+    buying Y, should I". This is the have-a-name / no-conviction step — it picks up where a value-chain
+    scan hands off ("the next question: is the thesis real?") and turns a name into a thesis you can act
+    on and later monitor.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:workspace-manager
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/workspace-manager
+  name: workspace-manager
+  description: Audit and coordinate the active OpenAlice Workspace floor without turning the manager into
+    another business desk.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:delegate-autoquant
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/delegate-autoquant
+  name: delegate-autoquant
+  description: Delegate reproducible quantitative research from a general Chat Workspace to the durable
+    AutoQuant desk and consume its evidence-bound handoff. Use when a request needs a quantitative Project,
+    historical data intake, factor or portfolio research, backtesting, governed experiments, robustness
+    evidence, or an AutoQuant follow-up. Do not use for ordinary market commentary, broker state, order
+    execution, or a question Chat can answer directly.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:alice-uta
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/alice-uta
+  name: alice-uta
+  description: Read broker accounts, portfolios, contracts, quotes, and order history, or manage approved
+    trading, through the `alice-uta` executable on the shell PATH. Account/contract/history reads are
+    safe and do not mutate broker state; order writes, position-close, commit, push, reject, sync, and
+    simulator commands may change trading state. Use for "what's my position", "quote this contract",
+    "place or cancel an order", and the trading-as-git approval flow. Discover current flags with `alice-uta
+    <group> <verb> --help`; do not guess aliases.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
+- unit_id: traderalice-openalice:scan-value-chain
+  registry_id: traderalice-openalice
+  type: skill
+  path: external/traderalice-openalice/default/skills/scan-value-chain
+  name: scan-value-chain
+  description: 'Scan an investment theme by decomposing its value chain, then surface the handful of names
+    actually worth researching — each with why and the next question. Use when the user has a theme/sector/thread
+    but no specific ticker yet: "what''s worth looking at in semis", "scan the AI-infra space", "I''m
+    curious about uranium / obesity drugs / power grid", "who are the picks-and-shovels in X", "map the
+    supply chain for Y", "find the names worth watching in the X value chain". This is the have-a-theme
+    / no-target step — it turns "I don''t know what to look at" into a short, reasoned shortlist.'
+  category: uncategorized
+  pairs_with: []
+  source_commit: 57b2f811e9a1a07f6fe9b86b68857e324f610d37
+  content_shape: markdown_only
 - unit_id: tuzhechen2005-painted-animation:painted-animation
   registry_id: tuzhechen2005-painted-animation
   type: skill
@@ -23018,6 +24826,37 @@ units:
   category: uncategorized
   pairs_with: []
   source_commit: 86052b8fd12bc19bf3bac07625a7f93736c42b17
+  content_shape: scripts_executables
+- unit_id: wheresryan22-anatomy
+  registry_id: wheresryan22-anatomy
+  type: skill
+  path: external/wheresryan22-anatomy
+  name: anatomy
+  description: Build crafted, highly detailed, interactive isometric SVG figures that explain a technical
+    idea as a real physical object (a test rig, a dial gauge, a cabinet of drawers, a plotter, a lock),
+    with many small precise solid parts, four-tone shading, correct painter's order, a framed card with
+    title, hint and live readout, and calm eased motion. Use this whenever someone wants an isometric
+    illustration, an explanatory diagram or figure for docs, a blog post, a landing page or an article,
+    a "Linear-style" or "premium" technical drawing, an interactive explainer, or an SVG that shows how
+    a system, algorithm or component works, even if they never say "isometric". Works framework-free (TypeScript/JS
+    that writes SVG and HTML) and in React/Next.js, and can add realistic WebGL shaders (fire, exhaust,
+    water, caustics, lamp light) that live inside the drawing in the same isometric perspective. Also
+    prints a figure as an A4 PDF (poster, drawing or handout) and publishes it to the Anatomy community
+    gallery when asked.
+  category: uncategorized
+  pairs_with: []
+  source_commit: 1482e8469b0a9e0d8cc18ea2740a01423d29ae80
+  content_shape: scripts_executables
+- unit_id: wide-trace-open-higgsfield
+  registry_id: wide-trace-open-higgsfield
+  type: reference
+  path: external/wide-trace-open-higgsfield
+  name: wide-trace-open-higgsfield
+  description: Image and video generation studio app. No license declared, so reference only. Metadata-only
+    review.
+  category: uncategorized
+  pairs_with: []
+  source_commit: b16a0efe4d7e2707b56f8ccb02387fd2a9d2eddf
   content_shape: scripts_executables
 - unit_id: yihui-dev-awesome-opus5-5-videos
   registry_id: yihui-dev-awesome-opus5-5-videos

@@ -48,9 +48,9 @@ class TestCompanyCapabilityLoad(unittest.TestCase):
         (self.base / "skills").mkdir()
         index = self.base / "capability-index.yaml"
         index.write_text(yaml.safe_dump({"units": [
-            {"unit_id": "demo:skill", "type": "skill", "name": "skill",
+            {"unit_id": "demo:skill", "registry_id": "demo", "type": "skill", "name": "skill",
              "description": "d", "path": "external/demo/skill", "pairs_with": []},
-            {"unit_id": "demo:ref", "type": "reference", "name": "ref",
+            {"unit_id": "demo:ref", "registry_id": "demo", "type": "reference", "name": "ref",
              "description": "d", "path": "external/demo/README.md", "pairs_with": []},
         ]}))
         for name, value in (("INDEX", index), ("REPO_ROOT", self.base),
@@ -58,6 +58,9 @@ class TestCompanyCapabilityLoad(unittest.TestCase):
             patcher = mock.patch.object(capability, name, value)
             patcher.start()
             self.addCleanup(patcher.stop)
+        tiers = mock.patch.object(capability, "_registry_tiers", return_value={"demo": "T3"})
+        tiers.start()
+        self.addCleanup(tiers.stop)
         self.root = self.base / ".company"
         (self.root / "events").mkdir(parents=True)
 
@@ -100,6 +103,25 @@ class TestCompanyCapabilityLoad(unittest.TestCase):
             capability.cmd_load(["demo:skill"])
         self.assertTrue((self.base / "skills" / "demo__skill").is_symlink())
         self.assertIn("loaded: skills/demo__skill", out.getvalue())
+        self.assertEqual(self.events(), [])
+
+    def test_prepare_loads_matches_and_records_one_event_per_skill(self):
+        (self.base / "external" / "demo" / ".git").mkdir()  # already cloned: no network
+        code, out = self.company("capability", "prepare", "demo", "skill",
+                                 "--task", "T-1", "--project", "p", "--actor", "company-pm")
+        self.assertEqual(code, 0)
+        self.assertEqual(out["loaded"], ["demo:skill"])
+        self.assertEqual(out["cloned"], [])
+        self.assertTrue((self.base / "skills" / "demo__skill").is_symlink())
+        ev, = self.events()
+        self.assertEqual(ev["data"], {"unit_id": "demo:skill", "type": "skill",
+                                      "source": "prepare", "task": "T-1"})
+
+    def test_prepare_with_no_match_loads_nothing(self):
+        code, out = self.company("capability", "prepare", "unrelated", "words",
+                                 "--project", "p")
+        self.assertEqual(code, 0)
+        self.assertEqual(out["selected"], [])
         self.assertEqual(self.events(), [])
 
     def test_event_type_is_registered_and_needs_no_evidence(self):
