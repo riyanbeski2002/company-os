@@ -1244,14 +1244,27 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-24"
     checked_at: "2026-10-24"
+  - id: resembleai-chatterbox
+    type: tool
+    purpose: "Zero-shot voice cloning TTS from a ~10s reference clip. Runs locally (MPS/CUDA/CPU), no API key, no account, nothing leaves the machine. The ONLY mature cloning model with a permissive licence on the WEIGHTS as well as the code, so the only one usable for monetized output. Watermarks every output with Resemble's inaudible Perth neural marker (kept deliberately, consistent with AI-disclosure posture)."
+    trust_tier: T2
+    source: "https://github.com/resemble-ai/chatterbox"
+    license: "MIT (code and weights)"
+    license_note: "Verified 2026-10-24: huggingface.co/api/models/ResembleAI/chatterbox returns license 'mit'. Contrast k2-fsa-omnivoice, F5-TTS, XTTS-v2 and OpenAudio, which are all non-commercial on the weights."
+    verified: "Installed and run 2026-10-24 on Apple M5: 6 generations, 0% word error rate (whisper base.en), speaker similarity 0.917-0.963, pitch within 4% of reference, timbre match near-exact within the reference's frequency band. Warm throughput ~1.8s compute per 1s audio. 4.2GB disk, ~5.3GB peak RSS."
+    caveats: "Flat dynamics are the known weakness: loudness range 4.3-4.9 LU vs 6-12 LU for human narration. Em-dashes render as commas, not beats. Output is non-deterministic. Generate per sentence, keep 2-3 takes, place pauses in the edit. Requires setuptools<81 (perth 1.0.0 imports the removed pkg_resources); pin torch 2.6.0 and transformers 5.2.0."
+    approved_by: riyan
+    approved_at: "2026-10-24"
+    checked_at: "2026-10-24"
   - id: k2-fsa-omnivoice
     type: tool
-    purpose: "Voice cloning TTS for 600+ languages. Apache-2.0. Reference only. Metadata-only review."
+    purpose: "Voice cloning TTS for 600+ languages. CODE Apache-2.0 but WEIGHTS are CC-BY-NC: NOT USABLE for monetized output. Reference only. Metadata-only review."
     trust_tier: T3
     source: "https://github.com/k2-fsa/OmniVoice"
     local_path: "external/k2-fsa-omnivoice"
     pinned_commit: "08be0b4ccbac3e13e374e86fbfead4b4cac343e2"
-    license: "Apache-2.0"
+    license: "Apache-2.0 (code) / CC-BY-NC (pre-trained weights)"
+    license_note: "Model card verbatim: 'Our code is released under the Apache 2.0 License. The pre-trained model is licensed under the CC-BY-NC due to constraints from its training data (e.g., Emilia).' Verified 2026-10-24 against https://huggingface.co/k2-fsa/OmniVoice/raw/main/README.md. The earlier bare Apache-2.0 entry described the code only and would have permitted non-commercial weights into monetized output."
     approved_by: riyan
     approved_at: "2026-10-24"
     checked_at: "2026-10-24"
@@ -1333,3 +1346,29 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-24"
     checked_at: "2026-10-24"
+
+  - id: jakeschincariol-instagram-agent-skill
+    type: skill
+    category: "content.short-form"
+    purpose: "Thirteen Instagram skills with six runnable, dependency-free Python tools. Adopted for three of them: beat timing of a script before you build it (beats.py), hook scoring (hookscore.py), and the humanizer (humanize.py/detect.py/slop.json) which strips em dashes, slop vocabulary and invisible watermark characters from a draft and scores what is left. Also the source of the 1080x1920 platform safe-zone numbers. Nothing in it posts anything."
+    trust_tier: T2
+    source: "https://github.com/Jakeschincariol/instagram-agent-skill"
+    license: "MIT (Copyright (c) 2026 Jake Schincariol)"
+    license_note: "Three tools vendored into 'you know it' at kit/script/ with the upstream LICENSE kept verbatim as kit/script/LICENSE.instagram-agent-skill and a provenance header in each file."
+    caveats: "Written for talking-head creators. The hook scoring and hook formulas assume a presenter speaking to camera and score a narrated film badly for the right reasons; kit/script/README.md records which parts transfer and which do not. detect.py is a prompt to look, not a build gate."
+    approved_by: riyan
+    approved_at: "2026-10-25"
+    checked_at: "2026-10-25"
+
+  - id: buildwithdarius-reel-editor
+    type: skill
+    category: "video.editing"
+    purpose: "Editing doctrine for cutting a raw take into a finished vertical reel. Adopted as doctrine, not code: measure cuts on the audio RMS envelope rather than the transcript, no gap over 0.25s, nothing frozen longer than 2s, a new visual every 2-3 seconds, -14 LUFS / -1 dBTP, and a self-check that pulls a frame at every cut and LOOKS at it before showing anyone."
+    trust_tier: T3
+    source: "reel-editor.zip, supplied by Riyan 2026-10-25; from @buildwithdarius.ai"
+    license: "no licence declared in the distribution"
+    license_note: "No code vendored and none exists to vendor - the distribution is three markdown files. Only the measured thresholds and the review discipline were used."
+    caveats: "Aimed at talking-head reels with a presenter; its transcription, retake-selection and face-safe-zone rules do not apply to a narrated film with no presenter. Its safe-zone numbers are looser than our own caption rule, which wins."
+    approved_by: riyan
+    approved_at: "2026-10-25"
+    checked_at: "2026-10-25"
