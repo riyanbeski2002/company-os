@@ -356,6 +356,24 @@ auto, or drop one that keeps getting approved but never delivers
 (`KNOWN_GAPS.md` #3). `company capability outcomes <id>` shows a capability's
 track record before you decide whether to offer it again.
 
+**Fanning out 2+ concurrent subagents on one exploratory subject** (parallel
+debugging, parallel research, parallel gap-finding — never the standard
+single-worker Tier-2 pipeline, where owned file globs already prevent
+collision) carries real duplicate-work risk nothing else here covers. Use
+the coordination board: `company board note --subject <task/goal id> --type
+FACT|OBSERVED|FAIL|CLAIM|DONE_SUMMARY|DIRECTIVE --content "..."`. Tell each
+subagent to `CLAIM` the angle it's taking before starting, publish `FAIL`
+the moment it falsifies an approach (the highest-value note — it stops a
+peer burning budget on the same dead end), and `DONE_SUMMARY` only with real
+evidence (`--content "tests passed"`, never `"should work"` — the board
+rejects placeholder evidence the same way a bare assertion is rejected
+elsewhere in this log). `company board read --subject <id>` before deciding
+what's left to do; `DIRECTIVE` to redirect everyone at once if scope or time
+pressure changes mid-run. After collecting a subagent's result, `company
+board check --subject <id> --actor <name> --since <seq>` catches the case
+where real work happened but nothing usable was ever published
+(`KNOWN_GAPS.md` #7).
+
 If no playbook matches, still honour the gates `explain` returned, then fall
 back to `company capability prepare "<brief>"` (keyword match over the full
 catalog) and `company capability search`, and consider proposing a new

@@ -81,6 +81,11 @@ EVENTS = {
     # that keeps getting approved but never delivers. `company capability
     # outcome` appends this once a route's result is known.
     "ROUTE_OUTCOME",
+    # KNOWN_GAPS.md #7: nothing recorded a live, typed signal between two
+    # concurrently running subagents sharing one exploratory subject — a
+    # peer falsifying an approach, claiming an angle, or reporting done with
+    # real evidence. board.py folds these; see it for the type vocabulary.
+    "BOARD_NOTE",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event
@@ -214,6 +219,9 @@ def validate(event: dict) -> None:
         _validate_source_ref(event["data"]["source_ref"])
     if name == "ROUTE_OUTCOME":
         _validate_route_outcome(event)
+    if name == "BOARD_NOTE":
+        import board  # lazy: board.py imports EventLog from this module
+        board.validate_note(event.get("data") or {})
 
 
 def _validate_source_ref(ref) -> None:

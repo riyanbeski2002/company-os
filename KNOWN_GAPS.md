@@ -299,3 +299,55 @@ The four advisor agents (`cfo`/`ciso`/`coo`/`cto-advisor`) are correctly
 absent from `capability-map.yaml` entirely — they run on a separate,
 unprompted dispatch (`company advise`), not the goal router, confirmed by
 reading `cli.py`'s `advise.OFFICERS` mechanism, not assumed.
+
+---
+
+## 7. No live channel for concurrently running subagents to avoid duplicating each other's exploration
+
+**Status.** Fixed, 2026-10-30.
+
+**Finding.** Riyan pointed at `microsoft/Agensh` (a Microsoft Research
+multiagent harness, arXiv 2609.26781) and asked for its *mechanisms* mined
+into real company-os skills/features — explicitly not a reference entry,
+not an adoption, not anything run. Read its actual source (not the paper):
+`board-service/shared_lessons.py`, `verifier.py`, and
+`mini-router/src/dispatcher.ts`. Three mechanisms were real and not already
+covered by anything in this repo:
+
+1. A typed, terse, peer-visible note (their vocabulary: FACT / OBSERVED /
+   FAIL / CLAIM / PATCH_SUMMARY) that lets one concurrently running agent
+   tell its peers "I already falsified that" or "I'm taking this angle" —
+   company-os's existing `lessons.py` is PM-curated and post-hoc, never
+   published live by a running subagent to its peers mid-task.
+2. A deterministic text gate rejecting placeholder evidence ("should work",
+   "pending", "TBD") specifically on a completion claim, before it would
+   even reach a gate — the same failure mode `eventlog.py`'s
+   `_rejects_stale_gate_verdict` already catches one layer later, at a real
+   PASSED/FAILED verdict, but with nothing catching it earlier.
+3. A self-expiring claim (TTL) instead of a lock, and a check for a turn
+   that produced real work but published nothing peers could use (their
+   dispatcher's "forced-write nudge").
+
+None of this applies to the standard single-worker Tier-2 pipeline — a
+task's owned file globs already prevent two workers colliding on the same
+code, and `gategroup.py` already merges/reviews the result. The gap is fan-
+out work with no such structural protection: parallel debugging, parallel
+research subagents, parallel gap-finding (the kind of work this very
+conversation did, by hand, to find gaps #1-6 above).
+
+**Fix.** `tools/company/board.py` (new): `BOARD_NOTE` event type (added to
+`eventlog.py`'s `EVENTS`, validated by `board.validate_note`), six note
+types (`FACT`/`OBSERVED`/`FAIL`/`CLAIM`/`DONE_SUMMARY`/`DIRECTIVE` — renamed
+from Agensh's vocabulary to fit this repo's conventions, and `DIRECTIVE`
+added for company-pm to redirect every peer on a subject at once, the
+equivalent of their deadline-phase `@all` broadcasts), a deterministic
+evidence gate on `DONE_SUMMARY` content, TTL-expiring `CLAIM`s, and `FAIL`
+invalidating the same actor's own later `CLAIM`/`DONE_SUMMARY`. No separate
+service, no database — one event in the existing append-only log, folded on
+read exactly like every other derived view in this system (`taskstate.py`'s
+own pattern), consistent with D1 (the log is the only authoritative state).
+`company board note/read/check` (CLI), 28 new tests
+(`tests/test_board.py`, `tests/test_board_cli.py`) plus two in
+`test_eventlog.py`. Documented in `agents/company-pm.md`, scoped explicitly
+to fan-out work. No new agent: company-pm already fills the coordinator
+role this would otherwise duplicate.

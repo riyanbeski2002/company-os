@@ -100,6 +100,19 @@ class TestAppend(unittest.TestCase):
         self.assertEqual(written["data"]["verdict"], "good")
 
 
+    def test_board_note_rejects_a_malformed_note(self):
+        with self.assertRaises(ValueError):
+            self.log.append(make_event(
+                event="BOARD_NOTE", actor="w1", project="p",
+                data={"subject": "T-1", "type": "RUMOR", "content": "x"}))
+
+    def test_board_note_accepted_with_valid_shape(self):
+        written = self.log.append(make_event(
+            event="BOARD_NOTE", actor="w1", project="p",
+            data={"subject": "T-1", "type": "FACT", "content": "config.py has no default"}))
+        self.assertEqual(written["data"]["type"], "FACT")
+
+
 class TestStaleGateVerdict(unittest.TestCase):
     """Cost audit, 2026-09-14 — real incident, two independent sessions same
     day: a fix worker hit its usage limit and was relaunched without

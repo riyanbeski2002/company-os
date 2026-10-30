@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from eventlog import (GOAL_EVENTS, ROUTINE_EVENTS, EventLog, EvidenceError,  # noqa: E402
                       canonical, make_event)
+import board  # noqa: E402
 import taskstate  # noqa: E402
 
 SCAFFOLD = [
@@ -1777,6 +1778,46 @@ def cmd_capability_outcomes(args):
           "instances": instances})
 
 
+def cmd_board_note(args):
+    """Publish one note to the coordination board (KNOWN_GAPS.md #7). For
+    fan-out work only — 2+ concurrently running subagents sharing one
+    exploratory subject with real duplicate-work risk, not the standard
+    single-worker Tier-2 pipeline (file-glob ownership already prevents
+    collision there). See board.py for the type vocabulary and why
+    DONE_SUMMARY is evidence-gated."""
+    root = company_root(args)
+    project = load_project(root, args.project)
+    actor = args.actor or os.environ.get("COMPANY_ACTOR") or "company-pm"
+    try:
+        written = board.note(root, subject=args.subject, type=args.type,
+                             content=args.content, actor=actor, project=project,
+                             task=args.task, ttl_seconds=args.ttl)
+    except board.BoardError as exc:
+        die(str(exc), 1)
+    emit({"ok": True, "seq": written["seq"], "subject": args.subject,
+          "type": args.type, "content": args.content})
+
+
+def cmd_board_read(args):
+    """The live folded view for one subject — durable facts, open claims,
+    the latest directive, done-summaries with invalidated_by_fail status.
+    No side effects."""
+    root = company_root(args)
+    emit({"ok": True, **board.read_board(EventLog(root).read(), args.subject)})
+
+
+def cmd_board_check(args):
+    """Has `actor` published anything on `subject` since seq `--since`? The
+    forced-write-nudge check: real work can happen with nothing peers (or
+    the PM collecting a handoff) can use ever published. Call this before
+    accepting a fan-out subagent's result at face value."""
+    root = company_root(args)
+    published = board.published_since(EventLog(root).read(), args.subject,
+                                      args.actor, args.since)
+    emit({"ok": True, "subject": args.subject, "actor": args.actor,
+          "since": args.since, "published": published})
+
+
 def cmd_capability_search(args):
     """Thin wrapper: the script's own search, output passed through."""
     try:
@@ -2477,6 +2518,35 @@ def build_parser():
     ls.add_argument("--search", help="list mode: only lessons whose pattern/fix shares "
                     "words with this text, best match first")
     ls.set_defaults(fn=cmd_lesson)
+
+    bo = sub.add_parser("board", help="the coordination board for fan-out "
+                        "work — concurrently running subagents sharing one "
+                        "exploratory subject (not the standard single-worker "
+                        "pipeline, which doesn't need this)")
+    bosub = bo.add_subparsers(dest="board_cmd", required=True)
+    bon = bosub.add_parser("note", help="publish one note (FACT, OBSERVED, "
+                           "FAIL, CLAIM, DONE_SUMMARY, DIRECTIVE)")
+    bon.add_argument("--subject", required=True, help="the task or goal id "
+                     "this note is scoped to")
+    bon.add_argument("--type", required=True, choices=list(board.BOARD_NOTE_TYPES))
+    bon.add_argument("--content", required=True, help=f"max {board.CONTENT_CAP} "
+                     f"chars ({board.DONE_SUMMARY_CAP} for DONE_SUMMARY); "
+                     "DONE_SUMMARY must state real evidence, not a placeholder")
+    bon.add_argument("--ttl", type=float, help="CLAIM only: seconds before it "
+                     f"expires (default {board.DEFAULT_CLAIM_TTL_SECONDS:.0f})")
+    bon.add_argument("--task")
+    bon.add_argument("--actor")
+    bon.add_argument("--project")
+    bon.set_defaults(fn=cmd_board_note)
+    bor = bosub.add_parser("read", help="the live folded view for one subject")
+    bor.add_argument("--subject", required=True)
+    bor.set_defaults(fn=cmd_board_read)
+    boc = bosub.add_parser("check", help="has this actor published anything "
+                           "on this subject since a given seq? (nudge check)")
+    boc.add_argument("--subject", required=True)
+    boc.add_argument("--actor", required=True)
+    boc.add_argument("--since", type=int, required=True)
+    boc.set_defaults(fn=cmd_board_check)
 
     cp = sub.add_parser("capability", help="the external capability catalog "
                         "(tools/capability.py); `load` also records CAPABILITY_LOADED")
