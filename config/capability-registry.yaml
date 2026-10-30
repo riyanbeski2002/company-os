@@ -1372,3 +1372,123 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-25"
     checked_at: "2026-10-25"
+
+  - id: leonxlnx-earshot
+    type: tool
+    category: "audio.analysis"
+    purpose: "Ears for an agent that cannot hear. Four things we adopted it for: (1) `measure` - LUFS, true peak, LRA, envelope, spectrum, tempo and key, with NO models and no network; (2) `sfx` - a bank of 252 sound effects stored AS CODE and rendered by id, so there is no per-asset licence to record at all, plus `kit --preset launch` which places each effect role against the music bed and the cut (taps lead it, whoosh peaks land after); (3) `critique` - a scorecard for a film's sound against professional launch films, with a verdict and a ranked fix list; (4) `describe`/`match` - the audio equivalent of scripts/lookcheck.py, returning a calibrated verdict rather than an impression."
+    trust_tier: T2
+    source: "https://github.com/Leonxlnx/earshot"
+    license: "MIT (Copyright (c) 2026 Leon Lin) - read from the repository's own LICENSE file, not inferred from metadata"
+    license_note: "Shallow clone at external/leonxlnx-earshot, v0.4.0, installed into its own venv with --system-site-packages so it reuses the machine's torch. Nothing vendored into a product repo. The 252-sound bank is source code, so sounds it renders carry no third-party asset licence. The two models it downloads are analysis-only and are never embedded in any deliverable: CLAP laion/larger_clap_general (Apache-2.0) and the AudioSet tagger MIT/ast-finetuned-audioset-10-10-0.4593 (BSD-3-Clause), both at pinned revisions with safetensors weights, cached under the repo and offline thereafter."
+    caveats: "measure/sfx/kit/doctor need no models; describe/match/rank/find/compare/ab/realness/critique need the ~1.1GB download. The author is explicit about Goodhart risk - the forge search optimises earshot's own models and can please them without the sound improving, so judge a synthesized sound by the model-free measurements, not by its model scores. The blind test behind `forge` is one listener and 15 trials. `forge --refset` needs reference recordings that are NOT in the repo and whose licences you must bring yourself."
+    approved_by: riyan
+    approved_at: "2026-10-26"
+    checked_at: "2026-10-26"
+
+  # --- capability-curator review, 2026-10-29. Star/fork anomaly flagged
+  # plainly, same discipline as morluto-rea/affaan-m-ecc/multica-ai above:
+  # 306,329 stars / 25,767 forks on a repo created 2026-02-03 (~9 months old,
+  # personal account) - larger than torvalds/linux. Unlike those, the content
+  # verified real and substantial on direct read: named maintainer (Matt
+  # Pocock, aihero.dev), ADRs, changesets, an out-of-scope doc, a real plugin
+  # manifest, and the retro/improve-codebase-architecture SKILL.md files
+  # themselves read as genuine, specific procedures, not placeholder content.
+  # Approved anyway at T2, scoped to the retro skill specifically, not the
+  # whole repo. Fork-to-own-account step was blocked by this session's own
+  # permission classifier (public-surface creation); local_path clones
+  # directly from upstream instead, same as morluto-rea's entry above (its
+  # own "fork requested" never completed either) - re-attempt the fork
+  # separately if Riyan wants the durable copy-of-record this repo's other
+  # external/ entries have.
+  - id: mattpocock-skills
+    type: skill
+    category: "meta.session-retrospective"
+    purpose: "Adopted specifically for `skills/engineering/retro` - reads back over a coding session, finds where the agent struggled, and proposes (never auto-applies) an environment fix: an automated check if the issue was mechanical, a CODING_STANDARDS.md rule for the reviewer if it was a judgment call. Explicitly refuses to pile more prose into CLAUDE.md/AGENTS.md. The rest of the repo (other skills, the plugin packaging, triage tooling) is NOT reviewed or adopted - scope is this one skill only."
+    trust_tier: T2
+    source: "https://github.com/mattpocock/skills"
+    local_path: "external/mattpocock-skills"
+    pinned_commit: "a496f5513d4a4cf889bc48e189e579f4b0bdf6aa"
+    license: "MIT (Copyright (c) 2026 Matt Pocock) - read from the repository's own LICENSE file, not inferred from metadata"
+    approved_by: riyan
+    approved_at: "2026-10-29"
+    checked_at: "2026-10-29"
+
+  # --- Riyan's direct picks for video-editor, 2026-10-29. kurbaitaev-ghost-editor
+  # and agricidaniel-claude-shorts: plausible metrics (92/15 and 252/55
+  # stars/forks, MIT, specific non-generic descriptions), reviewed at
+  # metadata depth only, so T3 ("real but unvetted"), not T2 - no line-by-line
+  # source read was done, matching this registry's own trust-tier definitions.
+  - id: kurbaitaev-ghost-editor
+    type: skill
+    category: "video.editing"
+    purpose: "AI video editor for talking-head reels, built directly on HyperFrames (same stack video-editor already uses): 7 named edit styles, face-safe caption placement, motion scenes, and a reverse-engineer-the-reference-edit mode. Overlaps edenfunf-reelmimic's reel_structure job with a HyperFrames-native, more opinionated take - wired as an alternate, not a replacement, until compared in real use."
+    trust_tier: T3
+    source: "https://github.com/kurbaitaev/ghost-editor"
+    local_path: "external/kurbaitaev-ghost-editor"
+    pinned_commit: "8b9a3c5f9fd2ced7458c26c773351909412d894c"
+    license: "MIT (Copyright (c) 2026 kurbaitaev) - read from the repository's own LICENSE file"
+    approved_by: riyan
+    approved_at: "2026-10-29"
+    checked_at: "2026-10-29"
+
+  - id: agricidaniel-claude-shorts
+    type: skill
+    category: "video.repurposing"
+    purpose: "Longform-to-shortform extraction, a capability nothing else in this registry covers: AI segment scoring to find the clip-worthy moments in an existing long-form asset, cursor tracking, audio-aware boundary snapping, and Remotion-rendered animated captions on the output. Use only when the goal is repurposing existing footage into shorts, not producing a video from scratch (that's hyperframes/video-editor)."
+    trust_tier: T3
+    source: "https://github.com/AgriciDaniel/claude-shorts"
+    local_path: "external/agricidaniel-claude-shorts"
+    pinned_commit: "a369fad9d84287edbb8fa3ab515f268e770f683b"
+    license: "MIT (Copyright (c) 2026 Daniel Agrici) - read from the repository's own LICENSE file"
+    approved_by: riyan
+    approved_at: "2026-10-29"
+    checked_at: "2026-10-29"
+
+  # calesthio-OpenMontage: registered for visibility/reference ONLY, not
+  # cloned, not wired to capability-map.yaml. Flagged plainly, same
+  # discipline as the other scale anomalies in this file: 72,923 stars /
+  # 9,528 forks on a personal-account repo created 2026-03-29 (~7 months
+  # old) - the stars:forks ratio (~7.7:1) is within an organic range (unlike
+  # the near-zero-fork patterns flagged elsewhere), so this is NOT the same
+  # bought-engagement signature as morluto-rea/affaan-m-ecc; it also carries
+  # its own domain, YouTube channel, and X account - a real marketing
+  # operation, which cuts both ways (could mean genuine traction, could mean
+  # professionally-run hype). AGPL-3.0 - copyleft, materially different
+  # obligation than every MIT/Apache entry around it; read before any code
+  # is reused, not just before redistribution. 100+ tools and 700+ agent
+  # skill/production-knowledge files is a parallel production SYSTEM, not
+  # one resource for one purpose - wiring it wholesale into video-editor
+  # would be exactly the "install everything in category X" this registry's
+  # own curation discipline refuses. Not wired pending Riyan naming a
+  # specific piece of it worth adopting on its own.
+  - id: calesthio-openmontage
+    type: tool
+    category: "video.production-system"
+    purpose: "A competing, whole agentic video-production system (12 pipelines, 100+ tools, 700+ skill/knowledge files) - reference only. Not cloned, not wired. See caution above before adopting any part of it."
+    trust_tier: T3
+    source: "https://github.com/calesthio/OpenMontage"
+    license: "AGPL-3.0 - copyleft, read before reusing any part of it"
+    approved_by: riyan
+    approved_at: "2026-10-29"
+    checked_at: "2026-10-29"
+
+  # kNN-VC (Baas, van Niekerk, Kamper, Stellenbosch Univ.): any-to-any voice
+  # conversion with NO training - swaps each WavLM frame of the source for the
+  # mean of its k nearest frames in the target speaker's own speech. Chosen for
+  # Film 01 voice work because it can use all ~21 min of Riyan's recordings
+  # (Chatterbox zero-shot used one 9s window). Code MIT (LICENSE read from the
+  # repo). Weights: WavLM-Large (Microsoft, MIT) + HiFi-GAN vocoder from the repo's
+  # own v0.1 release. Checkpoints are torch pickles - load only the pinned release
+  # files, from a scratch dir, never from elsewhere. Source prosody is preserved:
+  # converting flat TTS stays flat. Local only; Riyan's voice never leaves the machine.
+  - id: bshall-knn-vc
+    type: tool
+    category: "audio.voice-conversion"
+    purpose: "Local training-free voice conversion into Riyan's voice from his own recordings, for Film 01 narration. Experiment first; adoption into the film pipeline is a separate decision."
+    trust_tier: T2
+    source: "https://github.com/bshall/knn-vc"
+    license: "MIT"
+    approved_by: riyan
+    approved_at: "2026-10-29"
+    checked_at: "2026-10-29"

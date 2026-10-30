@@ -326,7 +326,7 @@ A low-confidence match (printed as `(low-confidence match)`) still carries that
 kind's gates; treat the route as a starting point and lean harder on the
 clarify questions.
 
-Two things `explain` gives you that you must act on, not bury:
+Three things `explain` gives you that you must act on, not bury:
 - **Gates** are hard stops, not questions. Live money movement, posting to
   someone's accounts, and VAPT against a target not in
   `config/authorized-targets.yaml` are ESCALATIONS to Riyan or refusals — you
@@ -335,11 +335,36 @@ Two things `explain` gives you that you must act on, not bury:
   IG/YT posting integration, no Spotify catalog access, licensed market-data).
   Surface them in the plan so Riyan knows what is and isn't covered, and raise
   an escalation or capability proposal rather than silently skipping the part.
+- **`needs_confirmation`** lists real, wired, trusted (T0-T3) capabilities the
+  router deliberately did NOT auto-choose — the map marks them `confirm: true`
+  because they're newly wired or genuinely optional (e.g. `video-editor` as the
+  accountable owner of a video deliverable, `buildwithdarius-reel-editor`'s
+  cut/loudness self-check, `morluto-rea` for reverse engineering). Ask about
+  these once, in the same breath as the clarify questions ("I'd use X here for
+  Y reason — load it?") — never silently skip them (that is how a video session
+  runs a week with no owner and no quality check) and never silently load them
+  either. This is distinct from the free-form `prepare` fallback below, which
+  auto-selects for an unmatched goal; a playbook match with a `confirm: true`
+  supplier always asks.
+
+**Close the loop when a goal finishes.** `company capability outcome
+--capabilities <id...> --verdict good|bad|abandoned --why "<one line>"
+--evidence <task id, commit, or log>` records whether the route's
+capabilities actually delivered. Without this, a `confirm: true` entry can
+only ever be asked about forever — there is no evidence to ever promote it to
+auto, or drop one that keeps getting approved but never delivers
+(`KNOWN_GAPS.md` #3). `company capability outcomes <id>` shows a capability's
+track record before you decide whether to offer it again.
 
 If no playbook matches, still honour the gates `explain` returned, then fall
 back to `company capability prepare "<brief>"` (keyword match over the full
 catalog) and `company capability search`, and consider proposing a new
-playbook/map entry via `capability-curator`.
+playbook/map entry via `capability-curator`. If that fallback also finds
+nothing specific, say so to Riyan and name it as unmatched — do **not** default
+to staffing `backend-engineer` (or any generalist) just because the goal
+sounds code-shaped. That silent default is how a specific, better-fit resource
+sitting unwired in the registry (`KNOWN_GAPS.md` #2/#3) gets permanently
+hidden behind a worse one that happened to be reachable.
 
 **Auto capability selection for a free-form brief.** When a goal doesn't fit a
 playbook, `company capability prepare "<brief>" --project <p>` ranks the
@@ -455,25 +480,11 @@ lookup like the risk triggers — a copy fix or a field on an existing form does
 not need it, and staffing one anyway is the same tier-inflation defect as
 running a Tier-2 worker for a Tier-1 job.
 
-**`finance-analyst`/`legal-analyst` (both Tier 1, no worktree) exist for
-real business deliverables, not code** — a DCF, an LBO, a comps set, a
-contract review, NDA triage. Their actual methodology comes from official
-Anthropic plugins (T1, `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`), not
-reimplementation; if the plugin isn't installed, they'll say so rather than
-improvise. You will not always need them — most tasks are still code — but
-when Riyan asks for a financial model or a contract read, staff the role
-built for it instead of having `cfo-advisor` (which audits this repo's own
-token spend, a different job entirely) or a generalist attempt it.
-
-**`video-editor` (Tier 2, worktree)** exists for rendered video/motion
-graphics work — launch videos, logo animations, overlay cards on footage,
-channel intros — built from code (HyperFrames/Remotion) rather than hand
-keyframing. Staff it when the outcome is genuinely a video deliverable, not
-a static image (that's `frontend-engineer` reaching for
-`skills/claude-image-generation/`) and not a UI screen. Its registered
-renderers and the Premiere-placement tool have real machine requirements
-(see `agents/video-editor.md`) — don't assume a step is available just
-because it's registered; check before staffing a handoff that depends on it.
+**Staffing `finance-analyst`, `legal-analyst`, or `video-editor`** — none of
+these three is the default pick, so read `docs/AGENT-ROSTER.md` before
+staffing one; it has the real caveats (plugin backing, machine requirements,
+which playbook kind actually routes to it) that matter and don't belong
+loaded into every session that never touches finance, legal, or video.
 
 ## Before launching parallel work
 - Compute predicted file overlap. Above threshold: sequence it, or split

@@ -74,6 +74,13 @@ EVENTS = {
     # that a catalog unit was ever actually loaded — `company capability load`
     # appends this (data: unit_id, type, optional task) after a load succeeds.
     "CAPABILITY_LOADED",
+    # KNOWN_GAPS.md: CAPABILITY_LOADED records that a capability was used, not
+    # whether using it actually went well. Without that second fact, a
+    # `confirm: true` map entry (capability_router.py) can only ever be asked
+    # about forever — there is no evidence to ever promote it, or to drop one
+    # that keeps getting approved but never delivers. `company capability
+    # outcome` appends this once a route's result is known.
+    "ROUTE_OUTCOME",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event
@@ -99,7 +106,19 @@ REQUIRES_EVIDENCE = {
     # Whether intent was achieved is the one goal fact that is a claim about
     # the world; defining, linking and closing are decisions.
     "OUTCOME_ASSESSED",
+    # Whether a route actually delivered is a claim about the world, same
+    # discipline as OUTCOME_ASSESSED/LESSON_RECORDED — a verdict with no
+    # pointer to what actually happened is a vague feeling, not a fact worth
+    # promoting or demoting a capability on.
+    "ROUTE_OUTCOME",
 }
+
+# A route's result, for ROUTE_OUTCOME. Mirrors GOAL's three-way honesty
+# (achieved/not_achieved/inconclusive) rather than a flat good/bad: a route
+# that was never actually finished (abandoned) is a different fact than one
+# that finished and failed, and collapsing them would make an abandoned task
+# look like the capability's fault.
+ROUTE_VERDICTS = {"good", "bad", "abandoned"}
 
 # ADR-006: one goal entity, three levels. Goal events are not project-scoped
 # (an objective can span projects), so they carry this reserved project.
@@ -193,6 +212,8 @@ def validate(event: dict) -> None:
         _validate_routine_event(event)
     if name == "LESSON_RECORDED" and "source_ref" in (event.get("data") or {}):
         _validate_source_ref(event["data"]["source_ref"])
+    if name == "ROUTE_OUTCOME":
+        _validate_route_outcome(event)
 
 
 def _validate_source_ref(ref) -> None:
@@ -205,6 +226,23 @@ def _validate_source_ref(ref) -> None:
     if isinstance(value, bool) or not isinstance(value, (str, int)) \
             or (isinstance(value, str) and not value.strip()):
         raise ValueError("source_ref requires a non-empty ref (a sha, a seq, or a task id)")
+
+
+def _validate_route_outcome(event: dict) -> None:
+    """Shape only. `capabilities` names the capability-map ids the route
+    actually used (so `company capability outcomes <id>` can tally this
+    event against each one); `verdict` and `why` are the judgment itself."""
+    data = event.get("data") or {}
+    caps = data.get("capabilities")
+    if not (isinstance(caps, list) and caps
+            and all(isinstance(c, str) and c for c in caps)):
+        raise ValueError("ROUTE_OUTCOME requires a non-empty data.capabilities "
+                         "list of capability-map ids")
+    if data.get("verdict") not in ROUTE_VERDICTS:
+        raise ValueError(f"ROUTE_OUTCOME verdict {data.get('verdict')!r} is not "
+                         f"one of {sorted(ROUTE_VERDICTS)}")
+    if not str(data.get("why") or "").strip():
+        raise ValueError("ROUTE_OUTCOME requires a non-empty data.why")
 
 
 def _is_number(v) -> bool:

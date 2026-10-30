@@ -1737,6 +1737,46 @@ def cmd_capability_route(args):
           "prepare_actions": plan["prepare_actions"]})
 
 
+def cmd_capability_outcome(args):
+    """Record whether a route's capabilities actually delivered (KNOWN_GAPS.md
+    #3's standing fix: without this, a `confirm: true` capability-map entry
+    can only ever be asked about forever — there is no evidence to ever
+    promote it to auto, or to drop one that keeps getting approved but never
+    delivers). One ROUTE_OUTCOME per route, naming every capability-map id
+    the route actually used — `company capability outcomes <id>` tallies
+    this event against each one."""
+    root = company_root(args)
+    project = load_project(root, args.project)
+    actor = args.actor or os.environ.get("COMPANY_ACTOR") or "company-pm"
+    data = {"capabilities": args.capabilities, "verdict": args.verdict, "why": args.why}
+    written = EventLog(root).append(make_event(
+        event="ROUTE_OUTCOME", actor=actor, project=project,
+        task=args.task, data=data, evidence=_parse_evidence(args.evidence)))
+    emit({"ok": True, "seq": written["seq"], **data})
+
+
+def cmd_capability_outcomes(args):
+    """Query-only, cross-project (same reasoning as `escalate --list`: "has
+    this capability actually worked?" is not scoped to one project — the log
+    itself already isn't, `project` is just a field on each event). Tallies
+    every ROUTE_OUTCOME that named this capability-map id."""
+    root = company_root(args)
+    tally = {"good": 0, "bad": 0, "abandoned": 0}
+    instances = []
+    for ev in EventLog(root).read():
+        if ev.get("event") != "ROUTE_OUTCOME":
+            continue
+        data = ev.get("data") or {}
+        if args.id not in (data.get("capabilities") or []):
+            continue
+        tally[data["verdict"]] = tally.get(data["verdict"], 0) + 1
+        instances.append({"seq": ev["seq"], "project": ev.get("project"),
+                          "verdict": data["verdict"], "why": data.get("why"),
+                          "ts": ev.get("ts")})
+    emit({"ok": True, "id": args.id, "total": len(instances), "tally": tally,
+          "instances": instances})
+
+
 def cmd_capability_search(args):
     """Thin wrapper: the script's own search, output passed through."""
     try:
@@ -2467,6 +2507,22 @@ def build_parser():
     cpr.add_argument("--actor")
     cpr.add_argument("--project")
     cpr.set_defaults(fn=cmd_capability_route)
+    cpo = cpsub.add_parser("outcome", help="record whether a route's capabilities "
+                           "actually delivered (ROUTE_OUTCOME)")
+    cpo.add_argument("--capabilities", nargs="+", required=True,
+                     help="capability-map ids the route actually used")
+    cpo.add_argument("--verdict", choices=["good", "bad", "abandoned"], required=True)
+    cpo.add_argument("--why", required=True, help="one line: what actually happened")
+    cpo.add_argument("--evidence", required=True,
+                     help="a task id, commit SHA, or log pointing at what happened")
+    cpo.add_argument("--task")
+    cpo.add_argument("--actor")
+    cpo.add_argument("--project")
+    cpo.set_defaults(fn=cmd_capability_outcome)
+    cpos = cpsub.add_parser("outcomes", help="tally every recorded outcome for one "
+                            "capability-map id — has it actually delivered?")
+    cpos.add_argument("id", help="a capability-map id, e.g. video-editor")
+    cpos.set_defaults(fn=cmd_capability_outcomes)
     cps = cpsub.add_parser("search", help="units whose id/name/description contain every term")
     cps.add_argument("terms", nargs="+")
     cps.set_defaults(fn=cmd_capability_search)

@@ -171,15 +171,21 @@ playbooks:
       - requires: [promo_video]
         when: [promo, promotional, product, launch, saas, brand, marketing]
         why: "Product-launch/promo treatment when the clip markets a product."
-      - requires: [media_sourcing]
-        why: "Source or generate original footage, music, voiceover."
-      - requires: [video_compose, animation]
-        why: "Author the composition."
+      - requires: [media_sourcing, voiceover]
+        why: "Source or generate original footage, music, voiceover. voiceover's confirm-gated alternates (cloud or local cloning) surface only when media-use's default isn't enough — ask before reaching for one."
+      - requires: [video_build, video_compose, animation, video_render_alt]
+        why: "Staff the owner and author the composition. video_build/video_render_alt surface as ask-before-using — company-pm confirms with Riyan before staffing video-editor or reaching for an alternate render path, rather than defaulting to hyperframes alone with no accountable owner."
       - requires: [motion_as_code]
         when: ["motion as code", "code-driven", voiceover, explainer, procedural]
         why: "Code-as-frames, voiceover-locked render path when that approach is wanted."
+      - requires: [video_quality_check]
+        why: "Check the cut against the editing doctrine (pacing, loudness, frame-by-frame look at every cut) before calling it done — this is the review gate every other playbook has and video_recreate was missing."
+      - requires: [audio_quality_check]
+        why: "Measure the audio (LUFS/true-peak/spectrum) and get a sound-design critique before calling it done — the audio-side counterpart to video_quality_check, same reason it was missing: nothing required it."
       - requires: [video_transform]
         why: "Final cut/transcode to the target format."
+      - requires: [video_placement]
+        why: "Place the finished clip on a real NLE timeline, only when Riyan wants it staged for further hand editing rather than just the rendered file."
     gates:
       - "No downloading, re-hosting, or re-posting of someone else's actual footage/audio. Recreate structure with original assets only."
     gaps:
@@ -199,10 +205,19 @@ playbooks:
     steps:
       - requires: [content_strategy, channel_strategy]
         why: "Niche selection and per-platform format/cadence strategy."
-      - requires: [reel_structure, video_compose]
-        why: "Produce each video."
-      - requires: [media_sourcing]
-        why: "Original assets per video."
+      - requires: [reel_structure, video_compose, video_build]
+        why: "Produce each video. video_build surfaces as ask-before-using — confirm with Riyan before staffing video-editor as the accountable owner of the pipeline's output."
+      - requires: [media_sourcing, voiceover]
+        why: "Original assets per video. voiceover's confirm-gated alternates surface only when media-use's default isn't enough."
+      - requires: [shorts_repurposing]
+        when: [repurpose, repurposing, "long form", longform, "long-form",
+               "existing footage", "existing video", "existing videos",
+               "cut down", "chop up", "turn into shorts", "turn into clips"]
+        why: "When the engine draws from existing long-form assets rather than producing from scratch, score and extract the clip-worthy segments instead of hand-picking cuts."
+      - requires: [video_quality_check]
+        why: "Check each video against the editing doctrine before it enters the publish queue — the review gate this pipeline needs at scale, not just once."
+      - requires: [audio_quality_check]
+        why: "Measure and critique each video's audio before it enters the publish queue — the audio counterpart to video_quality_check, at the same scale."
       - requires: [backend_build]
         why: "The engine IS software: the generation pipeline, the content queue, and the scheduling/state that runs it on a cadence."
       - requires: [publishing_workflow]
@@ -276,4 +291,36 @@ playbooks:
         when: [public, investor, fundraise, securities, offering]
         why: "Flag securities/disclosure exposure when materials face investors."
     gates: []
+    gaps: []
+
+  - kind: legal_review
+    match: [review this contract, review this nda, nda triage, contract review,
+            review this agreement, negotiate this contract, legal review,
+            review this msa, review this vendor contract]
+    signals: [contract, contracts, nda, ndas, agreement, agreements, msa,
+              clause, clauses, negotiate, negotiation, counterparty, redline,
+              indemnification, liability, termination, confidentiality]
+    clarify:
+      - "What kind of document is this (NDA, MSA, vendor contract, employment), and whose side are we on?"
+      - "What's the deal/relationship this document covers?"
+    steps:
+      - requires: [legal_review]
+        why: "Contract/NDA review against the negotiation playbook, or compliance/legal-risk triage."
+    gates:
+      - "legal-analyst assists, never replaces, licensed counsel — every deliverable states this explicitly. A real legal decision (sign/don't sign, litigation exposure) is Riyan's call, with counsel, not the agent's."
+    gaps: []
+
+  - kind: reverse_engineer
+    match: [reverse engineer, reverse engineering, decompile, decompiling,
+            disassemble, disassembling, rea this]
+    signals: [reverse, engineer, decompile, decompiled, disassemble, binary,
+              binaries, firmware, unpack, bytecode, obfuscated, obfuscation]
+    clarify:
+      - "What's the target artifact (binary/app/package/firmware), and where does it come from?"
+      - "Is the goal to explain behavior, compare versions, or guide a reconstruction?"
+    steps:
+      - requires: [reverse_engineering]
+        why: "REA's owned methodology for explaining shipped-artifact behavior, down to native binaries."
+    gates:
+      - "Only reverse-engineer an artifact Riyan owns, has rights to, or has explicit authorization to analyze — same authorization discipline as vapt, not assumed just because the artifact is in hand."
     gaps: []

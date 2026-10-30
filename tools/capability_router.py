@@ -20,6 +20,10 @@ This module is the deterministic core the PM leans on:
 Nothing here clones, loads, installs, or runs anything. `explain` is safe to
 run on any goal. T4 capabilities are never auto-selected (capability.py's
 AUTO_TIERS); a step whose only supplier is T4 is reported as a gap, not loaded.
+A map entry marked `confirm: true` is real and reachable (T0-T3) but never
+auto-chosen either — it is newly wired or genuinely optional, so it comes back
+in `needs_confirmation` for the PM to ask about once, never silently loaded
+and never prepared by `route()`.
 """
 from __future__ import annotations
 
@@ -303,30 +307,43 @@ def classify(goal: str, playbooks: list | None = None) -> list:
             for _, _, _, k, conf, h in scored]
 
 
+def _as_resolved(pick, tag):
+    return {"id": pick["id"], "kind": pick["kind"], "ref": pick["ref"],
+            "for_tag": tag, "trust": pick.get("trust"),
+            "use_when": pick.get("use_when", ""),
+            "not_when": pick.get("not_when", ""), "cost": pick.get("cost", "")}
+
+
 def _resolve_step(require_tags, provides_idx):
     """For a step's required tags, pick a supplier per tag. A tag with no
     non-T4 supplier becomes a gap. The T4-only branch is a forward-guard: the
     live map has no T4 entry today, so it is covered by ResolveStepTest, not by
-    a real-map route (T4 stays reference-only, enforced at prepare_unit)."""
-    chosen, gaps = [], []
+    a real-map route (T4 stays reference-only, enforced at prepare_unit).
+
+    A supplier marked `confirm: true` in the map is real, trusted (T0-T3), and
+    reachable — just never auto-chosen. It is newly wired and/or genuinely
+    optional, so it is surfaced as something to ASK Riyan about rather than
+    silently loaded. It is never a gap (the capability is not missing) and
+    never auto-prepared (route()'s prepare_actions only comes from `chosen`)."""
+    chosen, gaps, confirm = [], [], []
     for tag in require_tags:
         suppliers = provides_idx.get(tag, [])
         eligible = [s for s in suppliers if s.get("trust") in AUTO_TIERS]
-        if not eligible:
+        auto = [s for s in eligible if not s.get("confirm")]
+        ask = [s for s in eligible if s.get("confirm")]
+        if auto:
+            pick = auto[0]
+            if pick["id"] not in [c["id"] for c in chosen]:
+                chosen.append(_as_resolved(pick, tag))
+        elif not ask:
             if suppliers:
                 gaps.append(f"'{tag}' has only T4 suppliers — not auto-selected")
             else:
                 gaps.append(f"'{tag}' has no capability in the map")
-            continue
-        pick = eligible[0]
-        if pick["id"] not in [c["id"] for c in chosen]:
-            chosen.append({"id": pick["id"], "kind": pick["kind"],
-                           "ref": pick["ref"], "for_tag": tag,
-                           "trust": pick.get("trust"),
-                           "use_when": pick.get("use_when", ""),
-                           "not_when": pick.get("not_when", ""),
-                           "cost": pick.get("cost", "")})
-    return chosen, gaps
+        for s in ask:
+            if s["id"] not in [c["id"] for c in confirm]:
+                confirm.append(_as_resolved(s, tag))
+    return chosen, gaps, confirm
 
 
 def _select_kinds(kinds, playbooks):
@@ -381,9 +398,9 @@ def explain(goal: str) -> dict:
         if risk:
             msg += " The risk gates above still apply."
         return {"goal": goal, "kinds": [], "route": [], "gates": risk,
-                "gaps": [msg], "capabilities": []}
+                "gaps": [msg], "capabilities": [], "needs_confirmation": []}
 
-    route, caps = [], []
+    route, caps, offered = [], [], []
     gates = _risk_gates(sig, goal_lower)  # risk net first; unioned with playbook gates
     gaps = []
     for k in kinds:
@@ -392,14 +409,18 @@ def explain(goal: str) -> dict:
         for step in pb.get("steps", []):
             if not _when_match(step.get("when"), goal_lower, sig):
                 continue              # conditional step not signalled by this goal
-            chosen, step_gaps = _resolve_step(step.get("requires", []), provides_idx)
+            chosen, step_gaps, step_confirm = _resolve_step(
+                step.get("requires", []), provides_idx)
             steps_out.append({"why": step.get("why", ""),
                               "requires": step.get("requires", []),
-                              "use": chosen})
+                              "use": chosen, "ask_before_using": step_confirm})
             gaps.extend(step_gaps)
             for c in chosen:
                 if c["id"] not in [x["id"] for x in caps]:
                     caps.append(c)
+            for c in step_confirm:
+                if c["id"] not in [x["id"] for x in offered]:
+                    offered.append(c)
         route.append({"kind": k["kind"], "confidence": k.get("confidence", "high"),
                       "clarify": pb.get("clarify", []), "steps": steps_out})
         gates.extend(_conditional(pb.get("gates", []), goal_lower, sig))
@@ -409,7 +430,8 @@ def explain(goal: str) -> dict:
     gates = list(dict.fromkeys(gates))
     gaps = list(dict.fromkeys(gaps))
     return {"goal": goal, "kinds": [k["kind"] for k in kinds], "route": route,
-            "gates": gates, "gaps": gaps, "capabilities": caps}
+            "gates": gates, "gaps": gaps, "capabilities": caps,
+            "needs_confirmation": offered}
 
 
 def route(goal: str) -> dict:
@@ -444,14 +466,23 @@ def _print_human(plan: dict):
         print("  route:")
         for s in r["steps"]:
             print(f"    * {s['why']}")
-            if not s["use"]:
+            if not s["use"] and not s.get("ask_before_using"):
                 print("      use: — GAP —")
+            elif not s["use"]:
+                print("      use: — none auto-chosen; see ASK BEFORE USING below —")
             for c in s["use"]:
                 print(f"      - {c['id']}({c['ref']})  trust={c['trust']}")
                 if c.get("use_when"):
                     print(f"          use when: {c['use_when']}")
                 if c.get("not_when"):
                     print(f"          not when: {c['not_when']}")
+        print()
+    if plan.get("needs_confirmation"):
+        print("ASK BEFORE USING (real, wired, never auto-loaded):")
+        for c in plan["needs_confirmation"]:
+            print(f"  ? {c['id']}({c['ref']})  trust={c['trust']}  for: {c['for_tag']}")
+            if c.get("use_when"):
+                print(f"      use when: {c['use_when']}")
         print()
     if plan["gates"]:
         print("GATES (hard stops, not questions):")

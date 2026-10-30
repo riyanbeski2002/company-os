@@ -1,0 +1,22 @@
+#!/bin/sh
+# Guardrail (retro finding #1, 2026-10-29): 892+ tests existed with nothing
+# running them before a commit landed — no CI, no hook, nothing. This is
+# that check, tracked in the repo (not .git/hooks/, which never ships to a
+# clone) so it travels with the code.
+#
+# One-time setup, once per clone:
+#   git config core.hooksPath tools/git-hooks
+#
+# Bypass for a deliberate WIP commit: git commit --no-verify
+
+set -e
+cd "$(git rev-parse --show-toplevel)"
+echo "pre-commit: running the test suite (python3 -m unittest discover -q tests)..."
+# git sets GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE for this hook's own commit in
+# progress. Several tests shell out to `git init`/`git worktree add` in their
+# own temp repos; inheriting those vars points that unrelated git command at
+# this commit's (temporary) index, failing with "index file open failed:
+# Not a directory". Unset them so the test suite's git calls are unaffected.
+env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_OBJECT_DIRECTORY \
+    -u GIT_ALTERNATE_OBJECT_DIRECTORIES \
+    python3 -m unittest discover -q tests

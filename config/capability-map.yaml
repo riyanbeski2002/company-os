@@ -271,3 +271,233 @@ entries:
     provides: [motion_as_code]
     trust: T2
     cost: "skill load; needs bun+chrome+ffmpeg"
+
+  # --- Closes KNOWN_GAPS.md #1/#4: video-editor and its own documented
+  # toolset were onboarded but unreachable from the router. Wired now, each
+  # `confirm: true` — real, trusted, reachable, but never auto-chosen; the PM
+  # asks once before staffing/loading any of these (see explain()'s
+  # `needs_confirmation`). Flip a specific entry to auto once it has proven
+  # out in real use. ---
+  - id: video-editor
+    kind: agent
+    ref: video-editor
+    use_when: "The outcome is genuinely a rendered video/motion-graphics deliverable, not a static image or a UI screen."
+    not_when: "A static image (frontend-engineer + claude-image-generation) or a UI screen."
+    provides: [video_build]
+    trust: T0
+    confirm: true
+    cost: "Tier-2 worker, own worktree; render is wall-clock heavy"
+  - id: buildwithdarius-reel-editor
+    kind: tool
+    ref: buildwithdarius-reel-editor
+    use_when: "Self-checking a cut before calling it done: RMS-envelope cut timing, no gap >0.25s, nothing frozen >2s, a new visual every 2-3s, -14 LUFS/-1 dBTP, frame-by-frame look at every cut."
+    not_when: "A narrated film with no presenter — its retake/face-safe-zone rules assume a talking-head reel."
+    provides: [video_quality_check]
+    trust: T3
+    confirm: true
+    cost: "doctrine only, no render cost"
+  - id: diffusionstudio-core
+    kind: tool
+    ref: diffusionstudio-core
+    use_when: "In-browser/WebCodecs compositing is specifically wanted over an HTML+GSAP or React composition."
+    not_when: "Ordinary composition work — hyperframes is the default render path."
+    provides: [video_render_alt]
+    trust: T2
+    confirm: true
+    cost: "skill load; alternate render path"
+  - id: diffusionstudio-editor
+    kind: tool
+    ref: diffusionstudio-editor
+    use_when: "Pairs with diffusionstudio-core for agent-driven in-browser editing."
+    not_when: "Ordinary composition work — hyperframes is the default render path."
+    provides: [video_render_alt]
+    trust: T2
+    confirm: true
+    cost: "skill load; alternate render path"
+  - id: remotion-dev-skills
+    kind: tool
+    ref: remotion-dev-skills
+    use_when: "The video needs React component reuse specifically."
+    not_when: "Most video work — hyperframes is the default."
+    provides: [video_render_alt]
+    trust: T3
+    confirm: true
+    cost: "skill load; no declared license at the skills-repo level, confirm before redistributing"
+  - id: hetpatel-11-adobe-premiere-pro-mcp
+    kind: tool
+    ref: hetpatel-11-adobe-premiere-pro-mcp
+    use_when: "The rendered clip should be placed directly onto a real Premiere timeline (new sequence) for further hand editing."
+    not_when: "No licensed local Adobe Premiere Pro 2020+ install is confirmed on the execution machine — check before assuming this is wired up."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local MCP; needs Node 20+ and a licensed Premiere install on the same machine"
+  - id: samuelgursky-davinci-resolve-mcp
+    kind: tool
+    ref: samuelgursky-davinci-resolve-mcp
+    use_when: "Placing/editing in a real DaVinci Resolve project when Resolve STUDIO (paid tier) is confirmed installed."
+    not_when: "Resolve FREE is what's actually installed — use hiteshk03-davinci-resolve-mcp instead."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local MCP; needs DaVinci Resolve Studio"
+  - id: hiteshk03-davinci-resolve-mcp
+    kind: tool
+    ref: hiteshk03-davinci-resolve-mcp
+    use_when: "Placing/editing in a real DaVinci Resolve project on the FREE edition — the realistic option on this machine."
+    not_when: "Resolve Studio is confirmed installed — samuelgursky-davinci-resolve-mcp covers the full API."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local MCP; free edition, local Whisper transcription"
+
+  # --- Closes KNOWN_GAPS.md #2: reverse engineering was registered,
+  # indexed, and Riyan's explicit priority pick, but unreachable from the
+  # router. confirm: true — registry flags this repo's own star/fork counts
+  # as a likely bought-engagement pattern; Riyan approved it anyway at T3,
+  # so the PM asks every time rather than ever loading it silently. ---
+  # --- Riyan's direct picks for video-editor, 2026-10-29. All confirm: true —
+  # same ask-before-using discipline as the rest of this file's video section;
+  # none of these has displaced the existing default, each is offered
+  # alongside it. ---
+  - id: kajisho5-ffmpeg-skill
+    kind: tool
+    ref: kajisho5-ffmpeg-skill
+    use_when: "42 FFmpeg tools with a machine-readable contract are wanted over the simpler digitalsamba ffmpeg wrapper — e.g. scripting a transform pipeline, not a one-off cut."
+    not_when: "An ordinary cut/concat/transcode — digitalsamba's ffmpeg entry already covers that with no extra MCP-server install."
+    provides: [video_transform]
+    trust: T3
+    confirm: true
+    cost: "skill load; the MCP server needs its own install step, not just a clone"
+  - id: kurbaitaev-ghost-editor
+    kind: tool
+    ref: kurbaitaev-ghost-editor
+    use_when: "A talking-head reel wants one of its 7 named edit styles, face-safe captions, or its reverse-engineer-the-reference-edit mode, on the same HyperFrames stack video-editor already uses."
+    not_when: "A narrated film with no presenter, or when edenfunf-reelmimic's structure-only approach is what's wanted instead."
+    provides: [reel_structure]
+    trust: T3
+    confirm: true
+    cost: "skill load; HyperFrames-native, no extra runtime"
+  - id: agricidaniel-claude-shorts
+    kind: tool
+    ref: agricidaniel-claude-shorts
+    use_when: "Repurposing an existing long-form asset into scored, captioned short clips — extraction, not from-scratch production."
+    not_when: "Producing a video from scratch — that's hyperframes/video-editor; this has nothing to extract from."
+    provides: [shorts_repurposing]
+    trust: T3
+    confirm: true
+    cost: "skill load; Remotion-rendered caption output"
+
+  # --- Answering "why are these not wired" (2026-10-29): these purpose texts
+  # name video-editor or the hyperframes render path directly and were simply
+  # never compared against what's already wired. All confirm: true. ---
+  - id: 0xsline-openchatcut
+    kind: tool
+    ref: 0xsline-openchatcut
+    use_when: "A real local editable app is wanted as the placement target (Electron+React+Remotion, real multi-track timeline), not a bridge to a commercial NLE."
+    not_when: "Premiere/Resolve are the actual target NLE — use their MCPs instead. AGPL-3.0: fine to run standalone, but modifying and distributing or offering it as a network service triggers source-disclosure."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local app install, not just a skill load"
+  - id: sunwood-ai-labs-hyperframes-motion-reel-skill
+    kind: tool
+    ref: sunwood-ai-labs-hyperframes-motion-reel-skill
+    use_when: "Showreel-grade, beat-synced motion graphics on the same HyperFrames stack — a complement to hyperframes, not a replacement."
+    not_when: "Most composition work — hyperframes alone already covers it."
+    provides: [video_compose, animation]
+    trust: T2
+    confirm: true
+    cost: "skill load; HyperFrames-native"
+  - id: abubakrchan-product-launch-motion
+    kind: tool
+    ref: abubakrchan-product-launch-motion
+    use_when: "A product-launch motion video wants code-driven beat-synced SFX and motion blur over the default product-launch-video skill."
+    not_when: "product-launch-video already covers the goal — compare before reaching for both."
+    provides: [promo_video]
+    trust: T2
+    confirm: true
+    cost: "skill load; built for/with Opus 5.5"
+  - id: higgsfield-motion
+    kind: tool
+    ref: higgsfield-motion
+    use_when: "A code-rendered film (HTML/CSS/SVG/WebGL -> stills/MP4) with a token-based brand identity is wanted as an alternate render path."
+    not_when: "No formal license on this one — a free blog download with public-distribution intent, not a licensed repo. Confirm terms before anything beyond evaluation."
+    provides: [video_render_alt]
+    trust: T3
+    confirm: true
+    cost: "skill load; no formal license file"
+  - id: higgsfield-motion-saas
+    kind: tool
+    ref: higgsfield-motion-saas
+    use_when: "A SaaS/app launch-motion video wants its cut-hiding transition library (headless-Chromium or AE ExtendScript path)."
+    not_when: "Same license caveat as higgsfield-motion — no formal license, confirm terms first."
+    provides: [promo_video]
+    trust: T3
+    confirm: true
+    cost: "skill load; no formal license file"
+  - id: fishaudio-fish-audio-plugin
+    kind: tool
+    ref: fishaudio-fish-audio-plugin
+    use_when: "Cloud voice generation/cloning/transcription is acceptable and media-use's default voiceover isn't enough."
+    not_when: "Audio must stay local — this is a remote, OAuth-authenticated cloud service; requests leave the machine. Verify current Fish Audio pricing before relying on it beyond evaluation."
+    provides: [voiceover]
+    trust: T2
+    confirm: true
+    cost: "skill load; remote API, may be paid depending on current pricing"
+  - id: resembleai-chatterbox
+    kind: tool
+    ref: resembleai-chatterbox
+    use_when: "Zero-shot voice cloning from a ~10s reference clip is wanted, fully local, with monetizable output — the only mature cloning model here with a permissive licence on the weights, not just the code."
+    not_when: "media-use's default voiceover already covers the need without cloning a specific voice."
+    provides: [voiceover]
+    trust: T2
+    confirm: true
+    cost: "local inference (MPS/CUDA/CPU); watermarks output with Resemble's inaudible Perth marker"
+  - id: harry0703-moneyprinterturbo
+    kind: tool
+    ref: harry0703-moneyprinterturbo
+    use_when: "A fully-automated topic-to-video pipeline is wanted for content_engine's cadence, as an alternate to hand-composing each video on hyperframes."
+    not_when: "A one-off, deliberately-directed video — this is a from-a-topic pipeline, not a composition tool with editorial control."
+    provides: [video_compose, animation]
+    trust: T3
+    confirm: true
+    cost: "skill load; AI pipeline, runs end-to-end per topic"
+  - id: k2-fsa-omnivoice
+    kind: tool
+    ref: k2-fsa-omnivoice
+    use_when: "Voice cloning is needed in one of 600+ languages media-use/fishaudio/resembleai don't cover, and the output is NOT monetized."
+    not_when: "Any monetized output — the pre-trained weights are CC-BY-NC, so only resembleai-chatterbox is licensed for that case."
+    provides: [voiceover]
+    trust: T3
+    confirm: true
+    cost: "skill load; code is Apache-2.0, weights are CC-BY-NC"
+  - id: debpalash-voicestudio
+    kind: tool
+    ref: debpalash-voicestudio
+    use_when: "Local voice cloning and dubbing is wanted standalone, same reasoning as 0xsline-openchatcut: fine to run locally for its own output."
+    not_when: "Modifying and distributing it, or offering it as a network service — AGPL-3.0 network-copyleft triggers source-disclosure then, same caveat as 0xsline-openchatcut."
+    provides: [voiceover]
+    trust: T3
+    confirm: true
+    cost: "skill load; local app"
+
+  - id: leonxlnx-earshot
+    kind: tool
+    ref: leonxlnx-earshot
+    use_when: "Checking a cut's audio against a measured standard before calling it done: LUFS/true-peak/spectrum measurement, or a sound-design critique with a verdict and ranked fix list — the audio-side version of buildwithdarius-reel-editor's visual quality check."
+    not_when: "No audio-quality claim is being made — this is a measurement/critique tool, not a mixer (that's hyperframes-audio)."
+    provides: [audio_quality_check]
+    trust: T2
+    confirm: true
+    cost: "skill load; describe/match/critique need a ~1.1GB model download, measure/sfx do not"
+
+  - id: morluto-rea
+    kind: tool
+    ref: morluto-rea
+    use_when: "Explaining shipped-artifact behavior down to native binaries: decompiling, comparing versions, guiding a reconstruction."
+    not_when: "Ordinary source-repository architecture questions — that's reading the repo, not REA."
+    provides: [reverse_engineering]
+    trust: T3
+    confirm: true
+    cost: "skill load; registry flags this repo's star/fork counts as a likely bought-engagement pattern — Riyan approved anyway, 2026-10-16"

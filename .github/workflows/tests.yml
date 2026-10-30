@@ -1,0 +1,23 @@
+name: tests
+
+# Guardrail (retro finding #1, KNOWN_GAPS.md): 900+ tests existed with
+# nothing running them on a push or PR. This is that check. It is the
+# durable half of the guardrail — tools/git-hooks/pre-commit is the local,
+# fast-fail half; this one still catches anything committed with
+# --no-verify or from a clone that never activated the local hook.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the test suite
+        run: python3 -m unittest discover -q tests

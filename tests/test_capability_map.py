@@ -89,6 +89,12 @@ class RoutingTest(unittest.TestCase):
         "build a personal health tracking app": "build_app",
         "build a replica of spotify for me, tailored to the songs i listen": "build_app",
         "do a full VAPT on the app i built": "vapt",
+        "review this NDA before I sign it": "legal_review",
+        # NOTE: reverse_engineer is deliberately NOT in SAMPLES — its only
+        # supplier (morluto-rea) is confirm:true by design, so the
+        # test_explain_has_no_dangling_steps_for_samples assumption that
+        # every sample auto-resolves at least one capability does not hold
+        # for it. Covered separately in KnownGapsClosedTest.
     }
 
     def test_samples_classify_to_expected_kind(self):
@@ -689,14 +695,152 @@ class ResolveStepTest(unittest.TestCase):
 
     def test_t4_only_supplier_becomes_gap(self):
         idx = {"x_tag": [{"id": "x", "kind": "catalog_unit", "ref": "r", "trust": "T4"}]}
-        chosen, gaps = router._resolve_step(["x_tag"], idx)
+        chosen, gaps, confirm = router._resolve_step(["x_tag"], idx)
         self.assertEqual(chosen, [])
+        self.assertEqual(confirm, [])
         self.assertTrue(any("only T4" in g for g in gaps))
 
     def test_missing_tag_becomes_gap(self):
-        chosen, gaps = router._resolve_step(["nope_tag"], {})
+        chosen, gaps, confirm = router._resolve_step(["nope_tag"], {})
         self.assertEqual(chosen, [])
+        self.assertEqual(confirm, [])
         self.assertTrue(any("no capability in the map" in g for g in gaps))
+
+    def test_confirm_only_supplier_is_not_a_gap(self):
+        """A confirm:true supplier is real and reachable (T0-T3) — it must
+        never be reported as a gap, and never auto-chosen either."""
+        idx = {"x_tag": [{"id": "x", "kind": "tool", "ref": "r", "trust": "T3",
+                           "confirm": True}]}
+        chosen, gaps, confirm = router._resolve_step(["x_tag"], idx)
+        self.assertEqual(chosen, [])
+        self.assertEqual(gaps, [])
+        self.assertEqual([c["id"] for c in confirm], ["x"])
+
+    def test_auto_supplier_preferred_and_confirm_supplier_still_offered(self):
+        """When both an auto and a confirm:true supplier exist for the same
+        tag, the auto one is chosen (no behavior change for existing wiring)
+        and the confirm:true one is still surfaced as something to ask about."""
+        idx = {"x_tag": [
+            {"id": "auto", "kind": "tool", "ref": "r1", "trust": "T2"},
+            {"id": "ask", "kind": "tool", "ref": "r2", "trust": "T3", "confirm": True},
+        ]}
+        chosen, gaps, confirm = router._resolve_step(["x_tag"], idx)
+        self.assertEqual([c["id"] for c in chosen], ["auto"])
+        self.assertEqual(gaps, [])
+        self.assertEqual([c["id"] for c in confirm], ["ask"])
+
+
+class EveryAgentIsReachableTest(unittest.TestCase):
+    """Riyan's question (2026-10-30): does every agent have its relevant
+    capabilities wired, or just referenced? Answer found by checking, not
+    assuming: every `kind: agent` map entry must have at least one `provides`
+    tag some playbook step actually requires — a map entry alone (like
+    legal-analyst's, before this fix) is a reference, not a route."""
+
+    def test_every_agent_has_at_least_one_reachable_tag(self):
+        required = set()
+        for pb in PLAYBOOKS:
+            for step in pb.get("steps", []):
+                required.update(step.get("requires", []))
+        for e in CMAP:
+            if e["kind"] != "agent":
+                continue
+            with self.subTest(agent=e["ref"]):
+                self.assertTrue(
+                    set(e.get("provides", [])) & required,
+                    f"{e['ref']} is registered in capability-map.yaml but no "
+                    f"playbook step requires any of its provides tags — it is "
+                    f"referenced, not routed to.")
+
+    def test_legal_review_goal_routes_to_legal_analyst(self):
+        plan = router.explain("review this NDA before I sign it")
+        chosen_ids = [c["id"] for c in plan["capabilities"]]
+        self.assertIn("legal-analyst", chosen_ids)
+
+    def test_legal_review_carries_the_not_a_substitute_gate(self):
+        plan = router.explain("review this NDA before I sign it")
+        self.assertTrue(any("licensed counsel" in g for g in plan["gates"]))
+
+
+class KnownGapsClosedTest(unittest.TestCase):
+    """KNOWN_GAPS.md #1/#2/#4: video-editor's own toolset and morluto-rea were
+    onboarded but unreachable from the router. Each is now wired with
+    `confirm: true` — real and offered, never silently staffed/loaded."""
+
+    def test_video_goal_offers_video_editor_but_never_auto_stages_it(self):
+        plan = router.explain("recreate this reel as a product launch promo")
+        offered_ids = [c["id"] for c in plan["needs_confirmation"]]
+        chosen_ids = [c["id"] for c in plan["capabilities"]]
+        self.assertIn("video-editor", offered_ids)
+        self.assertNotIn("video-editor", chosen_ids)
+
+    def test_video_goal_offers_quality_check(self):
+        plan = router.explain("recreate this reel as a product launch promo")
+        offered_ids = [c["id"] for c in plan["needs_confirmation"]]
+        self.assertIn("buildwithdarius-reel-editor", offered_ids)
+
+    def test_reverse_engineer_goal_classifies_correctly(self):
+        kinds = [k["kind"] for k in router.classify(
+            "reverse engineer this app down to the native binary")]
+        self.assertEqual(kinds[0], "reverse_engineer")
+
+    def test_reverse_engineer_goal_offers_morluto_rea(self):
+        plan = router.explain("reverse engineer this app down to the native binary")
+        offered_ids = [c["id"] for c in plan["needs_confirmation"]]
+        self.assertIn("morluto-rea", offered_ids)
+        self.assertNotIn("morluto-rea", [c["id"] for c in plan["capabilities"]])
+
+    def test_audio_quality_check_offered_for_video_goal(self):
+        """KNOWN_GAPS.md extension (2026-10-29): video_recreate/content_engine
+        had a visual quality gate (buildwithdarius-reel-editor) but nothing
+        equivalent for audio, even though leonxlnx-earshot was registered
+        and unwired the whole time."""
+        plan = router.explain("recreate this reel as a product launch promo")
+        offered_ids = [c["id"] for c in plan["needs_confirmation"]]
+        self.assertIn("leonxlnx-earshot", offered_ids)
+
+    def test_video_placement_and_render_alt_batch_all_offered(self):
+        """The 2026-10-29 batch (0xsline-openchatcut, sunwood's reel skill,
+        abubakrchan/higgsfield promo alternates, higgsfield-motion render
+        alt, fishaudio/resembleai voiceover alternates) all surface as
+        ask-before-using, never auto-chosen."""
+        plan = router.explain("recreate this reel as a product launch promo")
+        offered_ids = {c["id"] for c in plan["needs_confirmation"]}
+        chosen_ids = {c["id"] for c in plan["capabilities"]}
+        expected = {"0xsline-openchatcut", "sunwood-ai-labs-hyperframes-motion-reel-skill",
+                   "abubakrchan-product-launch-motion", "higgsfield-motion-saas",
+                   "higgsfield-motion", "fishaudio-fish-audio-plugin",
+                   "resembleai-chatterbox", "kajisho5-ffmpeg-skill"}
+        self.assertEqual(expected - offered_ids, set())
+        self.assertEqual(expected & chosen_ids, set())
+
+    def test_second_pass_voiceover_and_pipeline_alternates_offered(self):
+        """Riyan pushed back on the first pass's "already decided, not an
+        oversight" list (2026-10-29) — three of those five were real misses
+        once re-examined with the same standard applied to 0xsline-
+        openchatcut (AGPL is a redistribution/network-service constraint,
+        not a bar on local use), not consistently-applied exclusions."""
+        plan = router.explain("recreate this reel as a product launch promo")
+        offered_ids = {c["id"] for c in plan["needs_confirmation"]}
+        self.assertEqual(
+            {"harry0703-moneyprinterturbo", "k2-fsa-omnivoice", "debpalash-voicestudio"}
+            - offered_ids, set())
+
+    def test_reverse_engineer_requires_authorization(self):
+        plan = router.explain("reverse engineer this app down to the native binary")
+        self.assertTrue(any("authoriz" in g.lower() for g in plan["gates"]))
+
+    def test_confirm_entries_never_reach_prepare_actions(self):
+        """route()'s prepare_actions only ever comes from `capabilities`
+        (auto-chosen) — a confirm:true offer must never be silently cloned
+        or loaded."""
+        for goal in ("recreate this reel as a product launch promo",
+                     "reverse engineer this app down to the native binary"):
+            with self.subTest(goal=goal):
+                plan = router.route(goal)
+                prepared_ids = {a.get("map_id") for a in plan["prepare_actions"]}
+                offered_ids = {c["id"] for c in plan["needs_confirmation"]}
+                self.assertEqual(prepared_ids & offered_ids, set())
 
 
 if __name__ == "__main__":

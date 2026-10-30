@@ -468,6 +468,14 @@ python3 -m unittest discover -q tests
 Stdlib only — no pytest, no dependencies. The event-log suite spawns 8
 concurrent processes writing 200 events to prove the lock holds.
 
+A GitHub Actions workflow (`.github/workflows/tests.yml`) runs the suite on
+every push/PR. For a fast local fail before that, activate the tracked
+pre-commit hook once per clone:
+
+```bash
+git config core.hooksPath tools/git-hooks
+```
+
 ## License
 
 All Rights Reserved — see [LICENSE](LICENSE). This repo is public for

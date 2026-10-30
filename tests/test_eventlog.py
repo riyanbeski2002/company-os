@@ -63,6 +63,42 @@ class TestAppend(unittest.TestCase):
             self.log.append(make_event(
                 event="LOOKS_PRODUCTIVE", actor="w1", project="p", task="TASK-1"))
 
+    def test_route_outcome_requires_capabilities_verdict_and_why(self):
+        with self.assertRaises(ValueError):
+            self.log.append(make_event(
+                event="ROUTE_OUTCOME", actor="pm", project="p",
+                data={"verdict": "good", "why": "fine"}, evidence={"task": "T-1"}))
+        with self.assertRaises(ValueError):
+            self.log.append(make_event(
+                event="ROUTE_OUTCOME", actor="pm", project="p",
+                data={"capabilities": ["video-editor"], "why": "fine"},
+                evidence={"task": "T-1"}))
+        with self.assertRaises(ValueError):
+            self.log.append(make_event(
+                event="ROUTE_OUTCOME", actor="pm", project="p",
+                data={"capabilities": ["video-editor"], "verdict": "good"},
+                evidence={"task": "T-1"}))
+
+    def test_route_outcome_rejects_an_unknown_verdict(self):
+        with self.assertRaises(ValueError):
+            self.log.append(make_event(
+                event="ROUTE_OUTCOME", actor="pm", project="p",
+                data={"capabilities": ["video-editor"], "verdict": "mediocre",
+                     "why": "fine"}, evidence={"task": "T-1"}))
+
+    def test_route_outcome_requires_evidence(self):
+        with self.assertRaises(EvidenceError):
+            self.log.append(make_event(
+                event="ROUTE_OUTCOME", actor="pm", project="p",
+                data={"capabilities": ["video-editor"], "verdict": "good", "why": "fine"}))
+
+    def test_route_outcome_accepted_with_all_three_fields_and_evidence(self):
+        written = self.log.append(make_event(
+            event="ROUTE_OUTCOME", actor="pm", project="p",
+            data={"capabilities": ["video-editor"], "verdict": "good", "why": "fine"},
+            evidence={"task": "T-1"}))
+        self.assertEqual(written["data"]["verdict"], "good")
+
 
 class TestStaleGateVerdict(unittest.TestCase):
     """Cost audit, 2026-09-14 — real incident, two independent sessions same
