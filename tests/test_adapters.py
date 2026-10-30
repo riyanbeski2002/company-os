@@ -148,19 +148,25 @@ class TestHarnessOutputContract(unittest.TestCase):
 
 
 class TestCodexRunsDirectly(unittest.TestCase):
-    """The wrapper script used to exec `codex exec --json <its argv> -`. The
-    harness now runs that same argv itself — the live-tested invocation is
-    unchanged; only where its output is parsed moved."""
+    """The wrapper script used to exec `codex exec --json <its argv> -`. M1
+    ran that same argv directly (only the parsing moved); M2 adds exactly two
+    things on top — the guard hook (`-c hooks.PreToolUse=...`) and the trust
+    bypass without which codex silently skips it. Nothing else differs from
+    the live-tested 2026-10-19 invocation."""
 
-    def test_argv_is_what_the_wrapper_used_to_exec(self):
+    def test_argv_is_the_wrapper_argv_plus_only_the_guard_hook(self):
         spec = harness.load_config(REPO)["harnesses"]["codex"]
         cmd = harness.build_command({**spec, "_name": "codex"}, role="backend-engineer",
                                     plugin_root=REPO, allowed_tools="Read", effort="low",
                                     settings={"sandbox": {}})
+        hook = ('hooks.PreToolUse=[{matcher=".*", hooks=[{type="command", '
+                f"command=\"python3 '{REPO}/hooks/guard.py' codex\", timeout=30}}]}}]")
         self.assertEqual(cmd, [
             "codex", "exec", "--json", "--skip-git-repo-check",
+            "--dangerously-bypass-hook-trust",
             "-c", 'sandbox_mode="workspace-write"',
             "-c", "sandbox_workspace_write.network_access=false",
+            "-c", hook,
             "-c", "model_reasoning_effort=low",
             "-",
         ])
@@ -181,6 +187,9 @@ class TestLaunchUsesTheAdapter(unittest.TestCase):
         (self.root / "config" / "harness.yaml").write_text(
             "default: fake\nroles: {}\nharnesses:\n  fake:\n"
             "    native_agent_loading: true\n    self_sandboxed: true\n"
+            # a stand-in process: no hooks of its own; the guards it would
+            # need are not what these tests exercise
+            "    guards: external\n"
             "    output: codex-jsonl\n"
             f"    command: [{json.dumps(sys.executable)}, {json.dumps(str(script))}]\n")
 

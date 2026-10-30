@@ -256,7 +256,7 @@ def sandbox_settings(company_root: Path, workdir: Path) -> dict:
 
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
               worktree: Path, thinking: bool = True,
-              harness_spec: dict | None = None) -> dict:
+              harness_spec: dict | None = None, allowed_tools: str | None = None) -> dict:
     """Build the worker's environment.
 
     COMPANY_REPO is the *worktree*, not the main checkout: the worker's whole
@@ -285,6 +285,12 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
         "COMPANY_PROJECT": task.get("project", ""),
         "PATH": f"{PLUGIN_ROOT / 'bin'}:{env.get('PATH', '')}",
     })
+    if allowed_tools is not None:
+        # The role's tool restriction, for hooks/guard.py: Claude Code enforces
+        # an agent file's `tools:` natively, but a harness that gets the persona
+        # inlined loses that frontmatter — this is how its shim still knows a
+        # reviewer is read-only.
+        env["COMPANY_ALLOWED_TOOLS"] = allowed_tools
     if not thinking:
         # No CLI flag for thinking exists (checked `claude -p --help`,
         # v2.1.239) — MAX_THINKING_TOKENS=0 is the actual lever, reserved for
@@ -292,6 +298,16 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
         # efficiency addendum v1).
         env["MAX_THINKING_TOKENS"] = "0"
     return env
+
+
+READONLY_TOOLS = "Read,Grep,Glob,Bash"
+
+
+def role_tools(role: str) -> str:
+    """The role's tool allowlist (Claude tool names, the vocabulary
+    agents/*.md and ROLE_TOOLS use) — passed to Claude as --allowedTools and
+    to every other harness's shim as $COMPANY_ALLOWED_TOOLS."""
+    return ROLE_TOOLS.get(role, READONLY_TOOLS)
 
 
 def build_command(task: dict, role: str, model: str | None = None,
@@ -314,7 +330,7 @@ def build_command(task: dict, role: str, model: str | None = None,
     spec = harness_spec or harness.resolve(harness.load_config(company_root or PLUGIN_ROOT), role)
     return harness.build_command(
         spec, role=role, plugin_root=PLUGIN_ROOT,
-        allowed_tools=ROLE_TOOLS.get(role, "Read,Grep,Glob,Bash"),
+        allowed_tools=role_tools(role),
         schema=RESULT_SCHEMA, model=model, effort=effort,
         skip_permissions=skip_permissions, settings=sandbox,
     )
@@ -444,6 +460,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             f"the blocker is actually clear and want to proceed without formally "
             f"resolving it yet."
         )
+    harness_spec = _guarded_spec(company_root, role)
     if not claim_task(company_root, task["id"], actor):
         busy = live_worker_on(company_root, task["id"]) or "another worker"
         raise WorkerError(
@@ -466,11 +483,10 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         if effort_override:
             policy["effort"] = effort_override
 
-        harness_spec = harness.resolve(harness.load_config(company_root), role)
-
         event_data = {"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
                       "timeout_s": timeout, "model": policy.get("model"),
-                      "effort": policy.get("effort"), "harness": harness_spec["_name"]}
+                      "effort": policy.get("effort"), "harness": harness_spec["_name"],
+                      "guards": harness_spec["_guards"]}
         if model_override or effort_override or skip_permissions:
             event_data["policy_override"] = {
                 "reason": override_reason,
@@ -499,7 +515,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                               sandbox=sandbox),
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
-                              thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec),
+                              thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
+                              allowed_tools=role_tools(role)),
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
             (state / "pid").write_text(str(proc.pid))
@@ -609,6 +626,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
     # security are independent read-only judgments of the same merge, so the
     # thing that must not run twice is one ROLE on one group, not the group.
     claim_id = f"gate-group-{group_id}-{role}"
+    harness_spec = _guarded_spec(company_root, role)
     if not claim_task(company_root, claim_id, actor):
         busy = live_worker_on(company_root, claim_id) or "another worker"
         raise WorkerError(
@@ -624,7 +642,6 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         policy_cfg = staffing.load_config(company_root, "staffing.yaml")
         policy = staffing.model_policy(policy_cfg, tier=2, gated=True, role=role)
         task_ids = [t["id"] for t in tasks]
-        harness_spec = harness.resolve(harness.load_config(company_root), role)
         sandbox = sandbox_settings(company_root, worktree)
 
         log.append(make_event(
@@ -632,11 +649,12 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
             data={"role": role, "tier": 2, "gate_group": group_id, "tasks": task_ids,
                   "worktree": str(worktree), "timeout_s": timeout,
                   "model": policy.get("model"), "effort": policy.get("effort"),
-                  "harness": harness_spec["_name"]},
+                  "harness": harness_spec["_name"], "guards": harness_spec["_guards"]},
         ))
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
-                        worktree, thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec)
+                        worktree, thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
+                        allowed_tools=role_tools(role))
         env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
 
         worker_input = packet
@@ -729,6 +747,19 @@ def _usage(result: dict) -> dict:
     }
 
 
+def _guarded_spec(company_root: Path, role: str) -> dict:
+    """The role's harness, refused before anything is claimed, created, or
+    logged if company-os's guards can't reach its worker (H3, harness.py's
+    GUARD_MODES). Applies to advisors too: the secret-read guard protects a
+    read-only role exactly as much as a writing one."""
+    spec = harness.resolve(harness.load_config(company_root), role)
+    try:
+        spec["_guards"] = harness.require_guards(spec)
+    except harness.HarnessError as exc:
+        raise WorkerError(str(exc)) from None
+    return spec
+
+
 def _read_result(path: Path, harness_spec: dict, exit_code: int | None) -> dict:
     """The run's normalized result, via the harness's own output adapter.
 
@@ -775,21 +806,22 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
 
     policy_cfg = staffing.load_config(company_root, "staffing.yaml")
     policy = staffing.model_policy(policy_cfg, tier=1, gated=False, role=role)
-    harness_spec = harness.resolve(harness.load_config(company_root), role)
+    harness_spec = _guarded_spec(company_root, role)
 
     log.append(make_event(
         event="WORKER_STARTED", actor=actor, project=project,
         data={"role": role, "tier": 1, "readonly": True, "timeout_s": timeout,
               "model": policy.get("model"), "effort": policy.get("effort"),
-              "harness": harness_spec["_name"]}))
+              "harness": harness_spec["_name"], "guards": harness_spec["_guards"]}))
 
     env = build_env(repo, company_root, {"id": "", "project": project}, actor, repo,
-                     thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec)
+                     thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
+                     allowed_tools=READONLY_TOOLS)
     env.pop("COMPANY_TASK", None)   # not task-scoped; nothing to own
 
     cmd = harness.build_command(
         harness_spec, role=role, plugin_root=PLUGIN_ROOT,
-        allowed_tools="Read,Grep,Glob,Bash", schema=None,
+        allowed_tools=READONLY_TOOLS, schema=None,
         model=policy.get("model"), effort=policy.get("effort"), settings=sandbox,
     )
 

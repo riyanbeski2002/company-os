@@ -17,17 +17,28 @@ multi-tenant one.
 
 ## What switching a role's harness actually changes
 
-**Correction (2026-10-30): more than this section used to claim.** The
-ownership guard (`hooks/guard_paths.py`), secret-read guard
-(`guard_secrets.py`), branch guard (`protect_branches.py`), the SessionEnd
-exit record, and the `--settings` OS sandbox are all Claude Code hooks/
-settings. A role moved onto another harness runs **without** them unless that
-harness's adapter provides an equivalent — `codex` keeps OS containment via
-its own `sandbox_mode`, but none of the guards. The integrate-time ownership
-check (`integrate.paths_outside_ownership`) still applies to every harness,
-after the fact. Closing this is milestone M2 of
-`docs/HARNESS-AGNOSTIC-MIGRATION.md`; until then, don't staff a write role
-onto a non-Claude harness for anything the guards exist to catch.
+**Guards (2026-10-30).** The ownership, secret-read and shell guards are
+harness-neutral policy (`hooks/policy.py`). What differs per harness is how
+that policy reaches the worker, declared as `guards:`:
+
+- `claude-plugin`: Claude Code loads `hooks/hooks.json` via `--plugin-dir`.
+  It is inferred when that flag is in the command, so older configs keep
+  working.
+- `shim`: company-os installs `hooks/guard.py` into the harness's own
+  blocking pre-tool hook for each launch. Counts only once `guards_verified` records a
+  live smoke test (migration doc §4.6), because a CLI that silently skips an
+  untrusted hook is otherwise indistinguishable from one that enforces it.
+- `external`: you assert equivalent enforcement by other means. This is
+  recorded in every `WORKER_STARTED`.
+
+A harness with no guard mode gets **no launches at all**, advisors included,
+because the secret-read guard matters for read-only roles too.
+`worker._guarded_spec` refuses before anything is claimed, created or
+logged. That was not true before 2026-10-30: a role pointed at `codex` ran
+with none of the guards. The integrate-time ownership check
+(`integrate.paths_outside_ownership`) still applies to every harness as an
+after-the-fact backstop. It is not an enforcement guarantee. The OS sandbox
+is a separate layer; `codex` provides its own through `sandbox_mode`.
 
 Mechanically, `config/harness.yaml`'s `roles:` map is the entire integration
 surface:
@@ -96,6 +107,10 @@ harnesses:
     native_agent_loading: false   # see contract point 3
     output: codex-jsonl            # stdout format, see contract point 2
                                     # (default claude-json)
+    guards: shim                   # how hooks/policy.py reaches this
+                                    # harness's workers: claude-plugin |
+                                    # shim | external. A harness with none
+                                    # gets NO launches (see "Guards" below).
     command: [...]                 # argv template, see placeholders below
     trailing_args: ["-"]           # appended after every flag build_command
                                     # adds (e.g. a stdin-prompt marker)

@@ -521,3 +521,25 @@ invocation changes, only where output is parsed.
   zeros). It now reads raw itself.
 - Deferred to M3, because it needs a live run: codex `--output-schema`
   (exists on 0.163.0, not yet exercised).
+
+## Harness-agnostic M2: guard parity (Riyan, 2026-10-30)
+
+- [x] 1. hooks/policy.py: ownership/secrets/shell policy, moved verbatim; the
+      three Claude scripts are now shims (75 existing guard tests unchanged).
+- [x] 2. The ownership guard had no behavioral tests; pinned in tests/test_policy.py.
+- [x] 3. H3: harness.require_guards. Every launch needs a guard mode
+      (claude-plugin, inferred from --plugin-dir | shim + guards_verified |
+      external), checked before claim, worktree or event. WORKER_STARTED
+      records it.
+- [x] 4. hooks/guard.py <codex|agy>: fails closed, plus the role tool
+      allowlist via $COMPANY_ALLOWED_TOOLS.
+- [x] 5. codex wired: --dangerously-bypass-hook-trust + `-c hooks.PreToolUse`.
+- [ ] 6. Live smoke test (§4.6) for codex, then set guards_verified. Needs
+      Riyan's OK: it spends real tokens.
+
+**Review.**
+- 1013 tests OK.
+- codex is refused for every launch until item 6. Before this it would have
+  launched with no guards at all.
+- Known cost to weigh: the trust-bypass flag also runs any .codex hooks the
+  worked-on repo ships.

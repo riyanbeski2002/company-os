@@ -68,7 +68,60 @@ def resolve(config: dict, role: str | None) -> dict:
     if fmt not in adapters.PARSERS:
         raise HarnessError(f"harness {name!r} declares output {fmt!r}; known formats: "
                            f"{', '.join(sorted(adapters.PARSERS))}")
+    if spec.get("guards") is not None and spec["guards"] not in GUARD_MODES:
+        raise HarnessError(f"harness {name!r} declares guards {spec['guards']!r}; known "
+                           f"modes: {', '.join(sorted(GUARD_MODES))}")
     return {**spec, "_name": name}
+
+
+# How company-os's guards (hooks/policy.py: ownership, secret reads, shell
+# rules) reach a harness's workers (migration §4.6, H3):
+#   claude-plugin  hooks/hooks.json, loaded by Claude Code via --plugin-dir
+#   shim           company-os installs hooks/guard.py into the harness's own
+#                  blocking pre-tool hook for each launch
+#   external       the operator asserts this harness enforces equivalent
+#                  policy by its own means — explicit, reviewable in config,
+#                  and recorded in every WORKER_STARTED
+GUARD_MODES = {"claude-plugin", "shim", "external"}
+
+
+def guard_mode(spec: dict) -> str | None:
+    """The harness's guard mode, or None if it has none — and a harness with
+    none gets no workers (require_guards). A spec with no `guards:` field
+    that passes `--plugin-dir {plugin_root}` is claude-plugin: that flag IS
+    the mechanism that loads hooks/hooks.json, and every harness.yaml written
+    before this field existed carries it."""
+    if spec.get("guards"):
+        return spec["guards"]
+    cmd = spec.get("command") or []
+    for i, tok in enumerate(cmd[:-1]):
+        if tok == "--plugin-dir" and cmd[i + 1] == "{plugin_root}":
+            return "claude-plugin"
+    return None
+
+
+def require_guards(spec: dict) -> str:
+    mode = guard_mode(spec)
+    if mode is None:
+        raise HarnessError(
+            f"harness {spec.get('_name')!r} has no guards: nothing would stop its "
+            f"worker writing outside its owned files, reading secrets, or "
+            f"force-pushing. Declare how hooks/policy.py reaches it — `guards: shim` "
+            f"(company-os installs its hook) or `guards: external` (you vouch for "
+            f"equivalent enforcement) — in its harness.yaml entry. See "
+            f"docs/HARNESS-AGNOSTIC-MIGRATION.md §4.6.")
+    if mode == "shim" and not spec.get("guards_verified"):
+        # Codex skips an untrusted hook silently, and a skipped hook is
+        # indistinguishable from one that allowed everything. A shim counts
+        # only once a live run has shown it firing — recorded by a human as
+        # `guards_verified: "<date> <cli version>"`, never assumed.
+        raise HarnessError(
+            f"harness {spec.get('_name')!r} has the guard shim wired in but not yet "
+            f"verified live: until a real run shows hooks/guard.py actually firing "
+            f"(and denying) under this CLI version, it can't be told apart from a "
+            f"hook the CLI silently skipped. Run the smoke test in "
+            f"docs/HARNESS-AGNOSTIC-MIGRATION.md §4.6, then set `guards_verified`.")
+    return mode
 
 
 def read_result(spec: dict, raw: str, exit_code: int | None) -> dict:

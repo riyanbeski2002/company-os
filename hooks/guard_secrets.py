@@ -24,6 +24,11 @@ checkout) there is nothing to protect, so this allows rather than denying a
 question that doesn't apply.
 """
 
+# Claude Code shim (2026-10-30, harness-agnostic M2): the policy itself now
+# lives in hooks/policy.py, shared with every other harness's shim
+# (hooks/guard.py). This file only translates Claude's PreToolUse payload in
+# and policy's reason out as Claude's deny shape.
+
 from __future__ import annotations
 
 import json
@@ -31,20 +36,12 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "company"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import policy  # noqa: E402
+from policy import SECRET_GLOBS  # noqa: E402,F401  (re-exported for tests)
 
 WATCHED = {"Read", "Grep"}
-
-# Deliberately independent of risk-triggers.yaml's "secrets" trigger: that
-# table decides which GATES a task needs, not which physical files an agent
-# may look inside regardless of task. Mirrors protect_branches.py's own
-# commit-time pattern for the same file classes, so both guards agree on what
-# counts as a secret.
-SECRET_GLOBS = (
-    "**/.env", "**/.env.*", "**/secrets/**", "**/keys/**",
-    "**/id_rsa*", "**/*.pem", "**/credentials.json",
-    "**/secrets.json", "**/secrets.yaml", "**/secrets.yml",
-)
 
 
 def allow() -> None:
@@ -63,71 +60,17 @@ def deny(reason: str) -> None:
 
 
 def main() -> None:
-    task_id = os.environ.get("COMPANY_TASK")  # optional now — see module docstring
-
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         allow()
-
     if payload.get("tool_name") not in WATCHED:
         allow()
-
     tool_input = payload.get("tool_input") or {}
-    target = tool_input.get("file_path") or tool_input.get("path")
-    if not target:
-        allow()
-
-    import pathrules
-
-    if os.environ.get("COMPANY_ROOT"):
-        company_root = Path(os.environ["COMPANY_ROOT"])
-        repo_root = os.environ.get("COMPANY_REPO") or str(company_root.parent)
-    else:
-        repo = pathrules.resolve_repo_context()
-        if repo is None:
-            allow()  # not inside any repo — nothing to protect
-        company_root = repo / ".company"
-        repo_root = str(repo)
-
-    rel = pathrules.relative_to_repo(target, repo_root)
-    # Outside the repo entirely (e.g. reading /tmp scratch) is not this guard's
-    # concern — the ownership guard already governs the repo boundary for
-    # writes, and reads outside the repo are not a secrets-exposure question.
-    if rel is None:
-        allow()
-
-    hit = pathrules.matches_any(rel, SECRET_GLOBS)
-    if not hit:
-        allow()
-
-    record(company_root, task_id, rel, hit)
-    deny(
-        f"Company OS secrets guard: {rel} matches {hit!r}. Workers may not "
-        f"read secret or environment files directly — your test suite and "
-        f"application can still consume them at runtime via Bash, but you may "
-        f"not view their contents. This block is recorded in the event log. "
-        f"If you genuinely need a value from it, raise an escalation."
-    )
-
-
-def record(company_root: Path, task_id: str | None, path: str, glob: str) -> None:
-    try:
-        from eventlog import EventLog, make_event
-        actor, project = os.environ.get("COMPANY_ACTOR", "unknown"), "unknown"
-        if task_id:
-            task = json.loads((company_root / "tasks" / f"{task_id}.json").read_text(encoding="utf-8"))
-            actor = os.environ.get("COMPANY_ACTOR", task.get("owner", "unknown"))
-            project = task.get("project", "unknown")
-        EventLog(company_root).append(make_event(
-            event="SECRET_READ_BLOCKED",
-            actor=actor,
-            project=project,
-            task=task_id,  # None for a non-worker (PM/advisor) session
-            data={"path": path, "glob": glob},
-        ))
-    except Exception:
-        pass
+    reason = policy.check_read(tool_input.get("file_path") or tool_input.get("path"))
+    if reason:
+        deny(reason)
+    allow()
 
 
 if __name__ == "__main__":

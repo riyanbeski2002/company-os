@@ -78,6 +78,9 @@ class FakeHarnessCase(unittest.TestCase):
             # a stand-in process, not a real CLI: nothing to sandbox, and
             # without this harness.build_command refuses to launch it
             "    self_sandboxed: true\n"
+            # a stand-in process: no hooks of its own; the guards it would
+            # need are not what these tests exercise
+            "    guards: external\n"
             f"    command: [{json.dumps(sys.executable)}, {json.dumps(str(script))}]\n")
 
     def _task(self, tid="T-1"):
