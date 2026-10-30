@@ -451,3 +451,37 @@ completeness of gates+gaps — real improvements, then verify with a fresh Fable
       multi-user personal-data gate that survives fallthrough.
 - [x] 4. Regression tests for each; full suite green.
 - [x] 5. Fresh no-context Fable audit: reached 9.5/10 (rounds 6.0 -> 9.5 over 13 independent audits).
+
+## Harness-agnostic M0: safe worktree lifecycle (Riyan, 2026-10-30)
+
+Plan: docs/HARNESS-AGNOSTIC-MIGRATION.md §4.3 (invariants W1–W8), §5 M0.
+
+- [x] 1. Tests first: tests/test_worktrees.py, real git repos, covering §39's
+      scenarios (merged, cancelled, crashed-dirty, active owner, human worktree,
+      outside managed root, orphan registration, unregistered dir, idempotent re-run,
+      dry run, re-attach after cleanup).
+- [x] 2. tools/company/worktrees.py: porcelain listing, classify, checkpoint
+      (temp-index commit to refs/company/checkpoints/*), git-native removal, prune,
+      reconcile. Ported ideas from ECC worktree-lifecycle @76aaa77 (MIT), with its
+      fail-open dirty check fixed.
+- [x] 3. Events: WORKTREE_CREATED / WORKTREE_REMOVED / WORKTREE_CLEANUP_BLOCKED.
+- [x] 4. worker.ensure_worktree: record WORKTREE_CREATED; re-attach an existing
+      branch; refuse a pre-existing dir that isn't a worktree. live_worker_on
+      uses slots._alive (zombie-aware).
+- [x] 5. gategroup: replace `remove --force` + rmtree with the safe remover.
+- [x] 6. Triggers: integrate (MERGED), task advance (DONE/ABANDONED), gate-group
+      post-verdict; `company cleanup [--dry-run]`.
+- [x] 7. Full suite green; docs (BYO-MODEL correction, KNOWN_GAPS entry).
+
+**Review (2026-10-30).** All 7 items done:
+- `worktrees.py` (W1-W8), 3 new events, `company cleanup [--dry-run] [--task]`.
+- Cleanup runs on MERGED, DONE/ABANDONED and after a gate verdict.
+- `gategroup`'s force-remove is replaced.
+- `ensure_worktree` records ownership, re-attaches the branch and refuses a
+  non-worktree directory.
+- `live_worker_on` is zombie-aware.
+- 28 new tests. The full suite is green; see the commit for the count.
+- One existing fixture (`test_launch_regressions`) gained a `.git` file:
+  the new non-worktree guard rejected its bare `mkdir` stand-in.
+- Dry run on this repo: no managed worktrees. The `lsof` holder probe takes
+  0.18s and only runs when something is otherwise removable.

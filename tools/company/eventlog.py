@@ -86,6 +86,12 @@ EVENTS = {
     # peer falsifying an approach, claiming an angle, or reporting done with
     # real evidence. board.py folds these; see it for the type vocabulary.
     "BOARD_NOTE",
+    # Directive V2 §13-19 (worktrees.py): nothing recorded that company-os
+    # created a worktree (so cleanup couldn't tell its own from a human's),
+    # that one was removed and what it held, or that removal was refused.
+    # Task id travels in data.task, not top-level `task`: these describe the
+    # disk, not the task's lifecycle, and must not move fold()'s updated_at.
+    "WORKTREE_CREATED", "WORKTREE_REMOVED", "WORKTREE_CLEANUP_BLOCKED",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event
@@ -116,6 +122,9 @@ REQUIRES_EVIDENCE = {
     # pointer to what actually happened is a vague feeling, not a fact worth
     # promoting or demoting a capability on.
     "ROUTE_OUTCOME",
+    # A removal destroys a directory; the head SHA it held is what proves
+    # nothing committed went with it.
+    "WORKTREE_REMOVED",
 }
 
 # A route's result, for ROUTE_OUTCOME. Mirrors GOAL's three-way honesty

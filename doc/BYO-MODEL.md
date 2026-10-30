@@ -17,7 +17,19 @@ multi-tenant one.
 
 ## What switching a role's harness actually changes
 
-Nothing else. `config/harness.yaml`'s `roles:` map is the entire integration
+**Correction (2026-10-30): more than this section used to claim.** The
+ownership guard (`hooks/guard_paths.py`), secret-read guard
+(`guard_secrets.py`), branch guard (`protect_branches.py`), the SessionEnd
+exit record, and the `--settings` OS sandbox are all Claude Code hooks/
+settings. A role moved onto another harness runs **without** them unless that
+harness's adapter provides an equivalent — `codex` keeps OS containment via
+its own `sandbox_mode`, but none of the guards. The integrate-time ownership
+check (`integrate.paths_outside_ownership`) still applies to every harness,
+after the fact. Closing this is milestone M2 of
+`docs/HARNESS-AGNOSTIC-MIGRATION.md`; until then, don't staff a write role
+onto a non-Claude harness for anything the guards exist to catch.
+
+Mechanically, `config/harness.yaml`'s `roles:` map is the entire integration
 surface:
 
 ```yaml

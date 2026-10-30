@@ -380,7 +380,26 @@ def cmd_task_advance(args):
         data={"from": task["status"], "to": target},
     ))
     taskstate.rebuild(root)
-    emit({"ok": True, "task": args.id, "from": task["status"], "to": target})
+    out = {"ok": True, "task": args.id, "from": task["status"], "to": target}
+    import worktrees
+    if target in worktrees.TERMINAL:
+        out["worktree_cleanup"] = _cleanup_after(root.parent, root, trigger=target, task=args.id)
+    emit(out)
+
+
+def _cleanup_after(repo: Path, root: Path, *, trigger: str, task: str | None = None,
+                   path: Path | None = None) -> dict:
+    """Lifecycle-triggered worktree cleanup (directive V2 §17): runs inside
+    the verb that wrote the terminal event, so it doesn't depend on any
+    harness's hooks firing. Best-effort by design — a cleanup problem is
+    reported in the verb's output and logged as WORKTREE_CLEANUP_BLOCKED,
+    never allowed to fail the merge or transition that already happened."""
+    import worktrees
+    try:
+        report = worktrees.cleanup(repo, root, task=task, only_path=path, trigger=trigger)
+    except Exception as exc:  # noqa: BLE001 — see docstring; surfaced, not swallowed
+        return {"error": f"{type(exc).__name__}: {exc}"}
+    return {k: report[k] for k in ("removed", "blocked", "bytes_reclaimed")}
 
 
 def cmd_handoff(args):
@@ -976,6 +995,9 @@ def cmd_gate_group(args):
         slots.release(slot)
 
     taskstate.rebuild(root)
+    # The verdict is in the log; the merged scratch tree has nothing left to
+    # give (its branch, and so every commit a verdict could cite, is kept).
+    result["worktree_cleanup"] = _cleanup_after(repo, root, trigger="gate_verdict", path=wt)
     result["packet_tokens"] = packet_mod.estimate_tokens(body)
     result["queued_s"] = queued_s
     result["concurrency_cap"] = cap
@@ -1112,11 +1134,15 @@ def cmd_integrate(args):
                                       "owned path", "detail": conflicts})
             continue
         try:
-            results.append(integrate_mod.integrate(
+            result = integrate_mod.integrate(
                 repo, root, task, verify, actor=args.actor,
-                baseline=_baseline(root, task.get("project"))))
+                baseline=_baseline(root, task.get("project")))
         except RuntimeError as exc:
             results.append({"task": tid, "merged": False, "reason": str(exc)})
+            continue
+        if result.get("merged"):
+            result["worktree_cleanup"] = _cleanup_after(repo, root, trigger="MERGED", task=tid)
+        results.append(result)
 
     taskstate.rebuild(root)
     ok = all(r.get("merged") for r in results)
@@ -2215,6 +2241,16 @@ def cmd_stop(args):
           "note": "worktrees preserved — nothing was deleted"})
 
 
+def cmd_cleanup(args):
+    """Reconcile managed worktrees: remove the ones whose work is safely
+    elsewhere, report the ones that aren't (worktrees.py has the invariants)."""
+    import worktrees
+    root = company_root(args)
+    report = worktrees.cleanup(root.parent, root, task=args.task, dry_run=args.dry_run,
+                               trigger="manual", actor=args.actor or "company")
+    emit({"ok": True, **report})
+
+
 def cmd_pause(args):
     import worker as worker_mod
     root = company_root(args)
@@ -2715,6 +2751,13 @@ def build_parser():
     st = sub.add_parser("stop", help="halt every worker; preserve every worktree")
     st.add_argument("--project")
     st.set_defaults(fn=cmd_stop)
+
+    cu = sub.add_parser("cleanup", help="remove finished worktrees safely; report the rest")
+    cu.add_argument("--dry-run", action="store_true",
+                    help="report what would be removed, checkpointed, or blocked; change nothing")
+    cu.add_argument("--task", help="only this task's worktree")
+    cu.add_argument("--actor")
+    cu.set_defaults(fn=cmd_cleanup)
 
     pu = sub.add_parser("pause", help="halt the one worker on a task; every other worker keeps running")
     pu.add_argument("task_id")

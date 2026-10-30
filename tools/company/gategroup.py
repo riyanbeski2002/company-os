@@ -20,7 +20,6 @@ never treated as durable state the way a task's own worktree is.
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -65,8 +64,11 @@ def build_group_review(repo: Path, company_root: Path, group_id: str,
     """
     wt = group_worktree_path(company_root, group_id, role)
     if wt.exists():
-        _git(repo, "worktree", "remove", "--force", str(wt))
-        shutil.rmtree(wt, ignore_errors=True)
+        # Was `worktree remove --force` + rmtree: anything a reviewer left
+        # uncommitted was destroyed unread. Now checkpointed first, and a
+        # worktree something still holds raises instead of being deleted.
+        import worktrees
+        worktrees.remove_scratch(repo, company_root, wt)
 
     branch = f"_gate-group-{group_id}{f'-{role}' if role else ''}"
     _git(repo, "branch", "-D", branch)  # ignore failure if it doesn't exist

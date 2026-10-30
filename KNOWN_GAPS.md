@@ -351,3 +351,59 @@ own pattern), consistent with D1 (the log is the only authoritative state).
 `test_eventlog.py`. Documented in `agents/company-pm.md`, scoped explicitly
 to fan-out work. No new agent: company-pm already fills the coordinator
 role this would otherwise duplicate.
+
+## 8. Task worktrees were never removed, and the one removal that existed destroyed uncommitted work — HIGH
+
+**Status.** Fixed, 2026-10-30 (milestone M0 of `docs/HARNESS-AGNOSTIC-MIGRATION.md`).
+
+**Finding.** The harness-agnostic audit (Architecture Directive V2, §13-19)
+found three things:
+- `worker.ensure_worktree` created task worktrees and nothing ever removed
+  them. `MERGED` left the worktree and its full checkout, dependencies
+  included, on disk indefinitely, and nothing ran `git worktree prune`.
+- The only removal code, `gategroup.build_group_review`'s rebuild, was a
+  forced git removal plus `shutil.rmtree`. Anything a reviewer left
+  uncommitted was destroyed unread.
+- `ensure_worktree` reused any existing directory at the worktree path
+  without checking it was a worktree. A directory with no `.git` resolves
+  every git command to the main checkout, which is the 2026-09-09 incident
+  `gategroup.py`'s own comments describe.
+
+**Fix.**
+- `tools/company/worktrees.py` (new) enforces invariants W1-W8, documented
+  in its module docstring:
+  - Ownership comes from a new `WORKTREE_CREATED` event, so a human's
+    worktree is never touched.
+  - Containment is checked against git's own registration.
+  - No removal while a live worker, a fresh claim or any process cwd is
+    inside the worktree.
+  - Only DONE, MERGED or ABANDONED worktrees are removed. FAILED ones are
+    kept for retry.
+  - Uncommitted work or a detached HEAD is first checkpointed to
+    `refs/company/checkpoints/*`, via a throwaway index so neither the
+    worktree's index nor `refs/stash` is touched.
+  - Removal is git-native. `--force` is allowed only past a checkpoint
+    re-verified to equal the worktree's content.
+  - Branches are never deleted.
+  - `WORKTREE_REMOVED` carries the head SHA as evidence;
+    `WORKTREE_CLEANUP_BLOCKED` is logged once per distinct reason set.
+- The classify/plan approach is ported from ECC
+  `scripts/lib/worktree-lifecycle/` @ `76aaa77` (MIT). Its `isDirty`
+  returned "clean" when `git status` failed; here that fails closed.
+- Cleanup is triggered by the verb that writes the terminal fact:
+  `company integrate` (MERGED), `company task advance` (DONE/ABANDONED),
+  and `company gate-group` after the verdict. It runs in-process, so it
+  depends on no harness hook firing. It is best-effort: a cleanup problem
+  is reported in the verb's output and never undoes the merge.
+- `company cleanup [--dry-run] [--task]` reconciles everything. It prunes
+  git's records of vanished worktrees, but only when every vanished one is
+  ours. Unregistered directories are reported, never deleted (empty ones
+  are `rmdir`'d).
+- `ensure_worktree` records ownership, re-attaches an existing branch after
+  cleanup, and refuses a non-worktree directory.
+- `worker.live_worker_on` is now zombie-aware via `slots._alive`.
+- `hooks/protect_branches.py` still blocks an agent's raw shell removal of a
+  worktree; its message now points at `company cleanup` as the sanctioned
+  path instead of claiming worktrees are never deleted.
+- 28 tests (`tests/test_worktrees.py`) cover directive §39's scenarios
+  against real git repos.

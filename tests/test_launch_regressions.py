@@ -45,6 +45,10 @@ class FakeHarnessCase(unittest.TestCase):
         (self.root / "config").mkdir()
         self.wt = base / "wt"
         self.wt.mkdir()  # pre-existing worktree: ensure_worktree reuses it, no git needed
+        # ...but it must look like one: a real worktree has a .git file, and
+        # ensure_worktree refuses a bare directory (it would resolve to the
+        # main checkout).
+        (self.wt / ".git").write_text("gitdir: /nonexistent\n")
         self.log = EventLog(self.root)
 
     def tearDown(self):

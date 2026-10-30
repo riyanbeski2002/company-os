@@ -99,22 +99,40 @@ def slug(text: str, limit: int = 32) -> str:
 # --- worktree ---------------------------------------------------------------
 
 def ensure_worktree(repo: Path, company_root: Path, task: dict) -> tuple[Path, str]:
-    """Create the task's worktree and branch. Never removes an existing one."""
+    """Create the task's worktree and branch. Never removes an existing one.
+
+    Records WORKTREE_CREATED — the ownership fact worktrees.cleanup needs
+    before it may ever remove this directory. Once a task's worktree has been
+    cleaned up its branch still exists, so a later call (a gate re-diffing a
+    merged task) re-attaches that branch instead of failing on `-b`."""
+    import worktrees
     tid = task["id"]
     branch = task.get("branch") or f"task/{tid.split('-')[-1]}-{slug(task.get('title', tid))}"
     wt = Path(task.get("worktree") or (company_root / "worktrees" / tid))
 
     if wt.exists():
+        if not (wt / ".git").exists():
+            # A directory with no .git is not a worktree: every git command a
+            # worker runs inside it resolves to the MAIN checkout (gategroup.py's
+            # 2026-09-09 incident). Refuse rather than launch into it.
+            raise WorkerError(
+                f"{wt} exists but is not a git worktree — a worker launched there "
+                f"would operate on the main checkout. Inspect it; `company cleanup "
+                f"--dry-run` reports it.")
         return wt, branch  # preserved from a previous run, by design
 
     base = task.get("base") or _default_base(repo)
     wt.parent.mkdir(parents=True, exist_ok=True)
-    r = subprocess.run(
-        ["git", "-C", str(repo), "worktree", "add", str(wt), "-b", branch, base],
-        capture_output=True, text=True,
-    )
+    reattach = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+        capture_output=True, text=True).returncode == 0
+    add = [str(wt), branch] if reattach else [str(wt), "-b", branch, base]
+    r = subprocess.run(["git", "-C", str(repo), "worktree", "add", *add],
+                       capture_output=True, text=True)
     if r.returncode != 0:
         raise WorkerError(f"git worktree add failed: {r.stderr.strip()}")
+    worktrees.record_created(company_root, path=wt, branch=branch, base=base, task=tid,
+                             project=task.get("project"), reattached=reattach)
 
     _copy_worktree_includes(repo, wt)
     _link_loaded_skills(repo, wt)
@@ -377,9 +395,11 @@ def live_worker_on(company_root: Path, task_id: str) -> str | None:
             pid = int(pidfile.read_text().strip())
         except (ValueError, OSError):
             continue
-        try:
-            os.kill(pid, 0)
-        except (ProcessLookupError, PermissionError):
+        # slots._alive, not a bare os.kill(pid, 0): a zombie passes kill(0)
+        # but is doing no work, and worktrees.cleanup must not treat a dead
+        # worker's unreaped corpse as an owner forever.
+        import slots
+        if not slots._alive(pid):
             continue
         started = pidfile.parent / "started_task"
         if started.exists() and started.read_text().strip() == task_id:

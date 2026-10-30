@@ -60,7 +60,8 @@ RULES: list[tuple[re.Pattern[str], str]] = [
      "reading a secret or environment file's contents via shell "
      "(the Read/Grep tools are already blocked for this — see guard_secrets.py)"),
     (re.compile(r"\bgit\s+worktree\s+remove\b"),
-     "worktree removal (worktrees are preserved on failure, never auto-deleted)"),
+     "raw worktree removal — use `company cleanup`, which removes only finished "
+     "worktrees, checkpoints uncommitted work first, and preserves failed ones"),
 ]
 
 
