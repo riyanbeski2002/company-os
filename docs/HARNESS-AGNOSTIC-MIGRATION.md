@@ -3,7 +3,9 @@
 Response to Architecture Directive V2 (2026-10-30). This is the audit and plan
 the directive's "immediate instruction" asks for **before** any code changes.
 **Status:** M0 (safe worktree lifecycle) implemented 2026-10-30; see
-KNOWN_GAPS.md #8. M1–M5 not started.
+KNOWN_GAPS.md #8. M1 (normalized result via per-harness output adapters)
+implemented 2026-10-30; see doc/BYO-MODEL.md contract point 2. M2–M5 not
+started.
 
 Evidence base: a full read of `tools/company/{harness,worker,integrate,gategroup,sessions,slots,eventlog}.py`,
 `config/harness.yaml`, `hooks/*`; a repo-wide sweep for Claude-specific

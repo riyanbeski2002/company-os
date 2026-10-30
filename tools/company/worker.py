@@ -528,7 +528,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                 timed_out = True
 
         elapsed = round(time.monotonic() - started, 1)
-        result = _read_result(out_path)
+        result = _read_result(out_path, harness_spec, proc.returncode)
         session_id = result.get("session_id")
         if session_id:
             (state / "session_id").write_text(session_id)
@@ -542,11 +542,11 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                   "terminal_reason": result.get("terminal_reason"),
                   # On a Claude subscription no dollars are charged for these
                   # runs; what is actually consumed is tokens against the
-                  # plan's limits. `total_cost_usd` is Claude Code's client-
-                  # side estimate of what the same work would have cost
-                  # through the API, so it is recorded as an estimate and
-                  # never presented as a bill.
-                  "cost_usd_estimate": result.get("total_cost_usd"),
+                  # plan's limits. `cost_usd` is the harness's own estimate
+                  # (Claude Code's client-side API-price estimate; None for a
+                  # harness that reports none, e.g. codex), so it is recorded
+                  # as an estimate and never presented as a bill.
+                  "cost_usd_estimate": result.get("cost_usd"),
                   "tokens": _usage(result),
                   # How many turns the run actually took — the normalizer
                   # task/turn cost attribution (company costs) needs so a
@@ -667,7 +667,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                 timed_out = True
 
         elapsed = round(time.monotonic() - started, 1)
-        result = _read_result(out_path)
+        result = _read_result(out_path, harness_spec, proc.returncode)
         session_id = result.get("session_id")
         if session_id:
             (state / "session_id").write_text(session_id)
@@ -679,7 +679,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                   "elapsed_s": elapsed, "session_id": session_id,
                   "is_error": result.get("is_error"),
                   "terminal_reason": result.get("terminal_reason"),
-                  "cost_usd_estimate": result.get("total_cost_usd"),
+                  "cost_usd_estimate": result.get("cost_usd"),
                   "tokens": _usage(result),
                   "num_turns": result.get("num_turns")},
         ))
@@ -729,13 +729,23 @@ def _usage(result: dict) -> dict:
     }
 
 
-def _read_result(path: Path) -> dict:
+def _read_result(path: Path, harness_spec: dict, exit_code: int | None) -> dict:
+    """The run's normalized result, via the harness's own output adapter.
+
+    The raw stdout stays in stdout.json (backfill.py re-parses historical
+    Claude runs from it); the normalized form is written beside it as
+    result.json, so what the event log recorded is inspectable after the fact
+    without knowing which harness produced it."""
     try:
         raw = path.read_text(encoding="utf-8")
-        start = raw.find("{")
-        return json.loads(raw[start:]) if start >= 0 else {}
-    except (OSError, json.JSONDecodeError):
-        return {}
+    except OSError:
+        raw = ""
+    result = harness.read_result(harness_spec, raw, exit_code)
+    try:
+        (path.parent / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    except OSError:
+        pass  # evidence convenience only; the event log already has the facts
+    return result
 
 
 def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
@@ -804,13 +814,13 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
             timed_out = True
 
     elapsed = round(time.monotonic() - started, 1)
-    result = _read_result(out_path)
+    result = _read_result(out_path, harness_spec, proc.returncode)
     log.append(make_event(
         event="WORKER_EXITED", actor=actor, project=project,
         data={"exit_code": proc.returncode, "timed_out": timed_out,
               "elapsed_s": elapsed, "readonly": True,
               "session_id": result.get("session_id"),
-              "cost_usd_estimate": result.get("total_cost_usd"),
+              "cost_usd_estimate": result.get("cost_usd"),
               "tokens": _usage(result),
               "num_turns": result.get("num_turns")}))
 

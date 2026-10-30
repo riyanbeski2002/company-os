@@ -5,7 +5,10 @@ worker.py now writes `_usage(result)` into every WORKER_EXITED, so new runs
 are covered. Older ones carry only cost/elapsed/exit_code/session_id, but the
 harness result they were derived from is usually still on disk at
 state/workers/<actor>/stdout.json — the exact dict `_usage()` reads, so
-reconstruction reuses `_read_result`/`_usage` rather than re-deriving them.
+reconstruction reuses `_usage` rather than re-deriving it. It reads that file
+RAW (`_read_raw`), not through worker's harness adapter: every run predating
+`tokens` capture was a Claude run, and the adapter's normalized result
+zero-fills a missing usage block — exactly the fabricated zero described below.
 
 The log is append-only, so a historical WORKER_EXITED is never rewritten.
 Each reconstruction is a new TOKENS_BACKFILLED event pointing back at the
@@ -33,6 +36,18 @@ import worker
 BACKFILL_ACTOR = "company-backfill"
 _USAGE_KEYS = ("output_tokens", "input_tokens", "cache_read_input_tokens",
                "cache_creation_input_tokens")
+
+
+def _read_raw(path: Path) -> dict:
+    """A historical Claude result as written, {} if missing or unparseable."""
+    import json
+    try:
+        raw = path.read_text(encoding="utf-8")
+        start = raw.find("{")
+        r = json.loads(raw[start:]) if start >= 0 else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return r if isinstance(r, dict) else {}
 
 
 def backfilled_seqs(events: list[dict]) -> set:
@@ -85,7 +100,7 @@ def plan(events: list[dict], company_root: Path, project: str | None = None) -> 
         elif not path.is_file():
             reason = f"no {path}"
         else:
-            result = worker._read_result(path)
+            result = _read_raw(path)
             usage = result.get("usage")
             if not result:
                 reason = f"{path} is missing or not parseable JSON"

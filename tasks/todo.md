@@ -485,3 +485,39 @@ Plan: docs/HARNESS-AGNOSTIC-MIGRATION.md §4.3 (invariants W1–W8), §5 M0.
   the new non-worktree guard rejected its bare `mkdir` stand-in.
 - Dry run on this repo: no managed worktrees. The `lsof` holder probe takes
   0.18s and only runs when something is otherwise removable.
+
+## Harness-agnostic M1: one normalized result, parsed per harness (Riyan, 2026-10-30)
+
+Plan: docs/HARNESS-AGNOSTIC-MIGRATION.md §4.1, §5 M1. No live CLI runs: no
+invocation changes, only where output is parsed.
+
+- [x] 1. Tests first: tests/test_adapters.py. Claude-json and codex-jsonl
+      parsers on recorded output shapes; unknown `output:` refused at resolve
+      time, before any spend; codex direct argv identical to what the
+      wrapper exec'd; a fake codex-jsonl harness through a real launch
+      records session, tokens and structured output.
+- [x] 2. tools/company/adapters/ becomes a package: `parse(spec, raw,
+      exit_code)` returns the normalized result (session_id, is_error,
+      terminal_reason, structured_output, cost_usd, num_turns, usage).
+      adapters/claude.py, adapters/codex.py.
+- [x] 3. harness.py: `output:` field (default claude-json), `trailing_args`,
+      validated in resolve().
+- [x] 4. worker.py: all three launch paths read via the adapter; write
+      state/.../result.json (normalized) beside raw stdout.json.
+- [x] 5. codex harness runs `codex exec` directly with the same argv.
+      codex_adapter.py stays as a shim over adapters.codex for repos whose
+      local harness.yaml still points at it. Both config copies updated.
+- [x] 6. Full suite green; BYO-MODEL contract section updated.
+
+**Review (2026-10-30).** All 6 items done:
+- worker.py reads every run through the harness's adapter (`output:`), so no
+  Claude result keys are read outside adapters/claude.py.
+- codex runs `codex exec` directly with its argv pinned identical to what
+  the wrapper exec'd, so the live-tested invocation is unchanged.
+- codex_adapter.py is kept as a shim and its 5 original tests pass
+  unmodified.
+- One miss found by the suite: backfill.py reused `worker._read_result` and
+  needs the RAW historical Claude dict (normalized zero-fill would fabricate
+  zeros). It now reads raw itself.
+- Deferred to M3, because it needs a live run: codex `--output-schema`
+  (exists on 0.163.0, not yet exercised).

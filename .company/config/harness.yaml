@@ -27,6 +27,7 @@ harnesses:
     # reason: Claude Code loads agents/<role>.md itself, so worker.py must
     # not also fold its body into the packet.
     native_agent_loading: true
+    output: claude-json
     command:
       - claude
       - -p
@@ -68,10 +69,10 @@ harnesses:
   # were read from paperclip's own codex-local adapter source (packages/
   # adapters/codex-local/src/server/{codex-args.ts,parse.ts}), then
   # smoke-tested end-to-end on this machine (codex-cli 0.163.0) before being
-  # committed — not guessed. See tools/company/adapters/codex_adapter.py for
-  # why an adapter script is required at all: `codex exec --json` streams
-  # JSONL events, not one final RESULT_SCHEMA-shaped object, and has no
-  # --json-schema equivalent to force the model's reply into that shape.
+  # committed — not guessed. `codex exec --json` streams JSONL events, not
+  # one final object; adapters/codex.py normalizes them (`output:` below).
+  # Its reply shape is still unconstrained: `--output-schema <file>` exists
+  # on 0.163.0 but hasn't been live-tested here yet (migration M3).
   #
   # Not yet staffed to any role (see `roles:` above) — it exists, is real,
   # and is covered by tests/test_harness.py, but switching a real role onto
@@ -87,14 +88,24 @@ harnesses:
     # instructions. Not guarded against here; watch for it if this harness
     # gets staffed to a role whose repo has one.
     native_agent_loading: false
+    # Runs `codex exec` directly (2026-10-30, migration M1): this is
+    # byte-for-byte the argv tools/company/adapters/codex_adapter.py used to
+    # exec, so the live-tested invocation is unchanged — only the JSONL
+    # parsing moved in-process (adapters/codex.py, selected by `output:`).
+    # The script remains as a shim for older .company/config copies.
+    output: codex-jsonl
     command:
-      - python3
-      - "{plugin_root}/tools/company/adapters/codex_adapter.py"
+      - codex
+      - exec
+      - --json
       - --skip-git-repo-check
       - -c
       - sandbox_mode="workspace-write"
       - -c
       - sandbox_workspace_write.network_access=false
+    # `-` = read the prompt from stdin; must come after the effort flag
+    # build_command appends, as the wrapper's own argv had it.
+    trailing_args: ["-"]
     # No --settings equivalent; the two `-c sandbox_*` lines above are this
     # harness's own containment, so harness.build_command doesn't refuse it.
     self_sandboxed: true

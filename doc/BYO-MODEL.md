@@ -47,14 +47,19 @@ needed. Every other role keeps using `default:` unless it has its own entry.
    role's persona + the packet — see below) to the child process's stdin and
    closes it; a harness that blocks waiting for more input will hang until
    `worker.py`'s timeout kills it.
-2. **Print a JSON object shaped like `worker.py`'s `RESULT_SCHEMA` somewhere
-   in stdout**, with `usage.*` (`input_tokens`, `output_tokens`,
-   `cache_read_input_tokens`, `cache_creation_input_tokens`) and
-   `total_cost_usd` keys present — zero or estimated values are fine.
-   `worker.py`'s event-logging (`WORKER_EXITED`, the per-task token ledger)
-   reads this shape unconditionally; it is not itself harness-aware.
-   `_read_result` finds the first `{` in stdout and parses from there, so a
-   harness that prints banner text before its JSON is fine.
+2. **Declare its stdout format as `output:`** (2026-10-30; before this, every
+   harness had to print Claude's own result JSON, usually via a wrapper
+   script). An adapter in `tools/company/adapters/` turns that format into
+   one normalized result (`session_id`, `is_error`, `terminal_reason`,
+   `structured_output`, `cost_usd`, `num_turns`, `usage`; field meanings in
+   `adapters/__init__.py`), which is all `worker.py` and the event log ever
+   see. Shipped formats: `claude-json` (the default when `output:` is absent)
+   and `codex-jsonl`. A CLI with a new format means a new adapter module with
+   one `parse(raw, exit_code)` function plus its tests against recorded real
+   output, not a wrapper that impersonates Claude. An unknown `output:` is
+   refused when the role is resolved, before anything launches. The
+   normalized result is written to `state/workers/<actor>/result.json` next
+   to the raw `stdout.json`.
 3. **Declare `native_agent_loading: false`** if the backend has no
    equivalent of `claude --agent <role>` — no native way to load
    `agents/<role>.md` as the running persona. `worker.py` then prepends that
@@ -64,9 +69,9 @@ needed. Every other role keeps using `default:` unless it has its own entry.
    loading means the model never sees its own job description.
 4. **Never push.** A worker's whole world is its worktree (see `worker.py`'s
    `build_env`), and nothing about company-os's event-log-is-truth design
-   expects a Tier-2 worker to reach outside it onto the network. An adapter
-   script that can shell out arbitrary commands (the `codex` adapter below
-   can — Codex runs shell commands inside its own sandbox) must not let a
+   expects a Tier-2 worker to reach outside it onto the network. A harness
+   that can shell out arbitrary commands (`codex` can — Codex runs shell
+   commands inside its own sandbox) must not let a
    `git push` (or any other network-reaching git operation) happen from
    inside a worker's turn. This is paperclip's own rule for its adapters
    (`packages/adapters/AUTHORING.md`, enforced there by a static scanner);
@@ -89,7 +94,11 @@ roles:
 harnesses:
   some-harness:
     native_agent_loading: false   # see contract point 3
+    output: codex-jsonl            # stdout format, see contract point 2
+                                    # (default claude-json)
     command: [...]                 # argv template, see placeholders below
+    trailing_args: ["-"]           # appended after every flag build_command
+                                    # adds (e.g. a stdin-prompt marker)
     model_flag: --model            # omit if the CLI takes no model flag
     effort_flag: --effort          # omit if the CLI takes no effort flag
     skip_permissions_flag: --foo   # omit if the CLI has nothing like it;
@@ -140,12 +149,15 @@ end to end on this machine (codex-cli 0.163.0) before being committed, and
 one correction the live test caught: the research pass that read the
 paperclip source reported no cache-write usage field; the real, running
 `codex exec --json` output has one (`cache_write_input_tokens`), and
-`tools/company/adapters/codex_adapter.py` reads it. Confirm-by-running beats
+`tools/company/adapters/codex.py` reads it. (Until 2026-10-30 that parsing
+lived in a wrapper script, `adapters/codex_adapter.py`; the harness now runs
+`codex exec` with the identical argv and declares `output: codex-jsonl`. The
+script remains as a shim for older `.company/config/harness.yaml` copies.) Confirm-by-running beats
 confirm-by-reading-someone-else's-source, even when that source is real and
 MIT-licensed — this is why.
 
 It is **not staffed to any role** — it exists, passes
-`tests/test_harness.py`/`tests/test_codex_adapter.py`, and a real
+`tests/test_harness.py`/`tests/test_adapters.py`, and a real
 `codex exec` invocation was verified to work, but pointing a live role's
 `roles:` entry at it is a deliberate staffing choice for later, and
 `model_flag` is deliberately left unset (see the comment in
@@ -159,8 +171,10 @@ repeating the same discipline:
 1. Confirm its actual non-interactive invocation syntax from that project's
    own current docs or source — don't copy flags from memory or from
    another tool's convention.
-2. Write (or point at) an adapter script if it doesn't natively emit the
-   `RESULT_SCHEMA` JSON shape.
+2. Name its stdout format in `output:`. If no adapter exists for that
+   format yet, write one in `tools/company/adapters/` (contract point 2),
+   tested against recorded real output. A wrapper script is only for a CLI
+   that can't take the packet on stdin (contract point 1).
 3. **Live-smoke-test the exact invocation** before trusting anything read
    about it, the same way `codex`'s flags were confirmed by actually running
    them, not just by reading paperclip's source.

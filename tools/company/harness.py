@@ -15,16 +15,19 @@ touching worker.py again.
 Contract an alternate harness must meet (see doc/BYO-MODEL.md for the worked
 example):
   1. Accept the packet on stdin and exit 0 on a clean run.
-  2. Print a JSON object somewhere in stdout shaped like worker.py's
-     RESULT_SCHEMA, with `usage.*` and `total_cost_usd` keys present (zero or
-     estimated values are fine) — worker.py's event-logging code reads that
-     shape unconditionally and is not itself harness-aware.
+  2. Declare its stdout format as `output:` (default `claude-json`). An
+     adapter in adapters/ turns that into the normalized result worker.py
+     reads; worker.py itself is not harness-aware. A format with no adapter
+     yet means writing one (adapters/__init__.py) — not wrapping the CLI to
+     impersonate Claude's JSON, which is what the old contract required.
   3. If the backend has no equivalent of `claude --agent <role>` (no native
      way to load agents/<role>.md as the running persona), set
      `native_agent_loading: false` in its harness.yaml entry — worker.py then
      prepends that file's body to the packet itself before launch.
-A CLI that can't natively satisfy (1)/(2) gets wrapped in a thin adapter
-script; the `command` template points at that script instead of the raw CLI.
+A CLI that can't natively satisfy (1) gets wrapped in a thin adapter script;
+the `command` template points at that script instead of the raw CLI.
+`trailing_args` are appended after every flag build_command adds (codex's
+`-`, which reads the prompt from stdin).
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ import json
 import re
 from pathlib import Path
 
+import adapters
 import staffing  # reuses the repo-config-wins-over-plugin-default loader
 
 _PLACEHOLDER_RE = re.compile(r"^\{(\w+)\}$")
@@ -58,7 +62,18 @@ def resolve(config: dict, role: str | None) -> dict:
     spec = (config.get("harnesses") or {}).get(name)
     if spec is None:
         raise HarnessError(f"harness {name!r} (role {role!r}) not defined under `harnesses:`")
+    # Checked here, before launch, not when the output is read: an unknown
+    # format discovered after the run has already spent the run's tokens.
+    fmt = adapters.output_format(spec)
+    if fmt not in adapters.PARSERS:
+        raise HarnessError(f"harness {name!r} declares output {fmt!r}; known formats: "
+                           f"{', '.join(sorted(adapters.PARSERS))}")
     return {**spec, "_name": name}
+
+
+def read_result(spec: dict, raw: str, exit_code: int | None) -> dict:
+    """The run's normalized result (adapters/__init__.py has the fields)."""
+    return adapters.parse(spec, raw, exit_code)
 
 
 def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: str,
@@ -149,6 +164,9 @@ def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: st
                 f"refusing to launch unsandboxed. Add `settings_flag: --settings` "
                 f"to its entry in config/harness.yaml (and any .company/config "
                 f"copy of it).")
+    # Last of all, after every appended flag: e.g. codex's `-` (read the
+    # prompt from stdin), which must follow the options it terminates.
+    cmd += list(spec.get("trailing_args") or [])
     return cmd
 
 

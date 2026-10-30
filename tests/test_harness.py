@@ -88,13 +88,16 @@ class TestCodexHarnessIsReal(unittest.TestCase):
         spec = harness.load_config(REPO)["harnesses"]["codex"]
         self.assertFalse(spec.get("native_agent_loading"))
 
-    def test_command_points_at_the_adapter_script_not_codex_directly(self):
+    def test_command_runs_codex_exec_directly_with_its_jsonl_adapter(self):
+        # Was a wrapper script until 2026-10-30; the exact argv equivalence
+        # with what that wrapper exec'd is pinned in tests/test_adapters.py.
         spec = harness.load_config(REPO)["harnesses"]["codex"]
         cmd = harness.build_command(spec, role="backend-engineer", plugin_root=REPO,
                                      allowed_tools="Read,Grep,Glob,Edit,Write,Bash")
-        self.assertEqual(cmd[0], "python3")
-        self.assertTrue(cmd[1].endswith("tools/company/adapters/codex_adapter.py"))
+        self.assertEqual(cmd[:3], ["codex", "exec", "--json"])
         self.assertIn("--skip-git-repo-check", cmd)
+        self.assertEqual(cmd[-1], "-")
+        self.assertEqual(spec["output"], "codex-jsonl")
 
     def test_model_flag_is_deliberately_unset(self):
         """Shipping a guessed model_map would silently fail real launches —
