@@ -260,7 +260,8 @@ def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: st
         cmd.append(spec["skip_permissions_flag"])
     if settings is not None:
         if spec.get("settings_flag"):
-            cmd += [spec["settings_flag"], json.dumps(settings)]
+            cmd += [spec["settings_flag"],
+                    json.dumps({**(spec.get("settings_defaults") or {}), **settings})]
         elif not spec.get("self_sandboxed"):
             raise HarnessError(
                 f"harness {spec.get('_name')!r} has no `settings_flag` to carry the "

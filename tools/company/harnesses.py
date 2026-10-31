@@ -178,6 +178,9 @@ def smoke(config: dict, name: str, timeout: int = 600) -> dict:
             stdout, exit_code = exc.stdout or "", None
             stdout = stdout if isinstance(stdout, str) else stdout.decode(errors="replace")
         verdict = smoke_verdict(repo, stdout)
+    # Not a guard check, so not part of pass: whether the run returned
+    # RESULT_SCHEMA-shaped output the PM can read (`company launch` shows it).
+    verdict["structured_output"] = harness.read_result(spec, stdout, exit_code)["structured_output"]
     stamp = f"{datetime.date.today().isoformat()} {spec.get('binary') or name} {version}"
     return {"harness": name, "version": version, "guards": mode, "exit_code": exit_code,
             **verdict,

@@ -57,6 +57,14 @@ harnesses:
       - --plugin-dir
       - "{plugin_root}"
       - --strict-mcp-config
+      # User settings (~/.claude/settings.json) are not loaded into a worker:
+      # they registered the company-os hooks a second time on top of
+      # --plugin-dir, so every guard fired twice and every block was logged
+      # twice (live, 2026-10-31). They also added the user's own plugins and
+      # permission rules to every worker. Verified live on 2.1.316: guards
+      # still fire once each from the plugin, with no new permission denials.
+      - --setting-sources
+      - project,local
       - --output-format
       - json
       - --json-schema
@@ -65,6 +73,12 @@ harnesses:
       - acceptEdits
       - --allowedTools
       - "{allowed_tools}"
+    # Merged under the per-launch --settings. alwaysThinkingEnabled came from
+    # the user settings that every worker inherited before --setting-sources
+    # dropped them; it's kept explicit so thinking behaviour doesn't change.
+    # A `thinking: off` row still disables it via MAX_THINKING_TOKENS=0.
+    settings_defaults:
+      alwaysThinkingEnabled: true
     model_flag: --model
     effort_flag: --effort
     skip_permissions_flag: --dangerously-skip-permissions
@@ -227,6 +241,11 @@ harnesses:
     binary: opencode
     verified_with: "opencode 2.2.2"
     capabilities:
+      # `opencode run` exits, but it spawns a detached `opencode serve
+      # --service` daemon that outlives it. Run from a non-project dir, that
+      # daemon git-snapshotted the whole home directory, at ~45% CPU, until
+      # it was killed (live, 2026-10-31). A launch would have to stop the
+      # daemon and confine its snapshot root before this could be staffed.
       headless: SUPPORTED              # opencode run
       stdin_prompt: SUPPORTED          # `opencode run` with no message, live
       json_output: SUPPORTED           # run --format json: JSONL events

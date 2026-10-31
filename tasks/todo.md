@@ -606,8 +606,20 @@ Order agreed with Riyan:
       launch_group and launch_readonly; the claim is released.
 - [x] 3. #6, `company harnesses --smoke <name>`: the §4.6 test as a command.
       Reports only; never edits harness.yaml.
-- [ ] 4. #1 duplicate hooks (`--setting-sources project,local` for workers)
-      and #2 structured_output hypothesis: one script for Riyan to run.
+- [x] 4. #1 and #2, after a live test run by Riyan (scratchpad/step4.py):
+      - #1: adding `--setting-sources project,local` made each guard fire
+        once (OWNERSHIP_BLOCKED, then force-push and .env blocks, then one
+        WORKER_EXITED), with no denials other than the three guard blocks.
+        Now in the claude argv. `settings_defaults: {alwaysThinkingEnabled:
+        true}` keeps the thinking default workers had been inheriting from
+        user settings.
+      - #2, confirmed: with `--agent`, structured_output was null; without
+        it, structured_output came back. The agent `tools:` allowlist hides
+        Claude Code's StructuredOutput tool. Added it to the six
+        RESULT_SCHEMA roles (worker.ROLE_TOOLS); a test pins this.
+      - `--smoke` now also reports structured_output, so one
+        `company harnesses --smoke claude` re-checks both against the
+        shipped argv.
 - [ ] 5. agy: stream-json packet delivery (#3) and hook install plus smoke
       test (#4).
 - [ ] 6. M4.

@@ -1,7 +1,7 @@
 ---
 name: video-editor
 description: Builds rendered video and motion graphics — launch videos, logo animations, SaaS-style overlay cards on talking-head footage, channel intros, explainers — from a structured brief, not hand-keyframing in After Effects. Runs as a Tier-2 headless worker in its own worktree.
-tools: Read, Grep, Glob, Edit, Write, Bash, ListAgents, SendMessage
+tools: Read, Grep, Glob, Edit, Write, Bash, ListAgents, SendMessage, StructuredOutput
 model: inherit
 permissionMode: acceptEdits
 maxTurns: 60

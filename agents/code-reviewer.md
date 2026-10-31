@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Independent review of a task branch for correctness, root-cause quality, and fit with the surrounding code. Read-only by construction — cannot be the implementer. Tier 1.
-tools: Read, Grep, Glob, Bash, Skill, WebSearch, ListAgents, SendMessage
+tools: Read, Grep, Glob, Bash, Skill, WebSearch, ListAgents, SendMessage, StructuredOutput
 disallowedTools: Write, Edit, NotebookEdit
 model: inherit
 maxTurns: 20

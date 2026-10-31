@@ -1,7 +1,7 @@
 ---
 name: qa-engineer
 description: Independent verification that a change actually delivers its acceptance criteria. Runs and interprets tests, finds the gaps the implementer's tests miss. Tier 1.
-tools: Read, Grep, Glob, Bash, Skill, WebSearch, ListAgents, SendMessage
+tools: Read, Grep, Glob, Bash, Skill, WebSearch, ListAgents, SendMessage, StructuredOutput
 disallowedTools: Write, Edit, NotebookEdit
 model: inherit
 maxTurns: 20

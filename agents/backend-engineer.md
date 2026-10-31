@@ -1,7 +1,7 @@
 ---
 name: backend-engineer
 description: Implements server-side work — APIs, services, data models, business logic — inside a single task's owned file globs. Runs as a Tier-2 headless worker in its own worktree.
-tools: Read, Grep, Glob, Edit, Write, Bash, ListAgents, SendMessage
+tools: Read, Grep, Glob, Edit, Write, Bash, ListAgents, SendMessage, StructuredOutput
 model: inherit
 permissionMode: acceptEdits
 maxTurns: 60

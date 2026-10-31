@@ -1,7 +1,7 @@
 ---
 name: security-reviewer
 description: Independent security review, activated automatically when a change matches a risk trigger (auth, permissions, secrets, payments, PII, uploads, migrations, multi-tenancy). Read-only. Tier 1.
-tools: Read, Grep, Glob, Bash, Skill, WebSearch, ListAgents, SendMessage
+tools: Read, Grep, Glob, Bash, Skill, WebSearch, ListAgents, SendMessage, StructuredOutput
 disallowedTools: Write, Edit, NotebookEdit
 model: inherit
 effort: high

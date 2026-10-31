@@ -1,7 +1,7 @@
 ---
 name: frontend-engineer
 description: Implements client-side work — screens, components, states, interaction — inside a single task's owned file globs. Runs as a Tier-2 headless worker in its own worktree.
-tools: Read, Grep, Glob, Edit, Write, Bash, ListAgents, SendMessage
+tools: Read, Grep, Glob, Edit, Write, Bash, ListAgents, SendMessage, StructuredOutput
 model: inherit
 permissionMode: acceptEdits
 maxTurns: 60

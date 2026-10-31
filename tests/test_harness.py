@@ -38,12 +38,40 @@ class TestClaudeHarnessIsUnchanged(unittest.TestCase):
         )
         self.assertEqual(cmd, [
             "claude", "-p", "--agent", "backend-engineer", "--plugin-dir", str(REPO),
-            "--strict-mcp-config", "--output-format", "json",
+            "--strict-mcp-config",
+            # 2026-10-31: user settings re-registered the plugin's hooks, so
+            # every guard fired twice; workers load project/local only.
+            "--setting-sources", "project,local",
+            "--output-format", "json",
             "--json-schema", json.dumps(worker.RESULT_SCHEMA),
             "--permission-mode", "acceptEdits",
             "--allowedTools", "Read,Grep,Glob,Edit,Write,Bash",
             "--model", "sonnet", "--effort", "high",
         ])
+
+    def test_settings_defaults_sit_under_the_launch_sandbox(self):
+        cmd = harness.build_command(
+            self.spec, role="backend-engineer", plugin_root=REPO,
+            allowed_tools="Read", settings={"sandbox": {"enabled": True}})
+        settings = json.loads(cmd[cmd.index("--settings") + 1])
+        self.assertEqual(settings, {"alwaysThinkingEnabled": True,
+                                    "sandbox": {"enabled": True}})
+        # A launch-time value wins over a harness default.
+        cmd = harness.build_command(
+            self.spec, role="backend-engineer", plugin_root=REPO,
+            allowed_tools="Read", settings={"alwaysThinkingEnabled": False})
+        self.assertFalse(json.loads(cmd[cmd.index("--settings") + 1])["alwaysThinkingEnabled"])
+
+    def test_schema_bearing_roles_can_call_the_structured_output_tool(self):
+        """An agent's `tools:` frontmatter is an allowlist that also hides
+        Claude Code's StructuredOutput tool, so with --agent, --json-schema
+        never produced structured_output (live, 2026-10-31: null with
+        --agent, returned without it). Every role launched with
+        RESULT_SCHEMA must list it."""
+        for role in worker.ROLE_TOOLS:
+            text = (REPO / "agents" / f"{role}.md").read_text()
+            tools_line = next(l for l in text.splitlines() if l.startswith("tools:"))
+            self.assertIn("StructuredOutput", tools_line, role)
 
     def test_schema_less_command_drops_the_flag_and_its_value(self):
         """The readonly-advisor launch never passed --json-schema at all."""
@@ -272,13 +300,14 @@ class TestLaunchSandbox(unittest.TestCase):
         sandbox = worker.sandbox_settings(self.root, self.wt)
         cmd = worker.build_command({"id": "T-1"}, "backend-engineer",
                                    harness_spec=self.spec, sandbox=sandbox)
-        self.assertEqual(self._settings_from(cmd), sandbox)
+        # plus the harness's settings_defaults (alwaysThinkingEnabled)
+        self.assertEqual(self._settings_from(cmd), {"alwaysThinkingEnabled": True, **sandbox})
 
     def test_skip_permissions_launch_still_carries_the_settings(self):
         sandbox = worker.sandbox_settings(self.root, self.wt)
         cmd = worker.build_command({"id": "T-1"}, "backend-engineer", skip_permissions=True,
                                    harness_spec=self.spec, sandbox=sandbox)
-        self.assertEqual(self._settings_from(cmd), sandbox)
+        self.assertEqual(self._settings_from(cmd), {"alwaysThinkingEnabled": True, **sandbox})
 
     def test_glob_characters_in_a_sandbox_path_refuse_the_launch(self):
         for bad in ("T-[1]", "T-*", "T-?", "T-{a,b}"):
