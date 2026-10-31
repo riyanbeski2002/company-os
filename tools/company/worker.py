@@ -18,6 +18,7 @@ from pathlib import Path
 
 from eventlog import EventLog, make_event
 import harness
+import providers
 import staffing
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
@@ -275,6 +276,13 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
     env = dict(os.environ)
     spec = harness_spec or harness.resolve(harness.load_config(company_root), None)
     env = harness.apply_env(spec, env)
+    if spec.get("_provider"):
+        # A non-native provider (providers.yaml): its key travels only in the
+        # variable the harness declares, never under its own key_ref name.
+        add, remove = providers.worker_env(spec["_provider"], spec)
+        for var in remove:
+            env.pop(var, None)
+        env.update(add)
 
     env.update({
         "COMPANY_TASK": task["id"],
@@ -460,7 +468,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             f"the blocker is actually clear and want to proceed without formally "
             f"resolving it yet."
         )
-    harness_spec = _guarded_spec(company_root, role)
+    harness_spec = _guarded_spec(company_root, role, project=task.get("project", ""),
+                                 actor=actor, task=task["id"])
     if not claim_task(company_root, task["id"], actor):
         busy = live_worker_on(company_root, task["id"]) or "another worker"
         raise WorkerError(
@@ -487,7 +496,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         event_data = {"role": role, "tier": 2, "branch": branch, "worktree": str(wt),
                       "timeout_s": timeout, "model": policy.get("model"),
                       "effort": policy.get("effort"), "harness": harness_spec["_name"],
-                      "guards": harness_spec["_guards"]}
+                      "guards": harness_spec["_guards"],
+                      "provider": harness_spec["_provider"]["_name"]}
         if model_override or effort_override or skip_permissions:
             event_data["policy_override"] = {
                 "reason": override_reason,
@@ -627,7 +637,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
     # security are independent read-only judgments of the same merge, so the
     # thing that must not run twice is one ROLE on one group, not the group.
     claim_id = f"gate-group-{group_id}-{role}"
-    harness_spec = _guarded_spec(company_root, role)
+    harness_spec = _guarded_spec(company_root, role, project=project, actor=actor)
     _check_project(harness_spec, worktree)
     if not claim_task(company_root, claim_id, actor):
         busy = live_worker_on(company_root, claim_id) or "another worker"
@@ -651,7 +661,8 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
             data={"role": role, "tier": 2, "gate_group": group_id, "tasks": task_ids,
                   "worktree": str(worktree), "timeout_s": timeout,
                   "model": policy.get("model"), "effort": policy.get("effort"),
-                  "harness": harness_spec["_name"], "guards": harness_spec["_guards"]},
+                  "harness": harness_spec["_name"], "guards": harness_spec["_guards"],
+                  "provider": harness_spec["_provider"]["_name"]},
         ))
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
@@ -749,16 +760,37 @@ def _usage(result: dict) -> dict:
     }
 
 
-def _guarded_spec(company_root: Path, role: str) -> dict:
+def _guarded_spec(company_root: Path, role: str, *, project: str = "", actor: str = "",
+                  task: str | None = None) -> dict:
     """The role's harness, refused before anything is claimed, created, or
     logged if company-os's guards can't reach its worker (H3, harness.py's
     GUARD_MODES). Applies to advisors too: the secret-read guard protects a
-    read-only role exactly as much as a writing one."""
+    read-only role exactly as much as a writing one.
+
+    Also the role's model provider (providers.py, M4), refused at the same
+    point if the harness can't carry it, its key isn't set, or the project's
+    data classification forbids it. That last one is a judgment call
+    (reroute or reclassify), so it is escalated, never silently rerouted."""
     spec = harness.resolve(harness.load_config(company_root), role)
     try:
         spec["_guards"] = harness.require_guards(spec)
     except harness.HarnessError as exc:
         raise WorkerError(str(exc)) from None
+    try:
+        prov = providers.resolve(providers.load_config(company_root), role)
+        providers.check_classification(prov, providers.project_classification(company_root))
+        providers.worker_env(prov, spec)  # raises now, not mid-launch
+    except providers.ProviderIneligible as exc:
+        import escalations
+        escalations.raise_escalation(
+            company_root, project=project, actor=actor, kind="decision", task=task,
+            need=f"{role} is routed to a model provider this project's data "
+                 f"classification forbids: reroute the role or reclassify the project",
+            detail=str(exc))
+        raise WorkerError(str(exc)) from None
+    except providers.ProviderError as exc:
+        raise WorkerError(str(exc)) from None
+    spec["_provider"] = prov
     return spec
 
 
@@ -777,7 +809,19 @@ def _read_result(path: Path, harness_spec: dict, exit_code: int | None) -> dict:
     The raw stdout stays in stdout.json (backfill.py re-parses historical
     Claude runs from it); the normalized form is written beside it as
     result.json, so what the event log recorded is inspectable after the fact
-    without knowing which harness produced it."""
+    without knowing which harness produced it.
+
+    A provider key is scrubbed from stdout.json and stderr.log first, in
+    place, so nothing read from them afterwards (result.json, events, the
+    launch result) can carry it — a CLI that echoes its credentials in an
+    error message would otherwise write it into the evidence trail."""
+    values = providers.secrets(harness_spec.get("_provider"))
+    for f in (path, path.parent / "stderr.log") if values else ():
+        try:
+            f.write_text(providers.redact(f.read_text(encoding="utf-8"), values),
+                         encoding="utf-8")
+        except OSError:
+            pass
     try:
         raw = path.read_text(encoding="utf-8")
     except OSError:
@@ -817,14 +861,15 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
 
     policy_cfg = staffing.load_config(company_root, "staffing.yaml")
     policy = staffing.model_policy(policy_cfg, tier=1, gated=False, role=role)
-    harness_spec = _guarded_spec(company_root, role)
+    harness_spec = _guarded_spec(company_root, role, project=project, actor=actor)
     _check_project(harness_spec, repo)  # the cwd is inside the repo
 
     log.append(make_event(
         event="WORKER_STARTED", actor=actor, project=project,
         data={"role": role, "tier": 1, "readonly": True, "timeout_s": timeout,
               "model": policy.get("model"), "effort": policy.get("effort"),
-              "harness": harness_spec["_name"], "guards": harness_spec["_guards"]}))
+              "harness": harness_spec["_name"], "guards": harness_spec["_guards"],
+              "provider": harness_spec["_provider"]["_name"]}))
 
     env = build_env(repo, company_root, {"id": "", "project": project}, actor, repo,
                      thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,

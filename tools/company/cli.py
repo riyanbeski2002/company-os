@@ -2256,6 +2256,13 @@ def cmd_harnesses(args):
             emit({"ok": False, "error": str(exc)}, 1)
         emit({"ok": out["pass"], **out}, 0 if out["pass"] else 1)
     out = harnesses.report(config)
+    # Model providers (providers.py, M4): routing, and whether each key is
+    # set — yes/no only, never the value.
+    import providers
+    try:
+        out["providers"] = providers.report(providers.load_config(root))
+    except providers.ProviderError as exc:
+        out["problems"].append(f"providers.yaml: {exc}")
     emit({"ok": not (args.check and out["problems"]), **out},
          1 if args.check and out["problems"] else 0)
 

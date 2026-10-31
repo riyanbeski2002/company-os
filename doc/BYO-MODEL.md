@@ -152,6 +152,10 @@ harnesses:
                                      # parent-session identity leakage, etc.)
     extra_env:
       OTHER_CLI_MODE: headless
+    provider_env:                  # how a non-native model provider
+      key: ANTHROPIC_AUTH_TOKEN     # (providers.yaml) reaches this worker;
+      base_url: ANTHROPIC_BASE_URL  # omit and the harness takes only its
+                                    # own login (see "Model providers")
 ```
 
 ### Command template placeholders
@@ -220,6 +224,48 @@ repeating the same discipline:
    same pinning-test treatment `TestClaudeHarnessIsUnchanged`/
    `TestCodexHarnessIsReal` get, so the new entry can't silently drift.
 5. Only then point a real role's `roles:` entry at it.
+
+## Model providers: bring your own key (providers.yaml, M4)
+
+A harness is the CLI; a provider is whose endpoint and credentials it uses.
+Every role defaults to `native`, the CLI's own login, which injects nothing.
+To run a role on another endpoint, declare the provider in
+`config/providers.yaml` (or `.company/config/providers.yaml`) and route the
+role to it:
+
+```yaml
+default: native
+roles:
+  code-reviewer: openrouter
+providers:
+  openrouter:
+    auth: env                      # env | none
+    key_ref: OPENROUTER_API_KEY    # the env var's NAME, never the key
+    trust: third_party             # first_party | third_party | local
+    max_classification: INTERNAL   # most sensitive project it may see
+    base_url: https://openrouter.ai/api
+```
+
+Then `export OPENROUTER_API_KEY=...` in the shell that launches workers.
+
+- **No key in config.** A value shaped like a key, anywhere in the file
+  (comments included), fails the load.
+- **The key goes in one place.** It's read from the launcher's env and set
+  only in the variable the harness declares in `provider_env`. The
+  `key_ref` variable itself is removed from the worker's env. After the run,
+  it's scrubbed from `stdout.json`/`stderr.log` before anything parses them,
+  so events and `result.json` can't carry it.
+- **Classification gate.** If project.yaml's `data_classification` is above
+  the provider's `max_classification`, the launch is refused before
+  anything is claimed, and a `decision` escalation is raised. It never falls
+  back to another provider. `native` has no ceiling.
+- **Refused up front:** an unset key, or a harness with no `provider_env`
+  (today only `claude` has one).
+- `company harnesses` lists the providers, the routing, and whether each key
+  is set (yes/no only). A broken providers.yaml fails `--check`.
+
+Not covered yet: keychain lookup (env only), and provider wiring for codex
+(which takes providers through `-c model_providers…`, not env).
 
 ## What this does *not* solve
 

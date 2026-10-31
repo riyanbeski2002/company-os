@@ -99,6 +99,12 @@ harnesses:
       - CLAUDE_CODE_SESSION_ID
       - CLAUDE_CODE_CHILD_SESSION
       - CLAUDE_CODE_ENTRYPOINT
+    # How a non-native provider (providers.yaml) reaches the worker: Claude
+    # Code sends ANTHROPIC_AUTH_TOKEN as a bearer token to ANTHROPIC_BASE_URL.
+    # Set after strip_env, so only an explicitly routed role ever gets them.
+    provider_env:
+      key: ANTHROPIC_AUTH_TOKEN
+      base_url: ANTHROPIC_BASE_URL
 
   # Second real harness (2026-10-19). The invocation and event shapes below
   # were read from paperclip's own codex-local adapter source (packages/

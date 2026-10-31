@@ -1,0 +1,38 @@
+# Bring-your-own-key model providers (tools/company/providers.py has the
+# contract; docs/HARNESS-AGNOSTIC-MIGRATION.md §4.5 the design).
+#
+# `native` is built in: the harness CLI's own login, nothing injected. It is
+# the default for every role, so this file changes nothing until a role is
+# routed below. A repo can override this file in .company/config/.
+#
+# Never put a key in this file. key_ref is the NAME of the env var that
+# holds it; a value shaped like a key is rejected when the file loads.
+#
+# A provider is used only if the project's data_classification (project.yaml,
+# PUBLIC < INTERNAL < CONFIDENTIAL < SECRET) is at or below its
+# max_classification. Otherwise the launch is refused with an escalation; it
+# never falls back to another provider.
+#
+# The harness must declare how a provider reaches its worker (`provider_env`
+# in harness.yaml). Today only `claude` does.
+
+default: native
+
+roles: {}
+  # code-reviewer: openrouter
+
+providers: {}
+  # Examples, not enabled:
+  #
+  # openrouter:
+  #   auth: env
+  #   key_ref: OPENROUTER_API_KEY
+  #   trust: third_party
+  #   max_classification: INTERNAL
+  #   base_url: https://openrouter.ai/api
+  #
+  # local:
+  #   auth: none
+  #   trust: local
+  #   max_classification: SECRET
+  #   base_url: http://127.0.0.1:1234

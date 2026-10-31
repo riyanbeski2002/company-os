@@ -635,4 +635,63 @@ Order agreed with Riyan:
       - Riyan's call: park agy as catalogued only, findings recorded in
         harness.yaml. Untested lead: agy's `--settings` sandbox keys
         (readOnlySandbox, sandboxMode).
-- [ ] 6. M4.
+- [x] 6. M4 (below).
+
+## M4: bring-your-own keys (migration doc §4.5) — plan approved by Riyan, built
+
+Done 2026-10-31: items 1–8 below. tests/test_providers.py (23 tests); the
+leak test was mutation-checked (fails with redaction disabled). Two
+false positives in the key detector were found and fixed while building: a
+34-char doc path, and `sk-` inside `task-…`. Open: keychain, codex wiring, a
+live run with a real third-party key (Riyan's to run).
+
+
+Goal: a role can run on a provider other than the CLI's own login (e.g.
+OpenRouter, a local model). Only the env var NAME holding the key is ever
+stored. The key reaches only the worker's environment, never argv, the
+packet, an event or a log. A project's data classification decides which
+providers may see its code.
+
+- [x] 1. `config/providers.yaml` (+ `.company/config/` override, same loader
+      as harness.yaml). Each provider has:
+      - `auth`: native | env | none;
+      - `key_ref`: an env var name;
+      - `trust`: first_party | third_party | local;
+      - `max_classification`;
+      - `base_url`.
+      Routing is a `default` + `roles:` map, the same shape as harness.yaml.
+      The shipped default is `native` for every role, so nothing changes
+      until a role is pointed elsewhere.
+- [x] 2. `tools/company/providers.py`:
+      - validation: `key_ref` must look like an env var name, and ANY field
+        whose value looks like a key (sk-…, long random tokens) is
+        rejected, so a pasted key fails loudly instead of being committed.
+      - resolution: read the key from the launching process's env at launch.
+        A missing key is an error, not a fallback to native.
+- [x] 3. Per-harness wiring, declared in harness.yaml (`provider_env`):
+      which env vars carry the key and the base URL. claude:
+      ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL (injected after strip_env,
+      so the subscription-protection stripping still applies to inherited
+      env). A harness with no `provider_env` refuses a non-native provider.
+      codex (needs `-c model_providers…`) is left refused for now.
+- [x] 4. Classification gate: project.yaml `data_classification` (default
+      INTERNAL; PUBLIC < INTERNAL < CONFIDENTIAL < SECRET) must be ≤ the
+      provider's `max_classification`. Native providers have no ceiling, so
+      today's runs are unaffected. An ineligible launch is refused before
+      claim/WORKER_STARTED and raises an escalation. It never falls back to
+      another provider.
+- [x] 5. Redaction: after each worker exits, the key value is scrubbed from
+      its stdout.json/stderr.log before they're parsed, so nothing
+      downstream (result.json, events, `company launch` output) can carry
+      it. WORKER_STARTED records the provider name, never the key.
+- [x] 6. Tests: invalid configs rejected; a planted key printed by a fake
+      CLI never appears in events, stdout.json, stderr.log or result.json;
+      an ineligible provider is refused with an escalation and nothing
+      launched; default config leaves the pinned claude argv/env unchanged.
+- [x] 7. `company harnesses` (or a `company providers`) report: each provider,
+      whether its key_ref is set (yes/no only), and which roles use it.
+- [x] 8. Docs: migration doc §4.5 "as built"; README/BYO-MODEL note.
+
+Not in M4: macOS keychain lookup (env only for now), codex/agy/opencode
+provider wiring, and any live run (needs a real third-party key; you'd run
+it, per your rule on paid runs).

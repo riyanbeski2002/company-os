@@ -9,7 +9,8 @@ parity) implemented 2026-10-30; codex's shim passed the live smoke test
 (§4.6) on 2026-10-31. M3: `company harnesses [--check]`, the four-CLI
 capability catalogue and the agy output adapter done (2026-10-31). agy and
 opencode stay catalogued only; tasks/todo.md lists what blocks each.
-M4–M5 not started.
+M4 (providers.yaml, key_ref, redaction, classification gate) implemented
+2026-10-31 for the claude harness; see §4.5 "As built". M5 not started.
 
 Evidence base: a full read of `tools/company/{harness,worker,integrate,gategroup,sessions,slots,eventlog}.py`,
 `config/harness.yaml`, `hooks/*`; a repo-wide sweep for Claude-specific
@@ -166,6 +167,22 @@ providers:
 - Only `key_ref` names are stored; validation **rejects** any value shaped like a key.
 - The key is read from env/keychain at launch and injected only into the child's env — never argv, packet, event, or log. Logged argv/env pass through a redactor.
 - Routing refuses a provider whose `max_classification` is below the project's `data_classification` (CONFIDENTIAL source never reaches a third-party/free endpoint). No silent downgrade: an ineligible request fails with an escalation, it doesn't fall through to a weaker provider.
+
+**As built (M4, 2026-10-31).**
+- **Module and config:** `tools/company/providers.py` and `config/providers.yaml`. Every role routes to `native` (the CLI's own login), so nothing changes until a role is routed elsewhere. The built-in `native` replaces the plan's `anthropic`/`openai`/`google: {auth: native}` entries.
+- **Rejected at load:**
+  - key-shaped values anywhere in the file, comments included;
+  - a `key_ref` that isn't an env var name;
+  - a non-native provider without `trust` and `max_classification`;
+  - routing to an undefined provider.
+- **Checked in `worker._guarded_spec`,** for every launch path, before anything is claimed or logged:
+  - **Classification:** an ineligible provider raises a `decision` escalation and a WorkerError. An unknown project level fails closed.
+  - **Key:** an unset key is refused.
+  - **Harness:** a harness with no `provider_env` is refused. Only `claude` has one (`ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_BASE_URL`).
+- **Key delivery and redaction:** `build_env` sets the key only in the harness's variable and removes the `key_ref` variable. `_read_result` scrubs the key from `stdout.json`/`stderr.log` before parsing.
+- **Evidence:** `WORKER_STARTED` records `provider` by name.
+- **Not done:** keychain lookup, codex wiring, and a live run against a real third-party key.
+- **Tests:** `tests/test_providers.py`. The leak test plants a key that a stand-in CLI echoes to stdout and stderr. It was mutation-checked: it fails with redaction disabled.
 
 ### 4.6 Enforcement parity — the rule that prevents a quiet security regression
 
