@@ -47,8 +47,10 @@ CODEX_PATCH = {"apply_patch"}
 
 AGY_SHELL = {"run_command"}
 AGY_READ = {"view_file", "view_file_outline", "view_code_item"}
-AGY_WRITE = {"write_to_file", "replace_file_content", "multi_replace_file_content",
-             "edit_file"}
+# write_file {Path, Content} is what agy 1.4.12 actually sends (live hook
+# payload, 2026-10-31); the others are from its docs.
+AGY_WRITE = {"write_file", "write_to_file", "replace_file_content",
+             "multi_replace_file_content", "edit_file"}
 AGY_PATH_KEYS = ("TargetFile", "AbsolutePath", "File", "FilePath", "Path")
 
 # Codex's apply_patch envelope: every file a patch touches is named on one of

@@ -620,6 +620,19 @@ Order agreed with Riyan:
       - `--smoke` now also reports structured_output, so one
         `company harnesses --smoke claude` re-checks both against the
         shipped argv.
-- [ ] 5. agy: stream-json packet delivery (#3) and hook install plus smoke
-      test (#4).
+- [x] 5. agy: probed live (Riyan ran scratchpad/agy_probe.py), then parked.
+      - Hook: hooks/guard.py agy in <workspace>/.agents/hooks.json fires on
+        every tool call, and a deny stops the tool. Force-push, the .env
+        read and an unowned write were all blocked and logged. agy's file
+        write is `write_file {Path, Content}`, now mapped in guard.py.
+      - stdin (#3): works only as stream-json, as
+        `{"event":"user","message":{"role":"user","content":...}}`.
+      - `--sandbox`: blocks shell writes INSIDE the workspace, allows them
+        anywhere else in $HOME and /tmp, with or without --add-dir. The
+        reverse of claude/codex containment, so it fails H3.
+      - Read-only with no shell was rejected too: reviewers and advisors
+        record their verdicts with `company` in the shell.
+      - Riyan's call: park agy as catalogued only, findings recorded in
+        harness.yaml. Untested lead: agy's `--settings` sandbox keys
+        (readOnlySandbox, sandboxMode).
 - [ ] 6. M4.

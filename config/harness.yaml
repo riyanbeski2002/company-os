@@ -204,9 +204,9 @@ harnesses:
     strip_env: []
 
   # Catalogued only (M3): capabilities recorded from `--help`, installed
-  # docs and one recorded live run each (2026-10-31); no `command` yet, so
-  # harness.resolve refuses them by name. agy's output adapter exists
-  # (`output: agy-json`); what still blocks a launch is below.
+  # docs and live runs (2026-10-31); no `command`, so harness.resolve
+  # refuses them by name. agy's output adapter exists (`output: agy-json`);
+  # why it is parked is below.
   agy:
     binary: agy
     # 1.4.12 installs to ~/.local/bin (on PATH); 1.4.11 lived in
@@ -218,9 +218,13 @@ harnesses:
       headless: SUPPORTED              # --print=<prompt> (the prompt is the
                                        # flag's VALUE; a bare --print eats the
                                        # next flag as the prompt)
-      # Blocks a launch: worker.py sends the packet on stdin, but
-      # `--print=-` takes "-" literally. Only stream-json input reads stdin.
-      stdin_prompt: UNSUPPORTED
+      # `--print=-` takes "-" literally. stdin works only as stream-json,
+      # verified live: `--input-format stream-json --output-format
+      # stream-json --print=` with one NDJSON line per turn,
+      # {"event":"user","message":{"role":"user","content":"<packet>"}};
+      # stdout is {"event":"init",...} ... {"event":"result","result":{...}}
+      # (the result object is the json-output shape). Neither is wired in.
+      stdin_prompt: REQUIRES_CONFIGURATION
       json_output: SUPPORTED           # one JSON object (adapters/agy.py)
       schema_output: SUPPORTED         # --json-schema → structured_output, live
       model_select: SUPPORTED          # --model; `agy models`
@@ -229,14 +233,27 @@ harnesses:
       blocking_pre_tool_hook: SUPPORTED  # .agents/hooks.json, decision: deny;
                                        # hooks/guard.py agy translates it
       persona_files: SUPPORTED         # --agent, .agents/agents
-      os_sandbox: UNKNOWN              # --sandbox exists; behavior unverified
+      # --sandbox, verified live: the shell may NOT write inside the
+      # workspace (its own .agents/hooks.json included), but MAY write
+      # anywhere else in $HOME and in /tmp, with or without --add-dir.
+      # That is the reverse of the containment claude and codex give (writes
+      # confined to the worktree), so it doesn't count as an OS sandbox here.
+      # The binary has readOnlySandbox/sandboxMode settings (`--settings`
+      # takes settings.json keys); untested.
+      os_sandbox: UNSUPPORTED
       tool_allowlist: UNKNOWN
       mcp: SUPPORTED
       byok: UNKNOWN
       cost_reporting: UNSUPPORTED      # tokens only (usage.*_tokens), live
-    # Also blocks a launch: guards. hooks/guard.py agy exists, but nothing
-    # installs it into a worktree's .agents/hooks.json yet, and no live
-    # smoke test has run — so no `guards:` mode can honestly be declared.
+    # Parked (Riyan, 2026-10-31). The guard itself works: with hooks/guard.py
+    # agy as a PreToolUse hook in <workspace>/.agents/hooks.json, it fired on
+    # every tool call under --dangerously-skip-permissions, and its denials
+    # stopped the force-push, the .env read and the unowned write_file, each
+    # logged. What fails is H3's second half: no sandbox confines the shell,
+    # and when the file tool was refused the model wrote with `echo >`
+    # instead. Even a read-only role needs the shell, to record its verdict
+    # with `company`. Revisit only if a sandbox setting is shown, live, to
+    # confine shell writes to the workdir plus .company/.
   opencode:
     binary: opencode
     verified_with: "opencode 2.2.2"

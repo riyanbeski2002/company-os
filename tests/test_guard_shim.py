@@ -1,8 +1,9 @@
 """hooks/guard.py — company-os's guards for harnesses other than Claude Code (M2).
 
 Payload and deny shapes are taken from each CLI's own installed contract, as
-read 2026-10-30. codex's was then confirmed by a live smoke test on
-2026-10-31 (shell calls arrive as tool_name "Bash"); agy's is still unrun:
+read 2026-10-30. Both were then confirmed live on 2026-10-31: codex by the
+smoke test (shell calls arrive as tool_name "Bash"), agy 1.4.12 by a hook
+probe (file writes arrive as write_file {Path, Content}):
   codex 0.163.0  embedded schema `pre-tool-use.command.input`: tool_name /
                  tool_input / cwd; deny = Claude's hookSpecificOutput shape.
   agy 1.4.11     ~/.gemini/antigravity/.../docs/hooks.md: toolCall.name /
@@ -121,6 +122,13 @@ class TestAgy(ShimCase):
         out = self.agy("run_command", {"CommandLine": "git push -f origin main"})
         self.assertEqual(out["decision"], "deny")
         self.assertIn("force-push", out["reason"])
+
+    def test_live_write_file_shape_is_checked_against_ownership(self):
+        # agy 1.4.12's live payload: write_file {Path, Content}.
+        out = self.agy("write_file", {"Path": str(self.wt / "forbidden.txt"), "Content": "x"})
+        self.assertIn("ownership guard", out["reason"])
+        self.assertIsNone(self.agy("write_file", {"Path": str(self.wt / "api" / "ok.py"),
+                                                  "Content": "ok"}))
 
     def test_write_outside_ownership_is_denied(self):
         out = self.agy("write_to_file", {"TargetFile": str(self.wt / "web" / "x.ts"),
