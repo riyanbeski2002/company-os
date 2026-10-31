@@ -137,9 +137,7 @@ harnesses:
     # run's PreToolUse hook via a session-flag config layer (`-c`; codex lists
     # "Session flags" as a hook source). --dangerously-bypass-hook-trust is
     # required headless: codex otherwise SKIPS an untrusted hook silently.
-    # Known cost of that flag: it also runs any hooks the worked-on repo ships
-    # in its own .codex/ config without review — weigh that before staffing
-    # codex onto an untrusted repo.
+    # Known cost of that flag: see refuse_project_paths below.
     #
     # Verified live 2026-10-31 (migration doc §4.6 smoke test): the hook
     # fired on every tool call and denied an unowned apply_patch, a
@@ -149,6 +147,10 @@ harnesses:
     # smoke test after any codex upgrade.
     guards: shim
     guards_verified: "2026-10-31 codex-cli 0.163.0"
+    # The cost of the trust bypass above: codex would also run any hooks the
+    # project ships in .codex/ without review. A worktree (or, for an
+    # advisor, a repo) containing one is refused (harness.check_workdir).
+    refuse_project_paths: [".codex"]
     command:
       - codex
       - exec

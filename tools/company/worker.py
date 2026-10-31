@@ -470,6 +470,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
     try:
         log = EventLog(company_root)
         wt, branch = ensure_worktree(repo, company_root, task)
+        _check_project(harness_spec, wt)
         sandbox = sandbox_settings(company_root, wt)
 
         state = company_root / "state" / "workers" / actor
@@ -627,6 +628,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
     # thing that must not run twice is one ROLE on one group, not the group.
     claim_id = f"gate-group-{group_id}-{role}"
     harness_spec = _guarded_spec(company_root, role)
+    _check_project(harness_spec, worktree)
     if not claim_task(company_root, claim_id, actor):
         busy = live_worker_on(company_root, claim_id) or "another worker"
         raise WorkerError(
@@ -760,6 +762,15 @@ def _guarded_spec(company_root: Path, role: str) -> dict:
     return spec
 
 
+def _check_project(spec: dict, project_root: Path) -> None:
+    """harness.check_workdir, as a WorkerError: checked against the tree the
+    harness will actually run in, before WORKER_STARTED."""
+    try:
+        harness.check_workdir(spec, project_root)
+    except harness.HarnessError as exc:
+        raise WorkerError(str(exc)) from None
+
+
 def _read_result(path: Path, harness_spec: dict, exit_code: int | None) -> dict:
     """The run's normalized result, via the harness's own output adapter.
 
@@ -807,6 +818,7 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
     policy_cfg = staffing.load_config(company_root, "staffing.yaml")
     policy = staffing.model_policy(policy_cfg, tier=1, gated=False, role=role)
     harness_spec = _guarded_spec(company_root, role)
+    _check_project(harness_spec, repo)  # the cwd is inside the repo
 
     log.append(make_event(
         event="WORKER_STARTED", actor=actor, project=project,

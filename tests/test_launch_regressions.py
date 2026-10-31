@@ -54,7 +54,7 @@ class FakeHarnessCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _harness(self, *, sleep=0.0, verdict=None):
+    def _harness(self, *, sleep=0.0, verdict=None, extra=""):
         """Point every role at a script that reads the packet, optionally
         sleeps (to hold the task while a competitor tries to launch), optionally
         emits a verdict through the real worker-facing CLI, then prints a clean
@@ -81,7 +81,8 @@ class FakeHarnessCase(unittest.TestCase):
             # a stand-in process: no hooks of its own; the guards it would
             # need are not what these tests exercise
             "    guards: external\n"
-            f"    command: [{json.dumps(sys.executable)}, {json.dumps(str(script))}]\n")
+            f"    command: [{json.dumps(sys.executable)}, {json.dumps(str(script))}]\n"
+            + extra)
 
     def _task(self, tid="T-1"):
         return {"id": tid, "project": "p", "title": "t", "worktree": str(self.wt)}
@@ -89,6 +90,35 @@ class FakeHarnessCase(unittest.TestCase):
     def _events(self, name, **match):
         return [e for e in self.log.read() if e["event"] == name
                 and all(e.get(k) == v for k, v in match.items())]
+
+
+class TestUnreviewedProjectConfig(FakeHarnessCase):
+    """codex runs with --dangerously-bypass-hook-trust so the guard hook
+    fires headless; that also waives review of the project's own .codex/
+    hooks. A tree that ships one is refused before WORKER_STARTED."""
+
+    def setUp(self):
+        super().setUp()
+        self._harness(extra='    refuse_project_paths: [".codex"]\n')
+
+    def test_worktree_shipping_the_config_is_refused_and_the_claim_freed(self):
+        (self.wt / ".codex").mkdir()
+        with self.assertRaises(worker.WorkerError) as ctx:
+            worker.launch(self.repo, self.root, self._task(), "packet",
+                          "backend-engineer", "be-1", timeout=30)
+        self.assertIn(".codex", str(ctx.exception))
+        self.assertEqual(self._events("WORKER_STARTED"), [])
+        (self.wt / ".codex").rmdir()
+        worker.launch(self.repo, self.root, self._task(), "packet",
+                      "backend-engineer", "be-2", timeout=30)
+        self.assertEqual([e["actor"] for e in self._events("WORKER_STARTED")], ["be-2"])
+
+    def test_advisor_on_a_repo_shipping_the_config_is_refused(self):
+        (self.repo / ".codex").mkdir()
+        with self.assertRaises(worker.WorkerError):
+            worker.launch_readonly(self.repo, self.root, "p", "packet",
+                                   "cto-advisor", "cto-1", timeout=30)
+        self.assertEqual(self._events("WORKER_STARTED"), [])
 
 
 class TestExclusiveLease(FakeHarnessCase):

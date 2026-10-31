@@ -199,6 +199,8 @@ throwaway repo onboarded with `company onboard`:
    - no "unrecognized tool" denial blocked an ordinary edit or command. If one did, that is the real tool name; add it to `hooks/guard.py` and re-run.
 4. Only on a pass, set `guards_verified: "<YYYY-MM-DD> <cli> <version>"` in both shipped config copies. Re-run the test after any CLI upgrade.
 
+**Automated (2026-10-31).** `company harnesses --smoke <name>` runs steps 1–3 in a temp repo with no remote, using worker.py's own command and env builders. It works for claude-plugin and shim harnesses. It spends one real worker turn, so it runs only when asked. On a pass it prints the line to record: `guards_verified` for a shim, `verified_with` for claude-plugin. It never edits harness.yaml.
+
 ## 5. First milestone — sequenced
 
 Goal (directive §"first milestone"): one PM coordinating a small mixed-harness workforce, real changes, automatic worktree cleanup, retained evidence.

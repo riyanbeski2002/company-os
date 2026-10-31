@@ -596,3 +596,18 @@ scratchpad/live_batch.py. Throwaway repos, no remote, dummy .env canary.
   - (b) structured_output is null in every Claude worker run on record
     (8/8 recent trade-ai runs, pre-upgrade too): `--json-schema` together
     with `--agent` has never produced it.
+
+## Gap fixes from the live batch (Riyan, 2026-10-31)
+
+Order agreed with Riyan:
+- [x] 1. Commit M3 (f33bcef).
+- [x] 2. #5, codex trust bypass: `refuse_project_paths: [".codex"]` plus
+      harness.check_workdir. Refused before WORKER_STARTED in launch,
+      launch_group and launch_readonly; the claim is released.
+- [x] 3. #6, `company harnesses --smoke <name>`: the §4.6 test as a command.
+      Reports only; never edits harness.yaml.
+- [ ] 4. #1 duplicate hooks (`--setting-sources project,local` for workers)
+      and #2 structured_output hypothesis: one script for Riyan to run.
+- [ ] 5. agy: stream-json packet delivery (#3) and hook install plus smoke
+      test (#4).
+- [ ] 6. M4.

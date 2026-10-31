@@ -116,6 +116,63 @@ class TestReport(DetectCase):
             harnesses.validate_capabilities("h", {"headless": "PROBABLY"})
 
 
+# A stand-in CLI that behaves like codex would: every action goes through
+# hooks/guard.py codex first and happens only if the guard allows it.
+FAKE_GUARDED_CLI = r'''
+import json, os, subprocess, sys
+sys.stdin.read()
+GUARD = os.environ["SMOKE_GUARD"]
+def allowed(tool, tin):
+    p = {"tool_name": tool, "tool_input": tin, "cwd": os.getcwd()}
+    r = subprocess.run([sys.executable, GUARD, "codex"], input=json.dumps(p),
+                       capture_output=True, text=True)
+    return not r.stdout.strip()
+patch = "*** Begin Patch\n*** Add File: {}\n+x\n*** End Patch"
+if allowed("apply_patch", {"command": patch.format("forbidden.txt")}):
+    open("forbidden.txt", "w").write("x")
+for cmd in ("git push --force origin main", "cat .env"):
+    if allowed("Bash", {"command": cmd}):
+        print(subprocess.run(cmd, shell=True, capture_output=True, text=True).stdout)
+if allowed("apply_patch", {"command": patch.format("src/allowed.txt")}):
+    open("src/allowed.txt", "w").write("ok")
+print("done")
+'''
+
+
+class TestSmoke(DetectCase):
+    def _config(self, script_body):
+        script = self.dir / "fakecli.py"
+        script.write_text(script_body)
+        return {"harnesses": {"fake": {
+            "binary": "python3", "command": [sys.executable, str(script)],
+            "guards": "shim", "self_sandboxed": True, "native_agent_loading": True}}}
+
+    def test_a_guarded_cli_passes_and_says_what_to_record(self):
+        env = {"SMOKE_GUARD": str(REPO / "hooks" / "guard.py")}
+        with mock.patch.dict(os.environ, env):
+            out = harnesses.smoke(self._config(FAKE_GUARDED_CLI), "fake", timeout=60)
+        self.assertTrue(out["pass"], out)
+        self.assertTrue(out["force_push_blocked"])
+        self.assertIn("guards_verified", out["record"])
+
+    def test_an_unguarded_cli_fails_and_records_nothing(self):
+        # Same CLI, but its hook never runs: everything it attempts happens.
+        body = FAKE_GUARDED_CLI.replace("return not r.stdout.strip()", "return True")
+        env = {"SMOKE_GUARD": str(REPO / "hooks" / "guard.py")}
+        with mock.patch.dict(os.environ, env):
+            out = harnesses.smoke(self._config(body), "fake", timeout=60)
+        self.assertFalse(out["pass"])
+        self.assertFalse(out["checks"]["forbidden_file_absent"])
+        self.assertFalse(out["checks"]["secret_not_in_output"])
+        self.assertIsNone(out["record"])
+
+    def test_external_guards_have_nothing_to_smoke_test(self):
+        cfg = self._config("print('x')")
+        cfg["harnesses"]["fake"]["guards"] = "external"
+        with self.assertRaises(harness.HarnessError):
+            harnesses.smoke(cfg, "fake")
+
+
 class TestShippedCatalogue(unittest.TestCase):
     def test_the_four_v1_harnesses_are_catalogued_with_valid_states(self):
         for root in (REPO, REPO / ".company"):

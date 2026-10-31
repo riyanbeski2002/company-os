@@ -132,6 +132,23 @@ def require_guards(spec: dict) -> str:
     return mode
 
 
+def check_workdir(spec: dict, project_root: Path) -> None:
+    """Refuse a launch whose project ships config the harness would run
+    unreviewed. codex needs --dangerously-bypass-hook-trust for its guard
+    hook to run headless, and that flag waives review for every hook in the
+    run, the project's own `.codex/` ones included — so a repo that ships
+    one could run arbitrary commands the moment a worker starts. Declared
+    per harness as `refuse_project_paths` (relative to the project root,
+    which is the worktree, or the repo for an advisor)."""
+    found = [p for p in spec.get("refuse_project_paths") or []
+             if (Path(project_root) / p).exists()]
+    if found:
+        raise HarnessError(
+            f"harness {spec.get('_name')!r} refuses to launch in {project_root}: it contains "
+            f"{found}, project config this harness would run without review. Remove it "
+            f"or review it, then launch; or staff a different harness.")
+
+
 def find_binary(spec: dict) -> str | None:
     """The CLI's executable: on PATH first, then each declared install path
     (`binary_paths`, ~ expanded) — agy installs to ~/.gemini/bin, which is

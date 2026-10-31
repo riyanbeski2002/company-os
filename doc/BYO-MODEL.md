@@ -40,10 +40,18 @@ with none of the guards. The integrate-time ownership check
 after-the-fact backstop. It is not an enforcement guarantee. The OS sandbox
 is a separate layer; `codex` provides its own through `sandbox_mode`.
 
+`refuse_project_paths` lists project config the harness would run without
+review. codex needs `--dangerously-bypass-hook-trust` for the guard hook to
+fire headless, and that flag also waives review of the project's own
+`.codex/` hooks. So a worktree containing `.codex/` (for an advisor, a
+repo) is refused before `WORKER_STARTED`.
+
 **Which harnesses are usable right now:** `company harnesses` (installed
 path, version, drift from `verified_with`, guard mode, launchable or why
 not); `--check` exits 1 if a harness that `default`/`roles` actually uses
-can't launch or has drifted. An entry with no `command` is *catalogued
+can't launch or has drifted. After an upgrade, re-verify with
+`company harnesses --smoke <name>`: one live worker turn that spends tokens,
+then it prints what to record. An entry with no `command` is *catalogued
 only*: its capabilities are recorded, but it's refused at resolve until an
 invocation has been verified live.
 

@@ -160,6 +160,8 @@ class TestShimNeedsLiveVerification(unittest.TestCase):
         self.assertEqual(spec["guards"], "shim")
         self.assertIn("0.163.0", spec["guards_verified"])
         self.assertEqual(harness.require_guards(spec), "shim")
+        # The trust bypass would also run a project's own .codex/ hooks.
+        self.assertIn(".codex", spec["refuse_project_paths"])
         cmd = harness.build_command(spec, role="backend-engineer", plugin_root=HERE.parent,
                                     allowed_tools=WRITER_TOOLS)
         self.assertIn("--dangerously-bypass-hook-trust", cmd)

@@ -2248,7 +2248,14 @@ def cmd_harnesses(args):
     import harness
     import harnesses
     root = company_root(args)
-    out = harnesses.report(harness.load_config(root))
+    config = harness.load_config(root)
+    if args.smoke:
+        try:
+            out = harnesses.smoke(config, args.smoke)
+        except harness.HarnessError as exc:
+            emit({"ok": False, "error": str(exc)}, 1)
+        emit({"ok": out["pass"], **out}, 0 if out["pass"] else 1)
+    out = harnesses.report(config)
     emit({"ok": not (args.check and out["problems"]), **out},
          1 if args.check and out["problems"] else 0)
 
@@ -2776,6 +2783,9 @@ def build_parser():
     hz.add_argument("--check", action="store_true",
                     help="exit 1 if a harness in use can't launch or drifted from its "
                          "verified version")
+    hz.add_argument("--smoke", metavar="HARNESS",
+                    help="run the live guard smoke test on one harness (one real worker "
+                         "turn: spends tokens) and print what to record if it passes")
     hz.set_defaults(fn=cmd_harnesses)
 
     pu = sub.add_parser("pause", help="halt the one worker on a task; every other worker keeps running")
