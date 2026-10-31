@@ -30,8 +30,10 @@ harnesses:
     output: claude-json
     binary: claude
     # Capability states (migration doc §2): from `--help`/installed docs, not
-    # memory. --settings sandbox verified on 2.1.308 (see settings_flag).
-    verified_with: "claude 2.1.308"
+    # memory. Re-verified live on 2.1.316 (2026-10-31, §4.6 smoke test with
+    # this plugin's hooks + --settings sandbox): unowned Write and `cat .env`
+    # denied and logged; owned write allowed.
+    verified_with: "claude 2.1.316"
     capabilities:
       headless: SUPPORTED              # -p
       stdin_prompt: SUPPORTED
@@ -119,7 +121,8 @@ harnesses:
       headless: SUPPORTED              # codex exec
       stdin_prompt: SUPPORTED          # `-`
       json_output: SUPPORTED           # --json (JSONL)
-      schema_output: SUPPORTED         # --output-schema <file>; not yet used
+      schema_output: SUPPORTED         # --output-schema <file>: verified live
+                                       # 2026-10-31; not yet wired in
       model_select: SUPPORTED          # -m; account catalog unconfirmed
       effort: REQUIRES_CONFIGURATION   # -c model_reasoning_effort=
       resume: SUPPORTED                # exec resume <id>
@@ -138,11 +141,14 @@ harnesses:
     # in its own .codex/ config without review — weigh that before staffing
     # codex onto an untrusted repo.
     #
-    # NOT YET VERIFIED LIVE (no guards_verified), so harness.require_guards
-    # refuses every codex launch until a real run shows the hook firing and
-    # denying — the inline-TOML hook shape and the tool names that reach it
-    # were read from the binary, not observed.
+    # Verified live 2026-10-31 (migration doc §4.6 smoke test): the hook
+    # fired on every tool call and denied an unowned apply_patch, a
+    # force-push and `cat .env`, each logged; the owned write went through.
+    # Codex sends shell calls as tool_name "Bash" and patches as
+    # "apply_patch" with the envelope in tool_input.command. Re-run the
+    # smoke test after any codex upgrade.
     guards: shim
+    guards_verified: "2026-10-31 codex-cli 0.163.0"
     command:
       - codex
       - exec
@@ -181,22 +187,26 @@ harnesses:
       high: model_reasoning_effort=high
     strip_env: []
 
-  # Catalogued only (M3, 2026-10-30): capabilities recorded from `--help`
-  # and installed docs; no `command`, because no invocation or output shape
-  # has been observed in a live run yet — harness.resolve refuses them by
-  # name. Neither CLI documents its print-mode JSON, so an output adapter
-  # needs one recorded real run each (Riyan's approval: it spends tokens).
+  # Catalogued only (M3): capabilities recorded from `--help`, installed
+  # docs and one recorded live run each (2026-10-31); no `command` yet, so
+  # harness.resolve refuses them by name. agy's output adapter exists
+  # (`output: agy-json`); what still blocks a launch is below.
   agy:
     binary: agy
-    # Not on PATH by default; ~/.antigravity/antigravity/bin/agy is a
-    # dangling symlink on this machine.
+    # 1.4.12 installs to ~/.local/bin (on PATH); 1.4.11 lived in
+    # ~/.gemini/bin, kept as a fallback.
     binary_paths: ["~/.gemini/bin/agy"]
-    verified_with: "agy 1.4.11"
+    verified_with: "agy 1.4.12"
+    output: agy-json
     capabilities:
-      headless: SUPPORTED              # -p / --print
-      stdin_prompt: UNKNOWN            # stream-json stdin only, documented
-      json_output: SUPPORTED           # --output-format json (shape unknown)
-      schema_output: SUPPORTED         # --json-schema
+      headless: SUPPORTED              # --print=<prompt> (the prompt is the
+                                       # flag's VALUE; a bare --print eats the
+                                       # next flag as the prompt)
+      # Blocks a launch: worker.py sends the packet on stdin, but
+      # `--print=-` takes "-" literally. Only stream-json input reads stdin.
+      stdin_prompt: UNSUPPORTED
+      json_output: SUPPORTED           # one JSON object (adapters/agy.py)
+      schema_output: SUPPORTED         # --json-schema → structured_output, live
       model_select: SUPPORTED          # --model; `agy models`
       effort: SUPPORTED                # --effort
       resume: SUPPORTED                # --conversation <id>
@@ -207,14 +217,19 @@ harnesses:
       tool_allowlist: UNKNOWN
       mcp: SUPPORTED
       byok: UNKNOWN
-      cost_reporting: UNKNOWN
+      cost_reporting: UNSUPPORTED      # tokens only (usage.*_tokens), live
+    # Also blocks a launch: guards. hooks/guard.py agy exists, but nothing
+    # installs it into a worktree's .agents/hooks.json yet, and no live
+    # smoke test has run — so no `guards:` mode can honestly be declared.
   opencode:
     binary: opencode
     verified_with: "opencode 2.2.2"
     capabilities:
       headless: SUPPORTED              # opencode run
-      stdin_prompt: UNKNOWN
-      json_output: SUPPORTED           # run --format json (shape unknown)
+      stdin_prompt: SUPPORTED          # `opencode run` with no message, live
+      json_output: SUPPORTED           # run --format json: JSONL events
+                                       # (step_start, text{part.text},
+                                       # sessionID on each), live 2026-10-31
       schema_output: UNKNOWN
       model_select: SUPPORTED          # -m provider/model; `opencode models`
       effort: REQUIRES_CONFIGURATION   # model #variant suffix

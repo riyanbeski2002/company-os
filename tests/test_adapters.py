@@ -120,6 +120,61 @@ class TestCodexJsonl(unittest.TestCase):
         self.assertEqual(r["usage"]["output_tokens"], 2)
 
 
+# Verbatim stdout of three live agy 1.4.12 runs (2026-10-31).
+AGY_OK = ('{"conversation_id":"ca6cc266-069c-41bd-ad62-2101eee46ec3","status":"SUCCESS",'
+          '"response":"OK\\n","duration_seconds":5.6986609999999995,"num_turns":1,'
+          '"usage":{"input_tokens":8717,"output_tokens":64,"thinking_tokens":63,'
+          '"cache_read_tokens":0,"total_tokens":8781}}\n')
+AGY_SCHEMA = ('{"conversation_id":"74785e45-e4f8-408a-be30-2618c9743e35","status":"SUCCESS",'
+              '"response":"status ok\\n{\\"status\\":\\"ok\\"}\\n","duration_seconds":6.898416,'
+              '"num_turns":2,"structured_output":{"status":"ok"},"json_schema":{"type":"object",'
+              '"required":["status"],"properties":{"status":{"type":"string"}}},'
+              '"usage":{"input_tokens":17738,"output_tokens":172,"thinking_tokens":156,'
+              '"cache_read_tokens":0,"total_tokens":17910}}\n')
+AGY_DENIED = ('{"conversation_id":"5e07bef0-2288-4aaa-a66a-3dbcc64d3519","status":"SUCCESS",'
+              '"response":"","duration_seconds":4.891635,"num_turns":1,'
+              '"usage":{"input_tokens":8708,"output_tokens":188,"thinking_tokens":151,'
+              '"cache_read_tokens":0,"total_tokens":8896},'
+              '"denied_actions":[{"action":"command","display_name":"RunCommand"}]}\n')
+
+
+class TestAgyJson(unittest.TestCase):
+    SPEC = {"_name": "agy", "output": "agy-json"}
+
+    def parse(self, raw, code=0):
+        return adapters.parse(self.SPEC, raw, code)
+
+    def test_happy_path(self):
+        r = self.parse(AGY_OK)
+        self.assertEqual(set(r), NORMALIZED_KEYS)
+        self.assertEqual(r["session_id"], "ca6cc266-069c-41bd-ad62-2101eee46ec3")
+        self.assertIs(r["is_error"], False)
+        self.assertIsNone(r["terminal_reason"])
+        self.assertIsNone(r["cost_usd"], "agy reports tokens only, never a cost")
+        self.assertEqual(r["num_turns"], 1)
+        self.assertIsNone(r["structured_output"])
+        self.assertEqual(r["usage"], {"input_tokens": 8717, "output_tokens": 64,
+                                      "cache_read_input_tokens": 0,
+                                      "cache_creation_input_tokens": 0})
+
+    def test_schema_run_carries_structured_output(self):
+        self.assertEqual(self.parse(AGY_SCHEMA)["structured_output"], {"status": "ok"})
+
+    def test_auto_denied_tool_is_an_error_despite_status_success(self):
+        r = self.parse(AGY_DENIED)
+        self.assertIs(r["is_error"], True)
+        self.assertEqual(r["terminal_reason"], "permission_denied")
+
+    def test_usage_error_with_no_output_is_an_error(self):
+        # e.g. a bare `--print` followed by another flag: exit 2, empty stdout.
+        r = self.parse("", 2)
+        self.assertIs(r["is_error"], True)
+        self.assertIsNone(r["session_id"])
+
+    def test_killed_run_with_no_output_is_unknown(self):
+        self.assertIsNone(self.parse("", None)["is_error"])
+
+
 class TestHarnessOutputContract(unittest.TestCase):
     def _config(self, **spec):
         return {"default": "x", "harnesses": {"x": {"command": ["x"], **spec}}}

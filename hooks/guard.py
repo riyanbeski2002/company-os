@@ -39,7 +39,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import policy  # noqa: E402
 
-CODEX_SHELL = {"exec_command", "shell_command", "shell", "local_shell", "unified_exec"}
+# "Bash" is what codex 0.163.0 actually sends for a shell call (live run,
+# 2026-10-31); the others are its internal tool names, kept in case a
+# version reports those instead.
+CODEX_SHELL = {"Bash", "exec_command", "shell_command", "shell", "local_shell", "unified_exec"}
 CODEX_PATCH = {"apply_patch"}
 
 AGY_SHELL = {"run_command"}

@@ -24,12 +24,13 @@ shape.
 
 from __future__ import annotations
 
-from . import claude, codex
+from . import agy, claude, codex
 
 DEFAULT_OUTPUT = "claude-json"
 PARSERS = {
     "claude-json": claude.parse,
     "codex-jsonl": codex.parse,
+    "agy-json": agy.parse,
 }
 
 

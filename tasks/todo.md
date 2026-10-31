@@ -534,8 +534,8 @@ invocation changes, only where output is parsed.
 - [x] 4. hooks/guard.py <codex|agy>: fails closed, plus the role tool
       allowlist via $COMPANY_ALLOWED_TOOLS.
 - [x] 5. codex wired: --dangerously-bypass-hook-trust + `-c hooks.PreToolUse`.
-- [ ] 6. Live smoke test (§4.6) for codex, then set guards_verified. Needs
-      Riyan's OK: it spends real tokens.
+- [x] 6. Live smoke test (§4.6) for codex, then set guards_verified. Done
+      2026-10-31; see the M3 live batch below.
 
 **Review.**
 - 1013 tests OK.
@@ -554,12 +554,45 @@ invocation changes, only where output is parsed.
       catalogued only (no command), so they're refused at resolve by name.
 - [x] 3. Off-PATH binaries (agy at ~/.gemini/bin) resolve in argv; on-PATH
       ones keep their bare name (the argv pins caught a regression here).
-- [ ] 4. agy + opencode output adapters: need one recorded live run each
-      (Riyan's approval: spends tokens). Neither documents its print-mode JSON.
-- [ ] 5. codex `--output-schema`: same live-run batch.
+- [x] 4. agy output adapter (`agy-json`), tested on three verbatim live
+      outputs. opencode: shape recorded in harness.yaml; no adapter yet,
+      because with no blocking hook it can't launch anyway.
+- [x] 5. codex `--output-schema`: works live (not yet wired into the argv).
 
 **Review.**
-- 1028 tests OK.
+- 1028 tests OK at commit 335fe6e.
 - First real run of `company harnesses --check` on this machine found claude
   drifted: 2.1.314 installed vs 2.1.308 verified. Re-verify with one real
   worker run.
+
+**Live batch, 2026-10-31.** Riyan ran it; the script is
+scratchpad/live_batch.py. Throwaway repos, no remote, dummy .env canary.
+- **codex 0.163.0.**
+  - Run 1: the hook fired, but every shell call arrived as tool_name `Bash`,
+    which the guard denied as unrecognized. Failing closed worked.
+  - Fixed: added "Bash" to CODEX_SHELL.
+  - Run 2 (payloads logged): pass. Unowned apply_patch, force-push and
+    `cat .env` were all denied with the right rule and logged. The owned
+    apply_patch was allowed. guards_verified is now set, so codex is
+    launchable.
+- **claude 2.1.316.** It auto-updated mid-session; the test ran 33 minutes
+  after the install. Pass: the unowned Write and `cat .env` were denied and
+  logged, and the owned write went through. The model refused the push on
+  its own, so that path went through the same hook but wasn't exercised.
+  verified_with is set to 2.1.316, with ESC-013's uncommitted sandbox
+  changes applied.
+- **agy 1.4.12** (now at ~/.local/bin):
+  - The prompt must be passed as `--print=<prompt>`.
+  - `--print=-` doesn't read stdin. The model got "-" as its prompt, and
+    headless mode auto-denied the command it then tried.
+  - Still blocking a launch: delivering the packet without stdin, plus
+    installing the hook and running a live smoke test.
+- **opencode 2.2.2.** JSONL output, and stdin works. No usage or cost
+  fields appeared on a trivial reply.
+- **Found, not fixed:**
+  - (a) Every Claude hook fires twice: the global ~/.claude/settings.json
+    registers the company-os hooks, and --plugin-dir registers them again,
+    so the event log gets duplicate blocks and WORKER_EXITED events.
+  - (b) structured_output is null in every Claude worker run on record
+    (8/8 recent trade-ai runs, pre-upgrade too): `--json-schema` together
+    with `--agent` has never produced it.

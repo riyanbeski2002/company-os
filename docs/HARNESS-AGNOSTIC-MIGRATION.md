@@ -5,9 +5,10 @@ the directive's "immediate instruction" asks for **before** any code changes.
 **Status:** M0 (safe worktree lifecycle) implemented 2026-10-30; see
 KNOWN_GAPS.md #8. M1 (normalized result via per-harness output adapters)
 implemented 2026-10-30; see doc/BYO-MODEL.md contract point 2. M2 (guard
-parity) implemented 2026-10-30 except the live shim smoke test (§4.6). M3:
-`company harnesses [--check]` and the four-CLI capability catalogue done
-(2026-10-31); agy/opencode output adapters wait on one recorded live run each.
+parity) implemented 2026-10-30; codex's shim passed the live smoke test
+(§4.6) on 2026-10-31. M3: `company harnesses [--check]`, the four-CLI
+capability catalogue and the agy output adapter done (2026-10-31). agy and
+opencode stay catalogued only; tasks/todo.md lists what blocks each.
 M4–M5 not started.
 
 Evidence base: a full read of `tools/company/{harness,worker,integrate,gategroup,sessions,slots,eventlog}.py`,
@@ -182,8 +183,8 @@ providers:
   A harness with none of these is refused before anything is claimed, created or logged. This is stricter than the original H3 text. Read-only roles are covered too, because the secret-read guard is what protects them.
 - **Current state:**
   - claude: claude-plugin ✓.
-  - codex: shim wired in (hook-trust bypass plus a `-c hooks.PreToolUse` session layer), **unverified, so refused**.
-  - agy: shim translation exists; the adapter and hook install come in M3.
+  - codex: shim wired in (hook-trust bypass plus a `-c hooks.PreToolUse` session layer). **Verified live 2026-10-31 on 0.163.0.** The first run caught that shell calls arrive as `Bash`, which the guard had denied as unknown.
+  - agy: shim translation and output adapter exist. Not launchable yet: the hook isn't installed into worktrees, and the packet can't be delivered on stdin.
   - opencode: no blocking hook found on v2.2.2, so it can only ever be `external` or refused.
 
 **Shim smoke test (required before setting `guards_verified`).** A shim

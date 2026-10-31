@@ -72,7 +72,7 @@ needed. Every other role keeps using `default:` unless it has its own entry.
    `structured_output`, `cost_usd`, `num_turns`, `usage`; field meanings in
    `adapters/__init__.py`), which is all `worker.py` and the event log ever
    see. Shipped formats: `claude-json` (the default when `output:` is absent)
-   and `codex-jsonl`. A CLI with a new format means a new adapter module with
+   `codex-jsonl` and `agy-json`. A CLI with a new format means a new adapter module with
    one `parse(raw, exit_code)` function plus its tests against recorded real
    output, not a wrapper that impersonates Claude. An unknown `output:` is
    refused when the role is resolved, before anything launches. The

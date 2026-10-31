@@ -1,7 +1,8 @@
 """hooks/guard.py — company-os's guards for harnesses other than Claude Code (M2).
 
 Payload and deny shapes are taken from each CLI's own installed contract, as
-read 2026-10-30 (no live run yet — see `guards_verified` in harness.py):
+read 2026-10-30. codex's was then confirmed by a live smoke test on
+2026-10-31 (shell calls arrive as tool_name "Bash"); agy's is still unrun:
   codex 0.163.0  embedded schema `pre-tool-use.command.input`: tool_name /
                  tool_input / cwd; deny = Claude's hookSpecificOutput shape.
   agy 1.4.11     ~/.gemini/antigravity/.../docs/hooks.md: toolCall.name /
@@ -69,6 +70,12 @@ class TestCodex(ShimCase):
     def test_force_push_through_shell_is_denied(self):
         out = self.codex("exec_command", {"command": ["git", "push", "--force", "origin", "x"]})
         self.assertIn("force-push", self.reason(out))
+
+    def test_shell_named_bash_is_classified_as_shell(self):
+        # codex 0.163.0's live hook payload names its shell tool "Bash".
+        self.assertIn("force-push", self.reason(
+            self.codex("Bash", {"command": "git push --force origin main"})))
+        self.assertIsNone(self.codex("Bash", {"command": "pytest -q"}))
 
     def test_ordinary_shell_is_allowed(self):
         self.assertIsNone(self.codex("shell_command", {"command": "pytest -q"}))
@@ -147,10 +154,12 @@ class TestShimNeedsLiveVerification(unittest.TestCase):
             {"_name": "codex", "guards": "shim", "guards_verified": "2026-11-01 codex 0.163.0",
              "command": ["codex"]}), "shim")
 
-    def test_shipped_codex_carries_the_shim_but_is_not_yet_verified(self):
+    def test_shipped_codex_carries_the_verified_shim(self):
+        # Verified by the §4.6 live smoke test on codex-cli 0.163.0.
         spec = {**harness.load_config(HERE.parent)["harnesses"]["codex"], "_name": "codex"}
         self.assertEqual(spec["guards"], "shim")
-        self.assertFalse(spec.get("guards_verified"))
+        self.assertIn("0.163.0", spec["guards_verified"])
+        self.assertEqual(harness.require_guards(spec), "shim")
         cmd = harness.build_command(spec, role="backend-engineer", plugin_root=HERE.parent,
                                     allowed_tools=WRITER_TOOLS)
         self.assertIn("--dangerously-bypass-hook-trust", cmd)
