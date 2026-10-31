@@ -543,3 +543,23 @@ invocation changes, only where output is parsed.
   launched with no guards at all.
 - Known cost to weigh: the trust-bypass flag also runs any .codex hooks the
   worked-on repo ships.
+
+## Harness-agnostic M3: harness detection and catalogue (Riyan, 2026-10-31)
+
+- [x] 1. tools/company/harnesses.py + `company harnesses [--check]`: binary
+      (PATH, then binary_paths), `--version` only, drift vs verified_with,
+      guard mode, launchable or why not. --check fails for in-use harnesses.
+- [x] 2. Capability catalogue (validated STATES, no optimistic defaults) for
+      claude, codex, agy, opencode, in both config copies. agy/opencode are
+      catalogued only (no command), so they're refused at resolve by name.
+- [x] 3. Off-PATH binaries (agy at ~/.gemini/bin) resolve in argv; on-PATH
+      ones keep their bare name (the argv pins caught a regression here).
+- [ ] 4. agy + opencode output adapters: need one recorded live run each
+      (Riyan's approval: spends tokens). Neither documents its print-mode JSON.
+- [ ] 5. codex `--output-schema`: same live-run batch.
+
+**Review.**
+- 1028 tests OK.
+- First real run of `company harnesses --check` on this machine found claude
+  drifted: 2.1.314 installed vs 2.1.308 verified. Re-verify with one real
+  worker run.

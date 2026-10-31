@@ -2241,6 +2241,18 @@ def cmd_stop(args):
           "note": "worktrees preserved — nothing was deleted"})
 
 
+def cmd_harnesses(args):
+    """Installed agent CLIs vs. what each harness.yaml entry was verified
+    against; `--check` fails if a harness a role uses can't launch or has
+    drifted to an unverified version (harnesses.py)."""
+    import harness
+    import harnesses
+    root = company_root(args)
+    out = harnesses.report(harness.load_config(root))
+    emit({"ok": not (args.check and out["problems"]), **out},
+         1 if args.check and out["problems"] else 0)
+
+
 def cmd_cleanup(args):
     """Reconcile managed worktrees: remove the ones whose work is safely
     elsewhere, report the ones that aren't (worktrees.py has the invariants)."""
@@ -2758,6 +2770,13 @@ def build_parser():
     cu.add_argument("--task", help="only this task's worktree")
     cu.add_argument("--actor")
     cu.set_defaults(fn=cmd_cleanup)
+
+    hz = sub.add_parser("harnesses", help="installed agent CLIs, versions, capabilities, "
+                                          "and whether each can launch")
+    hz.add_argument("--check", action="store_true",
+                    help="exit 1 if a harness in use can't launch or drifted from its "
+                         "verified version")
+    hz.set_defaults(fn=cmd_harnesses)
 
     pu = sub.add_parser("pause", help="halt the one worker on a task; every other worker keeps running")
     pu.add_argument("task_id")

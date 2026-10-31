@@ -40,6 +40,13 @@ with none of the guards. The integrate-time ownership check
 after-the-fact backstop. It is not an enforcement guarantee. The OS sandbox
 is a separate layer; `codex` provides its own through `sandbox_mode`.
 
+**Which harnesses are usable right now:** `company harnesses` (installed
+path, version, drift from `verified_with`, guard mode, launchable or why
+not); `--check` exits 1 if a harness that `default`/`roles` actually uses
+can't launch or has drifted. An entry with no `command` is *catalogued
+only*: its capabilities are recorded, but it's refused at resolve until an
+invocation has been verified live.
+
 Mechanically, `config/harness.yaml`'s `roles:` map is the entire integration
 surface:
 
@@ -112,6 +119,14 @@ harnesses:
                                     # shim | external. A harness with none
                                     # gets NO launches (see "Guards" below).
     command: [...]                 # argv template, see placeholders below
+    binary: agy                    # how `company harnesses` finds the CLI:
+    binary_paths: ["~/.gemini/bin/agy"]  # PATH first, then these (only
+                                    # used in argv when not on PATH)
+    verified_with: "agy 1.4.11"    # version this entry was checked against;
+                                    # a different installed version is drift
+    capabilities:                  # SUPPORTED | UNSUPPORTED | UNKNOWN |
+      headless: SUPPORTED           # DISABLED | REQUIRES_CONFIGURATION —
+                                    # never optimistic; unconfirmed = UNKNOWN
     trailing_args: ["-"]           # appended after every flag build_command
                                     # adds (e.g. a stdin-prompt marker)
     model_flag: --model            # omit if the CLI takes no model flag

@@ -28,6 +28,25 @@ harnesses:
     # not also fold its body into the packet.
     native_agent_loading: true
     output: claude-json
+    binary: claude
+    # Capability states (migration doc §2): from `--help`/installed docs, not
+    # memory. --settings sandbox verified on 2.1.308 (see settings_flag).
+    verified_with: "claude 2.1.308"
+    capabilities:
+      headless: SUPPORTED              # -p
+      stdin_prompt: SUPPORTED
+      json_output: SUPPORTED           # --output-format json
+      schema_output: SUPPORTED         # --json-schema
+      model_select: SUPPORTED          # --model
+      effort: SUPPORTED                # --effort
+      resume: SUPPORTED                # --resume / --session-id
+      blocking_pre_tool_hook: SUPPORTED  # PreToolUse permissionDecision deny
+      persona_files: SUPPORTED         # --agent
+      os_sandbox: SUPPORTED            # --settings sandbox (Seatbelt)
+      tool_allowlist: SUPPORTED        # --allowedTools
+      mcp: SUPPORTED
+      byok: SUPPORTED                  # ANTHROPIC_BASE_URL, Bedrock/Vertex
+      cost_reporting: SUPPORTED        # total_cost_usd (an estimate)
     command:
       - claude
       - -p
@@ -94,6 +113,23 @@ harnesses:
     # parsing moved in-process (adapters/codex.py, selected by `output:`).
     # The script remains as a shim for older .company/config copies.
     output: codex-jsonl
+    binary: codex
+    verified_with: "codex-cli 0.163.0"
+    capabilities:
+      headless: SUPPORTED              # codex exec
+      stdin_prompt: SUPPORTED          # `-`
+      json_output: SUPPORTED           # --json (JSONL)
+      schema_output: SUPPORTED         # --output-schema <file>; not yet used
+      model_select: SUPPORTED          # -m; account catalog unconfirmed
+      effort: REQUIRES_CONFIGURATION   # -c model_reasoning_effort=
+      resume: SUPPORTED                # exec resume <id>
+      blocking_pre_tool_hook: SUPPORTED  # needs trust; shim unverified live
+      persona_files: UNKNOWN           # AGENTS.md (binary strings only)
+      os_sandbox: SUPPORTED            # -c sandbox_mode=workspace-write
+      tool_allowlist: UNKNOWN          # no flag; execpolicy rules only
+      mcp: SUPPORTED
+      byok: SUPPORTED                  # model_providers, --oss local
+      cost_reporting: UNSUPPORTED      # tokens only
     # Guards (2026-10-30, migration M2): hooks/guard.py is registered as this
     # run's PreToolUse hook via a session-flag config layer (`-c`; codex lists
     # "Session flags" as a hook source). --dangerously-bypass-hook-trust is
@@ -144,6 +180,55 @@ harnesses:
       medium: model_reasoning_effort=medium
       high: model_reasoning_effort=high
     strip_env: []
+
+  # Catalogued only (M3, 2026-10-30): capabilities recorded from `--help`
+  # and installed docs; no `command`, because no invocation or output shape
+  # has been observed in a live run yet — harness.resolve refuses them by
+  # name. Neither CLI documents its print-mode JSON, so an output adapter
+  # needs one recorded real run each (Riyan's approval: it spends tokens).
+  agy:
+    binary: agy
+    # Not on PATH by default; ~/.antigravity/antigravity/bin/agy is a
+    # dangling symlink on this machine.
+    binary_paths: ["~/.gemini/bin/agy"]
+    verified_with: "agy 1.4.11"
+    capabilities:
+      headless: SUPPORTED              # -p / --print
+      stdin_prompt: UNKNOWN            # stream-json stdin only, documented
+      json_output: SUPPORTED           # --output-format json (shape unknown)
+      schema_output: SUPPORTED         # --json-schema
+      model_select: SUPPORTED          # --model; `agy models`
+      effort: SUPPORTED                # --effort
+      resume: SUPPORTED                # --conversation <id>
+      blocking_pre_tool_hook: SUPPORTED  # .agents/hooks.json, decision: deny;
+                                       # hooks/guard.py agy translates it
+      persona_files: SUPPORTED         # --agent, .agents/agents
+      os_sandbox: UNKNOWN              # --sandbox exists; behavior unverified
+      tool_allowlist: UNKNOWN
+      mcp: SUPPORTED
+      byok: UNKNOWN
+      cost_reporting: UNKNOWN
+  opencode:
+    binary: opencode
+    verified_with: "opencode 2.2.2"
+    capabilities:
+      headless: SUPPORTED              # opencode run
+      stdin_prompt: UNKNOWN
+      json_output: SUPPORTED           # run --format json (shape unknown)
+      schema_output: UNKNOWN
+      model_select: SUPPORTED          # -m provider/model; `opencode models`
+      effort: REQUIRES_CONFIGURATION   # model #variant suffix
+      resume: SUPPORTED                # -s <id>
+      # No blocking pre-tool hook found on v2.2.2 (v1's tool.execute.before
+      # is absent from the binary). Without one it can never be guards: shim
+      # — only `external`, or not launched at all.
+      blocking_pre_tool_hook: UNKNOWN
+      persona_files: SUPPORTED         # run --agent
+      os_sandbox: UNKNOWN              # none found
+      tool_allowlist: REQUIRES_CONFIGURATION  # config permissions only
+      mcp: SUPPORTED
+      byok: SUPPORTED                  # baseURL, openai-compatible providers
+      cost_reporting: UNKNOWN
 
   # Template for a THIRD backend — commented out rather than guessed-and-
   # shipped, same discipline as `codex` above was held to before it was

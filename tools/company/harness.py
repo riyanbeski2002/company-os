@@ -62,6 +62,14 @@ def resolve(config: dict, role: str | None) -> dict:
     spec = (config.get("harnesses") or {}).get(name)
     if spec is None:
         raise HarnessError(f"harness {name!r} (role {role!r}) not defined under `harnesses:`")
+    if not spec.get("command"):
+        # Catalogued (M3): the CLI's verified capabilities are recorded so
+        # `company harnesses` can report on it, but no invocation has been
+        # observed working yet — so there is nothing honest to launch.
+        raise HarnessError(
+            f"harness {name!r} is catalogued only: its capabilities are recorded, but "
+            f"no invocation (command + output adapter) has been verified against a "
+            f"live run yet. See `company harnesses`.")
     # Checked here, before launch, not when the output is read: an unknown
     # format discovered after the run has already spent the run's tokens.
     fmt = adapters.output_format(spec)
@@ -122,6 +130,25 @@ def require_guards(spec: dict) -> str:
             f"hook the CLI silently skipped. Run the smoke test in "
             f"docs/HARNESS-AGNOSTIC-MIGRATION.md §4.6, then set `guards_verified`.")
     return mode
+
+
+def find_binary(spec: dict) -> str | None:
+    """The CLI's executable: on PATH first, then each declared install path
+    (`binary_paths`, ~ expanded) — agy installs to ~/.gemini/bin, which is
+    not on PATH by default, and its PATH-facing symlink can dangle."""
+    import os
+    import shutil
+    name = spec.get("binary")
+    if not name:
+        return None
+    found = shutil.which(name)
+    if found:
+        return found
+    for candidate in spec.get("binary_paths") or []:
+        path = os.path.expanduser(candidate)
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
 
 
 def read_result(spec: dict, raw: str, exit_code: int | None) -> dict:
@@ -186,7 +213,14 @@ def build_command(spec: dict, *, role: str, plugin_root: Path, allowed_tools: st
         return val
 
     cmd: list[str] = []
-    for tok in spec.get("command") or []:
+    command = list(spec.get("command") or [])
+    if command and spec.get("binary") and command[0] == spec["binary"]:
+        # Only for a CLI that isn't on PATH (agy): one that is keeps its bare
+        # name, so the launched argv stays byte-identical to what's pinned.
+        import shutil
+        if not shutil.which(command[0]):
+            command[0] = find_binary(spec) or command[0]
+    for tok in command:
         m = _PLACEHOLDER_RE.match(tok)
         if m:
             key = m.group(1)

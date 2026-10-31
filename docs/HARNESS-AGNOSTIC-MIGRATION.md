@@ -5,8 +5,10 @@ the directive's "immediate instruction" asks for **before** any code changes.
 **Status:** M0 (safe worktree lifecycle) implemented 2026-10-30; see
 KNOWN_GAPS.md #8. M1 (normalized result via per-harness output adapters)
 implemented 2026-10-30; see doc/BYO-MODEL.md contract point 2. M2 (guard
-parity) implemented 2026-10-30 except the live shim smoke test (§4.6). M3–M5
-not started.
+parity) implemented 2026-10-30 except the live shim smoke test (§4.6). M3:
+`company harnesses [--check]` and the four-CLI capability catalogue done
+(2026-10-31); agy/opencode output adapters wait on one recorded live run each.
+M4–M5 not started.
 
 Evidence base: a full read of `tools/company/{harness,worker,integrate,gategroup,sessions,slots,eventlog}.py`,
 `config/harness.yaml`, `hooks/*`; a repo-wide sweep for Claude-specific
