@@ -199,8 +199,8 @@ the default now, overstaffing is the exception that has to justify itself.
 
 - **Tier 0 — you do it inline.** Trivial edits, single-file changes, questions,
   status. Zero workers. **Most requests land here.**
-- **Tier 1 — a subagent.** Analysis, exploration, review, threat modelling,
-  test plans, research. Anything read-heavy whose output is a *judgment* rather
+- **Tier 1 — a consult** (`company consult`, below). Analysis, exploration,
+  review, threat modelling, test plans, research. Anything read-heavy whose output is a *judgment* rather
   than a large diff. No worktree, no branch, no supervision. Dramatically
   cheaper than Tier 2, and it should absorb most review work.
 - **Tier 2 — a headless worker process.** Only for parallel implementation work
@@ -262,16 +262,24 @@ directions and refused to guess-build, unprompted, for $0.16.
 Getting this wrong looks like `company run` failing with "no such task" while
 you grep your own source code for the right invocation — don't; it's below.
 
-**Tier 1 has no CLI step at all.** It is not staffed, planned, or run through
-`company`. You call the `Agent` tool directly, with no task ID and no
-worktree:
+**Tier 1 is one verb, `company consult`.** No task ID, no plan, no worktree:
 ```
-Agent(subagent_type: "product-designer", prompt: "<the assignment>")
-Agent(subagent_type: "code-reviewer", prompt: "review task/042 against its acceptance criteria")
+company consult product-designer --packet "<the assignment>"
+echo "review task/042 against its acceptance criteria" | company consult code-reviewer --packet -
 ```
-It runs inline, in your own turn, and returns its judgment to you. If it
-needs to hand off to a Tier-2 worker (e.g. product-designer → frontend), it
-still writes that via `company handoff`, but launching it is never `company run`.
+It blocks until the role answers and prints JSON whose `text` is its reply.
+The role runs read-only on whatever CLI `harness.yaml` gives it, sandboxed,
+with its launch and cost in the event log. This works the same whichever CLI
+you yourself are running in. A role that writes the repo (backend-engineer,
+frontend-engineer, video-editor) is refused: that's a Tier-2 task. A consulted
+role can't write files, so if its answer should be a file (product-designer's
+flow), you write it. Handing off to a Tier-2 worker still goes through
+`company handoff`.
+
+If you happen to be a Claude session, the `Agent` tool
+(`Agent(subagent_type: "code-reviewer", prompt: "...")`) is an equivalent
+shortcut. It's never required, and its run isn't in the event log, so prefer
+`consult` whenever the judgment is evidence for a gate or a report.
 
 **Tier 2 is a three-step chain — a task must exist before you can run it:**
 ```

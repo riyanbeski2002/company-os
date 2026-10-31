@@ -7,6 +7,8 @@ Every worker run ends in one normalized result, whatever produced it:
                                   run prints no result; unknown is not False)
   terminal_reason    str | None
   structured_output  dict | None  the RESULT_SCHEMA-shaped reply, if any
+  text               str | None   the final reply as plain text (what a
+                                  `company consult` caller reads back)
   cost_usd           float | None the harness's OWN estimate; None when it
                                   reports none — never computed here
   num_turns          int | None

@@ -46,6 +46,7 @@ def parse(raw: str, exit_code: int | None) -> dict:
         "is_error": is_error,
         "terminal_reason": terminal_reason,
         "structured_output": structured if isinstance(structured, dict) else None,
+        "text": data.get("response"),
         "cost_usd": None,  # agy reports tokens only, never a cost estimate
         "num_turns": data.get("num_turns"),
         "usage": {

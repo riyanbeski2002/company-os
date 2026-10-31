@@ -27,6 +27,7 @@ def parse(raw: str, exit_code: int | None) -> dict:
         "is_error": r.get("is_error"),
         "terminal_reason": r.get("terminal_reason"),
         "structured_output": r.get("structured_output"),
+        "text": r.get("result"),
         # Claude Code's client-side estimate of the API price; on a
         # subscription nothing is billed. Recorded as an estimate, upstream.
         "cost_usd": r.get("total_cost_usd"),

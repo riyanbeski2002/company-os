@@ -695,3 +695,75 @@ providers may see its code.
 Not in M4: macOS keychain lookup (env only for now), codex/agy/opencode
 provider wiring, and any live run (needs a real third-party key; you'd run
 it, per your rule on paid runs).
+
+## M5: harness-agnostic PM + mixed-workforce run (migration doc §5) — plan approved by Riyan
+
+Build (items 1–4) done 2026-10-31: suite 1070 OK. Live runs (5–7) next.
+
+Goal: one PM coordinates workers on different CLIs on the expense-demo
+fixture. The change is real, it merges on green, worktrees are cleaned up,
+and the evidence is kept. Then repeat with the PM itself on a non-Claude CLI.
+
+What blocks this today:
+- The PM launches Tier-1 roles (product-designer, code-reviewer…) with
+  Claude's `Agent` tool. A PM running in codex has no such tool, so the PM is
+  not yet harness-agnostic (migration doc §3, `company-pm` row).
+- agy (the plan's QA harness) is parked, so QA moves to claude.
+- The directive's "§37 acceptance" isn't in the repo. The acceptance below is
+  my concrete reading of it; correct it if §37 said more.
+
+Build (no model calls; full suite + stubbed-CLI tests):
+- [x] 1. `company consult <role> --project p` (packet on stdin): a thin CLI
+      over `worker.launch_readonly`, the path advisors already use. It gives
+      any PM, on any harness, a way to get a Tier-1 judgment: read-only,
+      sandboxed scratch cwd, provider/classification gate, redaction, and
+      WORKER_STARTED/result events. The role's harness comes from
+      harness.yaml as usual. It refuses Tier-2 roles, which go through
+      `company run`.
+- [x] 2. `agents/company-pm.md`: every launch goes through `company`
+      (`plan`/`staff`/`run`/`gate-group`/`consult`/`integrate`/`cleanup`).
+      `Agent`/`SendMessage`/`ListAgents` stay, as optional extras when the PM
+      happens to be Claude, never required. The "How you actually launch
+      each tier" section is rewritten to match.
+- [x] 3. A neutral PM brief, `agents/company-pm.md` body stripped of
+      Claude-only frontmatter, that a non-Claude CLI can take as its
+      instructions. As built: no new helper. `harness.load_persona` already
+      does exactly this for non-Claude workers, so the brief can't drift from
+      the file. Test: no frontmatter, and Tier 1 goes through `company consult`.
+- [x] 4. Tests: `consult` refuses Tier-2 roles and unknown roles; it records
+      WORKER_STARTED with harness + provider; it runs under a fake harness
+      the same way `advise` does (FakeHarnessCase).
+
+Live runs (scripts in scratchpad, dry-run with model calls stubbed, then
+Riyan runs each with `! python3 <path>`):
+- [ ] 5. `m5_run1.py`, with PM=claude, backend-engineer=codex, and every gate
+      (qa, code-reviewer, security if triggered)=claude:
+      - `tools/mkfixture.sh` into a scratchpad dir (never ~/dev/expense-demo).
+      - `company onboard`.
+      - A fixture-local `.company/config/harness.yaml` sets
+        `roles: {backend-engineer: codex}`.
+      - `claude -p --agent company-pm` gets one outcome, e.g. "managers can
+        reject an expense with a reason". It has a turn/time cap and prints
+        cost.
+      - Afterwards the script collects the evidence (below) without model
+        calls.
+- [ ] 6. `m5_run2.py`, the same fixture fresh, with PM=codex
+      (`codex exec` + the neutral brief from step 3). Workers are as in
+      run 1.
+- [ ] 7. Acceptance, checked from events/state, not from the PM's own report:
+      - the task reaches MERGED via `company integrate` with the fixture's
+        suite green;
+      - WORKER_STARTED events show both harnesses (`codex` for
+        backend-engineer, `claude` for the gates);
+      - each gate's verdict is recorded and no gate was skipped;
+      - guards fired at least once on each harness (GUARD events), or are
+        reported as "not exercised";
+      - `company cleanup --dry-run` reports zero safely-removable worktrees;
+      - `company costs` shows the run's cost per worker.
+- [ ] 8. Docs: migration doc §5 "As built (M5)", status line; review here.
+
+Cost: each run is roughly one PM session plus 3–4 worker sessions on the
+fixture. I'll print an estimate from the earlier fixture runs in the
+dry-run before you spend anything. Not in M5: agy (parked), opencode
+(catalogued only), BYO-key providers in the live run (M4's live check
+stays a separate script).

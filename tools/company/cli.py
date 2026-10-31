@@ -1595,6 +1595,50 @@ def cmd_advise_finding(args):
     emit({"ok": True, **data})
 
 
+def cmd_consult(args):
+    """A Tier-1 judgment from any non-implementing role, on whatever harness
+    harness.yaml gives that role — the way a PM that isn't a Claude session
+    (no `Agent` tool) gets a code review or a UX flow. Same launch path as
+    `advise`: read-only tools, sandboxed scratch cwd, provider gate,
+    redaction, WORKER_STARTED/EXITED. Work that writes the repo is a task
+    and goes through `company run`."""
+    import uuid
+    import worker as worker_mod
+    root = company_root(args)
+    repo = root.parent
+    project = load_project(root, args.project)
+    role = args.role
+    if os.environ.get("COMPANY_ACTOR"):
+        # Set by the launcher in every worker's env: a worker doesn't start
+        # more workers (spend and recursion the PM never chose).
+        die(f"consult is a PM verb; {os.environ['COMPANY_ACTOR']!r} is a worker", 2)
+    if not (worker_mod.PLUGIN_ROOT / "agents" / f"{role}.md").exists():
+        die(f"no such role {role!r} (agents/{role}.md)")
+    if role == "company-pm" or "Write" in worker_mod.role_tools(role).split(","):
+        die(f"{role} writes the repo: stage a task (`company plan`/`staff`) and "
+            f"launch it with `company run --role {role}`, not consult", 2)
+    question = sys.stdin.read() if args.packet == "-" else args.packet
+    if not question.strip():
+        die("an empty question; pass --packet TEXT or pipe it with --packet -")
+    packet = (f"Repository: {repo}\nProject: {project}\n\n{question}\n\n"
+              f"You are consulted read-only: you cannot edit files. Reply with "
+              f"your judgment as your final message; it is returned verbatim to "
+              f"the PM who asked.")
+    actor = args.actor or f"{role}-consult-{uuid.uuid4().hex[:6]}"
+    try:
+        res = worker_mod.launch_readonly(repo, root, project, packet, role, actor,
+                                         timeout=args.timeout)
+    except worker_mod.WorkerError as exc:
+        die(str(exc))
+    try:
+        result = json.loads((Path(res["stdout"]).parent / "result.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        result = {}
+    ok = res["exit_code"] == 0 and not res["timed_out"] and result.get("is_error") is not True
+    emit({**res, "ok": ok, "text": result.get("text"),
+          "structured_output": result.get("structured_output")}, 0 if ok else 1)
+
+
 READONLY_ROLES = ("cfo-advisor", "ciso-advisor", "cto-advisor", "coo-advisor",
                   "code-reviewer", "qa-engineer", "security-reviewer")
 
@@ -2550,6 +2594,17 @@ def build_parser():
     ad.add_argument("--project")
     ad.add_argument("--timeout", type=int, default=900)
     ad.set_defaults(fn=cmd_advise)
+
+    co = sub.add_parser("consult",
+                        help="a read-only Tier-1 judgment from one role, on its "
+                             "configured harness (code review, UX flow, QA read)")
+    co.add_argument("role")
+    co.add_argument("--packet", required=True,
+                    help="the question; '-' reads it from stdin")
+    co.add_argument("--project")
+    co.add_argument("--actor", help="default: <role>-consult-<random>")
+    co.add_argument("--timeout", type=int, default=900)
+    co.set_defaults(fn=cmd_consult)
 
     af = sub.add_parser("advise-finding", help="officer-facing: file one finding")
     af.add_argument("--officer", required=True,

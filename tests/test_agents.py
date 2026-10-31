@@ -117,9 +117,11 @@ class TestAgentDefinitions(unittest.TestCase):
         Tier 1 and needs no task ID at all — then burned 6 minutes grepping
         its own source for the right invocation. The correct sequence for
         both tiers needed to be IN the prompt, not discoverable only by
-        reading cli.py."""
+        reading cli.py. M5: Tier 1 is `company consult`, so a PM on a CLI
+        with no `Agent` tool can launch it too."""
         text = (AGENTS[0].parent / "company-pm.md").read_text(encoding="utf-8")
-        self.assertIn("Tier 1 has no CLI step at all", text)
+        self.assertIn("Tier 1 is one verb, `company consult`", text)
+        self.assertIn("company consult code-reviewer --packet -", text)
         self.assertIn("company plan --spec", text)
         self.assertIn("company staff --project", text)
         self.assertIn("company run TASK-101", text)

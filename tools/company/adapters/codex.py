@@ -72,6 +72,7 @@ def parse(raw: str, exit_code: int | None) -> dict:
         "is_error": is_error,
         "terminal_reason": terminal_reason,
         "structured_output": structured,
+        "text": agent_text or None,
         "cost_usd": None,  # Codex reports tokens only, never a cost estimate
         "num_turns": None,
         "usage": {

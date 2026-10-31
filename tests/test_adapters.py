@@ -26,7 +26,7 @@ import worker  # noqa: E402
 from eventlog import EventLog  # noqa: E402
 
 NORMALIZED_KEYS = {"session_id", "is_error", "terminal_reason", "structured_output",
-                   "cost_usd", "num_turns", "usage"}
+                   "text", "cost_usd", "num_turns", "usage"}
 USAGE_KEYS = {"input_tokens", "output_tokens", "cache_read_input_tokens",
               "cache_creation_input_tokens"}
 
@@ -64,6 +64,8 @@ class TestClaudeJson(unittest.TestCase):
         self.assertEqual(r["num_turns"], 11)
         self.assertEqual(r["structured_output"], {"summary": "done", "blocked": False})
         self.assertEqual(r["usage"], CLAUDE_RESULT["usage"])
+        self.assertEqual(self.parse(json.dumps({**CLAUDE_RESULT, "result": "LGTM"}))["text"],
+                         "LGTM")
 
     def test_banner_text_before_the_json_is_tolerated(self):
         r = self.parse("some banner\n" + json.dumps(CLAUDE_RESULT))
@@ -89,6 +91,7 @@ class TestCodexJsonl(unittest.TestCase):
     def test_happy_path(self):
         r = self.parse(CODEX_OK)
         self.assertEqual(set(r), NORMALIZED_KEYS)
+        self.assertEqual(r["text"], '{"summary": "done", "blocked": false}')
         self.assertEqual(r["session_id"], "abc-123")
         self.assertIs(r["is_error"], False)
         self.assertIsNone(r["terminal_reason"])
@@ -147,6 +150,7 @@ class TestAgyJson(unittest.TestCase):
     def test_happy_path(self):
         r = self.parse(AGY_OK)
         self.assertEqual(set(r), NORMALIZED_KEYS)
+        self.assertEqual(r["text"], "OK\n")
         self.assertEqual(r["session_id"], "ca6cc266-069c-41bd-ad62-2101eee46ec3")
         self.assertIs(r["is_error"], False)
         self.assertIsNone(r["terminal_reason"])
