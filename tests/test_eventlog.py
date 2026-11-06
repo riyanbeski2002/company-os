@@ -106,6 +106,17 @@ class TestAppend(unittest.TestCase):
                 event="BOARD_NOTE", actor="w1", project="p",
                 data={"subject": "T-1", "type": "RUMOR", "content": "x"}))
 
+    def test_escalation_without_an_id_is_refused(self):
+        # an id-less escalation can never be shown or resolved (seq 182, live)
+        for name in ("ESCALATION_RAISED", "ESCALATION_RESOLVED"):
+            with self.assertRaises(ValueError, msg=name):
+                self.log.append(make_event(event=name, actor="w1", project="p",
+                                           task="T-1", data={"need": "x"}))
+        written = self.log.append(make_event(
+            event="ESCALATION_RAISED", actor="w1", project="p", task="T-1",
+            data={"id": "ESC-001", "need": "x"}))
+        self.assertEqual(written["data"]["id"], "ESC-001")
+
     def test_board_note_accepted_with_valid_shape(self):
         written = self.log.append(make_event(
             event="BOARD_NOTE", actor="w1", project="p",

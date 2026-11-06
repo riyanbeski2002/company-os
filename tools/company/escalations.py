@@ -21,6 +21,8 @@ from pathlib import Path
 
 from eventlog import EventLog, canonical, make_event
 
+_WARNED_SEQS: set = set()  # malformed-event seqs already reported this process
+
 # What the PM is asking for. `kind` drives how `status` presents it.
 KINDS = {
     "human_action",   # something only a human can physically do (tmux, hardware, a login)
@@ -106,6 +108,10 @@ def fold(events: list[dict]) -> dict[str, dict]:
     if malformed:
         import sys
         for m in malformed:
+            # fold() runs many times per command; say it once per process.
+            if m["seq"] in _WARNED_SEQS:
+                continue
+            _WARNED_SEQS.add(m["seq"])
             print(f"warning: skipped malformed {m['event']} event (seq={m['seq']}, "
                   f"missing 'id') during escalations.fold() replay", file=sys.stderr)
     return open_escalations

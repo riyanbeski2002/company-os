@@ -188,5 +188,18 @@ class TestGalleryPlan(unittest.TestCase):
             self.assertNotIn(verb, text)
 
 
+class TestMalformedWarning(unittest.TestCase):
+    def test_warned_once_per_process_however_often_fold_runs(self):
+        import contextlib, io
+        escalations._WARNED_SEQS.discard(9001)
+        bad = [{"seq": 9001, "event": "ESCALATION_RAISED", "ts": "t", "data": {"need": "x"}}]
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            for _ in range(5):
+                self.assertEqual(escalations.fold(bad), {})
+        self.assertEqual(err.getvalue().count("seq=9001"), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
+
