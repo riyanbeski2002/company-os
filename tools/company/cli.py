@@ -1287,8 +1287,12 @@ def cmd_doctor(args):
                 capture_output=True, text=True,
             ).stdout.strip()
             ahead, behind = (counts.split() + ["0", "0"])[:2]
+            # Ahead is not a staffing hazard (passes), but it means the remote
+            # is not a backup of those commits — say so instead of "in sync".
             check("up to date with remote", behind == "0",
-                  "in sync" if behind == "0" else
+                  ("in sync" if ahead == "0" else
+                   f"not behind; {ahead} local commit(s) not yet pushed to {upstream}")
+                  if behind == "0" else
                   f"local {branch or 'HEAD'} is {behind} commit(s) behind {upstream} — "
                   f"`git pull --ff-only` before reasoning about what's built or staffing "
                   f"work, or you will judge merged work as missing/stale.")

@@ -109,6 +109,23 @@ class TestOnboardFreshRepo(unittest.TestCase):
         self.assertFalse(remote_check["ok"])
         self.assertIn("behind", remote_check["detail"])
 
+    def test_doctor_says_unpushed_commits_instead_of_in_sync(self):
+        """Live 2026-11-06: main was 13 commits ahead and doctor said "in sync",
+        implying the remote backed them up. Ahead passes but must say so."""
+        remote = Path(self.tmp.name) / "remote.git"
+        git(self.repo, "init", "-q", "--bare", str(remote))
+        git(self.repo, "remote", "add", "origin", str(remote))
+        git(self.repo, "push", "-q", "-u", "origin", "HEAD:main")
+        git(self.repo, "commit", "-q", "--allow-empty", "-m", "unpushed")
+
+        self._run("init")
+        self._run("detect", "--write")
+        self._run("baseline")
+        out = json.loads(self._run("doctor").stdout)
+        remote_check = next(c for c in out["checks"] if c["check"] == "up to date with remote")
+        self.assertTrue(remote_check["ok"])
+        self.assertIn("1 local commit(s) not yet pushed", remote_check["detail"])
+
     def test_doctor_skips_remote_check_with_no_upstream(self):
         self._run("init")
         self._run("detect", "--write")
