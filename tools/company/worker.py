@@ -216,7 +216,8 @@ SANDBOX_WRITABLE = ("events", "tasks", "goals", "handoffs", "escalations", "stat
 _GLOB_CHARS = set("*?[]{}")
 
 
-def sandbox_settings(company_root: Path, workdir: Path) -> dict:
+def sandbox_settings(company_root: Path, workdir: Path,
+                     role: str | None = None) -> dict:
     """Per-launch Claude Code sandbox policy (passed via `--settings`).
 
     The sandbox confines every Bash call — and every child it spawns:
@@ -244,7 +245,7 @@ def sandbox_settings(company_root: Path, workdir: Path) -> dict:
         # A not-yet-existing allowWrite dir can't be created from inside the
         # sandbox (its parent isn't writable), so make them all up front.
         path.mkdir(parents=True, exist_ok=True)
-    return {"sandbox": {
+    policy = {
         "enabled": True,
         "failIfUnavailable": True,
         "allowUnsandboxedCommands": False,
@@ -252,7 +253,31 @@ def sandbox_settings(company_root: Path, workdir: Path) -> dict:
             "allowWrite": [str(p) for p in writable],
             "denyRead": [str(secrets)],
         },
-    }}
+    }
+    if role in GATE_VERDICT_EVENTS:
+        # ESC-013 (trade-ai, resolved by Riyan 2026-10-27, option 1).
+        # Gate roles run the project's REAL test suite, which on some repos
+        # includes a Postgres lane against a local container. The sandbox
+        # blocks that TCP connect, so QA was silently passing on the SQLite
+        # lane only and never verifying Postgres-specific behaviour
+        # (locking, triggers, migrations) — the exact class of bug
+        # trade-ai TASK-206 had to fix.
+        #
+        # Live-tested on claude 2.1.310, three runs:
+        #   no network key                  -> connect() EPERM  (the bug)
+        #   network.allowedDomains ["127.0.0.1:5433"] -> STILL EPERM, because
+        #       allowedDomains governs PROXIED HTTP; a DB driver's raw socket
+        #       never consults it. A per-port localhost allow does not exist.
+        #   network.allowLocalBinding true  -> localhost reachable,
+        #       example.com:80 still fails DNS. Internet stays blocked.
+        #
+        # So this is all-of-localhost or nothing. Scoped to GATE roles only:
+        # implementers, who write the code, stay fully network-sandboxed.
+        # Filesystem containment is untouched (independent layer).
+        # Accepted residual risk: a gate worker can reach other local
+        # services, so the failure mode is misleading evidence, not damage.
+        policy["network"] = {"allowLocalBinding": True}
+    return {"sandbox": policy}
 
 
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
@@ -480,7 +505,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         log = EventLog(company_root)
         wt, branch = ensure_worktree(repo, company_root, task)
         _check_project(harness_spec, wt)
-        sandbox = sandbox_settings(company_root, wt)
+        sandbox = sandbox_settings(company_root, wt, role)
 
         state = company_root / "state" / "workers" / actor
         state.mkdir(parents=True, exist_ok=True)
@@ -654,7 +679,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         policy_cfg = staffing.load_config(company_root, "staffing.yaml")
         policy = staffing.model_policy(policy_cfg, tier=2, gated=True, role=role)
         task_ids = [t["id"] for t in tasks]
-        sandbox = sandbox_settings(company_root, worktree)
+        sandbox = sandbox_settings(company_root, worktree, role)
 
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
@@ -857,7 +882,7 @@ def launch_readonly(repo: Path, company_root: Path, project: str, packet: str,
     out_path, err_path = state / "stdout.json", state / "stderr.log"
     cwd = state / "cwd"
     cwd.mkdir(exist_ok=True)
-    sandbox = sandbox_settings(company_root, cwd)
+    sandbox = sandbox_settings(company_root, cwd, role)
 
     policy_cfg = staffing.load_config(company_root, "staffing.yaml")
     policy = staffing.model_policy(policy_cfg, tier=1, gated=False, role=role)

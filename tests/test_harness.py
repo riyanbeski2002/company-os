@@ -296,6 +296,16 @@ class TestLaunchSandbox(unittest.TestCase):
         for d in worker.SANDBOX_WRITABLE:  # pre-created: the sandbox can't mkdir them
             self.assertTrue((self.root / d).is_dir(), d)
 
+    def test_only_gate_roles_get_localhost_network(self):
+        # ESC-013: gate roles run the real suite (incl. a local Postgres lane);
+        # implementers stay fully network-sandboxed.
+        for role in worker.GATE_VERDICT_EVENTS:
+            sb = worker.sandbox_settings(self.root, self.wt, role)["sandbox"]
+            self.assertEqual(sb["network"], {"allowLocalBinding": True}, role)
+        for role in (None, "backend-engineer", "frontend-engineer", "company-pm"):
+            sb = worker.sandbox_settings(self.root, self.wt, role)["sandbox"]
+            self.assertNotIn("network", sb, role)
+
     def test_worker_command_carries_the_settings_inline(self):
         sandbox = worker.sandbox_settings(self.root, self.wt)
         cmd = worker.build_command({"id": "T-1"}, "backend-engineer",
