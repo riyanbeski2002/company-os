@@ -1,0 +1,326 @@
+# Playbooks — how company-pm turns a kind of goal into a route.
+#
+# A playbook is NOT a plan. It is the PM's standing answer to "what does this
+# kind of goal need, in what order, and what must I refuse or escalate?" The PM
+# still writes the real plan (owned_globs, acceptance criteria) per goal. This
+# just removes the "how/why" guesswork Riyan called out: the PM should ask only
+# to clarify and detail the goal, never to be told which tools to use.
+#
+# Each playbook:
+#   kind            matches capability_router.classify() output
+#   match           literal phrases that route a goal here, high confidence (any-of)
+#   signals         plain domain words; a stemmed token overlap routes a goal here
+#                   at LOW confidence when no `match` phrase hits. This is what
+#                   lets a reworded goal ("track my workouts") still route, so it
+#                   still carries its gates. High-confidence always outranks low.
+#   composes_with   other kinds this one may legitimately pull in. When a goal
+#                   matches at least one kind at HIGH confidence, the router keeps
+#                   the high kinds + their composes_with and drops stray
+#                   low-confidence kinds (economy: don't load what the goal didn't
+#                   ask for). With no high match, all low matches are kept.
+#   clarify         goal-DETAIL questions the PM may ask (never how/why)
+#   steps           ordered; each requires `provides` tags the map must supply.
+#                   A step may carry `when: [triggers]` — it is included only if
+#                   the goal signals one of those triggers (stemmed single words,
+#                   or multi-word substrings like "react native"). No `when` =
+#                   always included.
+#   gates           hard stops — not questions, refusals/escalations. Each entry
+#                   is a plain string (always on) OR a {text, when} mapping
+#                   (on only if the goal signals `when`).
+#   gaps            honest "this part has no resource yet" notes. Same
+#                   string-or-{text, when} form as gates.
+#
+# Steps reference `provides` tags from config/capability-map.yaml. Tests assert
+# every required tag is supplied by some map entry AND that no map entry is
+# unreachable (every entry provides a tag some step requires). Risk-keyed gates
+# that apply regardless of classification live in capability_router.RISK_GATES,
+# not here — those are the safety net for a goal that matches no playbook.
+
+playbooks:
+
+  - kind: build_app
+    match: [build an app, build a, personal app, tracker, web app, mobile app,
+            replica of, clone of, dashboard]
+    signals: [tracker, track, log, logging, calorie, workout, fitness, dashboard,
+              clone, replica, copies, copy, photos, library, app, application,
+              website, platform, saas, software, program, system, tool, glucose,
+              sleep, weight, mood, steps, netflix, spotify, movies, songs, music,
+              signup, login, account, accounts, users, email, profile, auth, crud,
+              diary, journal, calculator, history, records, record, count, counter,
+              insulin, blood, allergy, bmi, doctor, diagnosis, dose, appointment,
+              diabetes, sugar, habit, habits, passport, ssn, kyc, identity,
+              biometric, spreadsheet, migraine, migraines, meds, medicine, pill,
+              pills, symptom, symptoms, therapist, anxiety, eat, food, meal, meals,
+              gym, run, runs, exercise, cycle, nutrition, stripe, checkout,
+              ecommerce, store, bank, banking, budget, budgeting, finance, invoice,
+              payroll, payments, fintech, retirement, portfolio, site, photography,
+              gallery]
+    clarify:
+      - "Web, mobile, or both?"
+      - "Who are the users, and roughly how many?"
+      - "What are the 3-5 things a user must be able to do?"
+      - "Any data that is sensitive (health, financial, personal)?"
+    steps:
+      - requires: [ux_flow]
+        why: "Pin states and edge cases before any UI is built."
+      - requires: [visual_design]
+        why: "Intentional visual direction, not templated defaults."
+      - requires: [frontend_build]
+        why: "Build the screens."
+      - requires: [mobile_patterns]
+        when: [mobile, ios, android, "react native", "cross platform", "cross-platform"]
+        why: "Cross-platform mobile patterns when the app targets phones."
+      - requires: [backend_build]
+        why: "APIs, data model, business logic."
+      - requires: [phi_compliance]
+        when: [health, medical, phi, fitness, workout, calorie, patient, wellness,
+               glucose, sleep, heart, pressure, weight, mood, medication, vitals,
+               insulin, blood, allergy, allergies, bmi, doctor, diagnosis, dose,
+               vaccine, asthma, diabetes, appointment, sugar, mental, cardio,
+               migraine, migraines, meds, medicine, medicines, pill, pills,
+               therapist, anxiety, depression, pain, injury, period, periods,
+               menstrual, slept, ate, weigh]
+        why: "PHI/privacy handling when the app stores personal health data."
+      - requires: [secure_coding_ref]
+        why: "Secure-coding checklist reference during the build, before formal review."
+      - requires: [compliance_flag]
+        when: [spotify, netflix, clone, replica, copies, copy, catalog, streaming,
+               licensed, drm, copyright, movies, songs, music]
+        why: "Flag content-licensing exposure when cloning a licensed service."
+      - requires: [code_review]
+        why: "Independent correctness pass."
+      - requires: [verification]
+        why: "Confirm acceptance criteria are actually met."
+    gates:
+      - "If it stores personal/health/financial data, security_review is mandatory before ship."
+    gaps:
+      - text: "A 'clone' of a licensed catalog service (Spotify, Netflix, etc.) cannot legally replicate its licensed/DRM catalog. Buildable: the app shell plus the user's OWN content. Licensed catalog access is a separate legal/commercial track, not something the build can fake."
+        when: [spotify, netflix, clone, replica, copies, copy, catalog, streaming,
+               licensed, drm, copyright, movies, songs, music]
+      - text: "Personal health data carries a data-residency and retention decision (where stored, how long, which jurisdiction) that must be made explicitly."
+        when: [health, medical, phi, fitness, workout, calorie, patient, wellness,
+               glucose, sleep, heart, pressure, weight, mood, medication, vitals,
+               insulin, blood, allergy, allergies, bmi, doctor, diagnosis, dose,
+               vaccine, asthma, diabetes, appointment, sugar, mental, cardio,
+               migraine, migraines, meds, medicine, medicines, pill, pills,
+               therapist, anxiety, depression, pain, injury, period, periods,
+               menstrual, slept, ate, weigh]
+      - text: "A 'tailored'/'personalized' experience (recommendations, a ranked feed) is a distinct ML/recommendation workstream — it needs usage data and an offline eval, and is not a default CRUD feature. Flag it as its own phase."
+        when: [tailored, personalized, personalised, recommend, recommendation,
+               recommendations, "for me", feed, ranking, "based on"]
+
+  - kind: trading_app
+    match: [trading app, trading agent, trading bot, invest, crypto,
+            equities, forex, investment portfolio, stock portfolio,
+            portfolio tracker, stock market, crypto market, day trading,
+            margin trading, options trading, hedge fund, stock trading,
+            trade stocks, trading crypto, buy and sell stocks, buys and sells stocks,
+            executes trades, execute trades, market orders, places market orders,
+            places trades, trade on my behalf]
+    signals: [trading, trade, trades, invest, investing, stock, stocks, crypto,
+              equity, equities, forex, broker, brokerage, backtest, bitcoin, btc,
+              eth, ethereum, coin, altcoin, token, defi, rebalance, holdings,
+              wallet, algo, dividend, ticker, dips]
+    clarify:
+      - "Analysis and paper-trading only, or do you intend live order execution later?"
+      - "Which markets and data sources?"
+      - "Who operates it — just you, or others?"
+    steps:
+      - requires: [trading_research_method, overfitting_defense, trading_kill_switch]
+        why: "Apply the research-loop discipline: paper-only default, a code-level kill switch, and overfitting defenses (sealed test period, walk-forward, deflated Sharpe, hypothesis ledger)."
+      - requires: [ux_flow]
+        why: "Define the screens and the decision surface."
+      - requires: [visual_design]
+        why: "A clear decision surface — charts/positions read at a glance, not templated defaults."
+      - requires: [frontend_build]
+        why: "Build the UI."
+      - requires: [backend_build]
+        why: "Data ingestion, strategy logic, storage."
+      - requires: [secure_coding_ref]
+        why: "Secure-coding checklist reference before the independent review."
+      - requires: [trading_safety_review]
+        why: "Review the agent's design for unsafe autonomy before anything live."
+      - requires: [security_review]
+        why: "Credentials, API keys, and account access are high-risk."
+      - requires: [compliance_flag]
+        why: "Flag market-data / brokerage licensing exposure."
+      - requires: [code_review]
+        why: "Independent correctness pass on strategy and execution code."
+      - requires: [verification]
+        why: "Confirm the backtest/paper-trade pipeline behaves as specified."
+    gates:
+      - "Build defaults to analysis + simulation. Live money movement (real orders, withdrawals, custody of funds) is an ESCALATION to Riyan, never a default, and is not implemented without explicit written go-ahead."
+      - "No brokerage/exchange credentials are hard-coded or committed."
+      - "The risk/kill switch is CODE that runs before every order, never a prompt-level instruction."
+    gaps:
+      - "No vetted live-brokerage execution integration in the catalog. Simulation first; live execution is a separate, approved decision."
+      - "Market-data is licensed: real-time/historical exchange or vendor feeds require a paid, terms-bound subscription; the build cannot assume free redistribution rights."
+
+  - kind: video_recreate
+    match: [recreate this reel, remake this video, recreate the video,
+            make a reel, instagram reel, short video, promo video, launch video]
+    signals: [reel, reels, short, shorts, clip, clips, promo, promotional, video,
+              tiktok, instagram, trailer, explainer, voiceover, edit, montage, cut]
+    clarify:
+      - "Is this an original piece inspired by a reference, or a specific brand/product promo?"
+      - "What is the message and the call to action?"
+      - "Where will it be posted, and what aspect ratio/length?"
+    steps:
+      - requires: [reel_structure]
+        why: "Capture the structure/pacing of the reference as an ORIGINAL composition."
+      - requires: [promo_video]
+        when: [promo, promotional, product, launch, saas, brand, marketing]
+        why: "Product-launch/promo treatment when the clip markets a product."
+      - requires: [media_sourcing, voiceover]
+        why: "Source or generate original footage, music, voiceover. voiceover's confirm-gated alternates (cloud or local cloning) surface only when media-use's default isn't enough — ask before reaching for one."
+      - requires: [video_build, video_compose, animation, video_render_alt]
+        why: "Staff the owner and author the composition. video_build/video_render_alt surface as ask-before-using — company-pm confirms with Riyan before staffing video-editor or reaching for an alternate render path, rather than defaulting to hyperframes alone with no accountable owner."
+      - requires: [motion_as_code]
+        when: ["motion as code", "code-driven", voiceover, explainer, procedural]
+        why: "Code-as-frames, voiceover-locked render path when that approach is wanted."
+      - requires: [video_quality_check]
+        why: "Check the cut against the editing doctrine (pacing, loudness, frame-by-frame look at every cut) before calling it done — this is the review gate every other playbook has and video_recreate was missing."
+      - requires: [audio_quality_check]
+        why: "Measure the audio (LUFS/true-peak/spectrum) and get a sound-design critique before calling it done — the audio-side counterpart to video_quality_check, same reason it was missing: nothing required it."
+      - requires: [video_transform]
+        why: "Final cut/transcode to the target format."
+      - requires: [video_placement]
+        why: "Place the finished clip on a real NLE timeline, only when Riyan wants it staged for further hand editing rather than just the rendered file."
+    gates:
+      - "No downloading, re-hosting, or re-posting of someone else's actual footage/audio. Recreate structure with original assets only."
+    gaps:
+      - "Producing the video is covered. Posting to Instagram and returning a share link is NOT — there is no posting integration. The PM delivers the rendered file and the caption; publishing is manual or a separate approved integration."
+
+  - kind: content_engine
+    match: [content engine, content creation engine, posts on my, auto post,
+            picks a niche, regular basis, youtube and instagram, yt and ig,
+            content pipeline, faceless channel]
+    signals: [content, channels, publishing, autopost, faceless, niche, cadence,
+              posting, youtube, instagram, shorts, reels, faceless, automated]
+    composes_with: [build_app]
+    clarify:
+      - "Which platforms, and how often?"
+      - "Fully hands-off, or you approve each post before it goes out?"
+      - "Any niche/brand constraints, or should the system choose the niche?"
+    steps:
+      - requires: [content_strategy, channel_strategy]
+        why: "Niche selection and per-platform format/cadence strategy."
+      - requires: [reel_structure, video_compose, video_build]
+        why: "Produce each video. video_build surfaces as ask-before-using — confirm with Riyan before staffing video-editor as the accountable owner of the pipeline's output."
+      - requires: [media_sourcing, voiceover]
+        why: "Original assets per video. voiceover's confirm-gated alternates surface only when media-use's default isn't enough."
+      - requires: [shorts_repurposing]
+        when: [repurpose, repurposing, "long form", longform, "long-form",
+               "existing footage", "existing video", "existing videos",
+               "cut down", "chop up", "turn into shorts", "turn into clips"]
+        why: "When the engine draws from existing long-form assets rather than producing from scratch, score and extract the clip-worthy segments instead of hand-picking cuts."
+      - requires: [video_quality_check]
+        why: "Check each video against the editing doctrine before it enters the publish queue — the review gate this pipeline needs at scale, not just once."
+      - requires: [audio_quality_check]
+        why: "Measure and critique each video's audio before it enters the publish queue — the audio counterpart to video_quality_check, at the same scale."
+      - requires: [backend_build]
+        why: "The engine IS software: the generation pipeline, the content queue, and the scheduling/state that runs it on a cadence."
+      - requires: [publishing_workflow]
+        why: "Define the repeatable publish workflow (structure, not automated posting)."
+      - requires: [code_review]
+        why: "Independent correctness pass on the pipeline."
+      - requires: [verification]
+        why: "Confirm the engine actually produces and queues content end-to-end."
+    gates:
+      - "Automated posting to YouTube/Instagram requires real account credentials and platform API access. That is an ESCALATION — the PM builds the generation pipeline and a review step, and flags posting as needing Riyan's accounts and approval, not a silent integration."
+      - "Each post passes a review gate before publishing unless Riyan explicitly waives it in writing."
+    gaps:
+      - "No IG/YT posting integration in the catalog. No scheduling daemon. The engine produces ready-to-post content + a queue; the actual posting step is unbuilt and needs approved account access."
+
+  - kind: vapt
+    match: [vapt, pentest, penetration test, security assessment, security audit,
+            security test, security holes, security issues, security weaknesses,
+            security vulnerabilities, find holes, find weaknesses, find vulnerabilities,
+            break into, broken into, hack into, hack my, hack our, is it vulnerable,
+            is my app vulnerable, is my website hackable, hackable, insecure,
+            security problems, weak points, without a password, get into my app,
+            vulnerable, weaknesses, for weaknesses, exploit]
+    signals: [vapt, pentest, exploit, vulnerability, vulnerabilities, recon, breach,
+              hack, penetration, penetrate, intrusion, unauthorized, weakness,
+              weaknesses, vulnerable, hackable, insecure]
+    clarify:
+      - "Which exact target (domain/app), and is it listed in authorized-targets.yaml?"
+      - "What is in scope (frontend, backend, auth, api, data, infra)?"
+    steps:
+      - requires: [vapt_methodology]
+        why: "The pen_test skill's owned methodology for the authorized engagement."
+      - requires: [vapt, exploitation]
+        why: "Run the engagement against the authorized target only."
+      - requires: [security_review]
+        why: "Turn findings into prioritized, fixable guidance."
+    gates:
+      - "pen_test runs ONLY against a target explicitly listed and approved in config/authorized-targets.yaml, within its stated scope and constraints. An unlisted target is a hard stop — the PM asks for written authorization or refuses, it does not proceed."
+      - "Respect every constraint on the target entry (read-only impact, no DoS, no persistence, reversible only)."
+    gaps: []
+
+  - kind: research
+    match: [research, investigate, compare options, what exists, feasibility,
+            market scan, find the best, find opportunities, what should i build,
+            business idea, validate demand]
+    signals: [research, compare, feasibility, investigate, benchmark, opportunity,
+              opportunities, demand, validate, monetize]
+    clarify:
+      - "What decision will this research inform?"
+      - "How deep — a quick scan or a thorough comparison?"
+    steps:
+      - requires: [planning]
+        why: "Scope the question and the sources."
+      - requires: [opportunity_discovery, demand_validation]
+        when: [opportunity, opportunities, demand, "what should i build",
+               "business idea", monetize, validate]
+        why: "Run the opportunity-discovery loop with sourced evidence vs. labelled assumptions."
+    gates: []
+    gaps: []
+
+  - kind: finance_deliverable
+    match: [financial model, dcf, lbo, valuation, comps, pitch deck,
+            three statement, 3-statement, fundraise, cap table]
+    signals: [valuation, model, financial, forecast, revenue, raise, dcf, lbo, comps]
+    clarify:
+      - "What decision does this model support, and what is the time horizon?"
+      - "Which scenarios/sensitivities must it show?"
+    steps:
+      - requires: [financial_modeling]
+        why: "Build the model/deck from real inputs."
+      - requires: [compliance_flag]
+        when: [public, investor, fundraise, securities, offering]
+        why: "Flag securities/disclosure exposure when materials face investors."
+    gates: []
+    gaps: []
+
+  - kind: legal_review
+    match: [review this contract, review this nda, nda triage, contract review,
+            review this agreement, negotiate this contract, legal review,
+            review this msa, review this vendor contract]
+    signals: [contract, contracts, nda, ndas, agreement, agreements, msa,
+              clause, clauses, negotiate, negotiation, counterparty, redline,
+              indemnification, liability, termination, confidentiality]
+    clarify:
+      - "What kind of document is this (NDA, MSA, vendor contract, employment), and whose side are we on?"
+      - "What's the deal/relationship this document covers?"
+    steps:
+      - requires: [legal_review]
+        why: "Contract/NDA review against the negotiation playbook, or compliance/legal-risk triage."
+    gates:
+      - "legal-analyst assists, never replaces, licensed counsel — every deliverable states this explicitly. A real legal decision (sign/don't sign, litigation exposure) is Riyan's call, with counsel, not the agent's."
+    gaps: []
+
+  - kind: reverse_engineer
+    match: [reverse engineer, reverse engineering, decompile, decompiling,
+            disassemble, disassembling, rea this]
+    signals: [reverse, engineer, decompile, decompiled, disassemble, binary,
+              binaries, firmware, unpack, bytecode, obfuscated, obfuscation]
+    clarify:
+      - "What's the target artifact (binary/app/package/firmware), and where does it come from?"
+      - "Is the goal to explain behavior, compare versions, or guide a reconstruction?"
+    steps:
+      - requires: [reverse_engineering]
+        why: "REA's owned methodology for explaining shipped-artifact behavior, down to native binaries."
+    gates:
+      - "Only reverse-engineer an artifact Riyan owns, has rights to, or has explicit authorization to analyze — same authorization discipline as vapt, not assumed just because the artifact is in hand."
+    gaps: []

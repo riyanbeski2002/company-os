@@ -1,0 +1,503 @@
+# Capability map — what each resource is FOR, in plain language.
+#
+# The problem this solves (Riyan, 2026-10-24): the catalog
+# (capability-index.yaml, 1,791 units) and the registry say what EXISTS. They
+# do not say WHEN to reach for a thing or when NOT to. company-pm needs to turn
+# a goal into "use these, not those" without asking the user how or why.
+#
+# This file is hand-curated, not generated. It does not try to annotate all
+# 1,791 catalog units — it names the resources actually worth routing to, and
+# grows as new ones prove useful. Everything else stays browsable via
+# `company capability search`.
+#
+# Each entry:
+#   id        unique within this file
+#   kind      agent | native_skill | catalog_unit | repo | tool | external_tool
+#   ref       the real identifier: an agents/<name>, a native skills/<name>, a
+#             capability-index unit_id, or a registry id. Validated by tests.
+#   use_when  one line — the situation this is the right tool for
+#   not_when  one line — where it looks right but is the wrong tool
+#   provides  tags a playbook step can require (e.g. mobile_ui, render_video)
+#   trust     T0..T4, mirrored from the registry (tests check it matches)
+#   cost      rough note: context load, wall-clock, or $ — for the PM to weigh
+#
+# `ref` resolution and trust-tier agreement are enforced in
+# tests/test_capability_map.py. A playbook step may only require a `provides`
+# tag that some entry here supplies.
+
+entries:
+
+  # --- Orchestration & delivery (company-os's own, T0) -------------------
+  - id: pm
+    kind: agent
+    ref: company-pm
+    use_when: "Any goal that needs staffing, planning, or more than one worker."
+    not_when: "A single-file edit you can just make."
+    provides: [orchestration, planning, staffing]
+    trust: T0
+    cost: "the main session"
+  - id: product-designer
+    kind: agent
+    ref: product-designer
+    use_when: "A customer-facing screen or flow with real ambiguity, before any frontend is built."
+    not_when: "The UX is already specified or trivial."
+    provides: [ux_flow, information_architecture]
+    trust: T0
+    cost: "Tier-1, one pass"
+  - id: frontend-engineer
+    kind: agent
+    ref: frontend-engineer
+    use_when: "Building client-side screens, components, and interaction inside owned globs."
+    not_when: "Server/data work — that's backend-engineer."
+    provides: [frontend_build, mobile_ui, web_ui]
+    trust: T0
+    cost: "Tier-2 worker, own worktree"
+  - id: backend-engineer
+    kind: agent
+    ref: backend-engineer
+    use_when: "APIs, services, data models, business logic inside owned globs."
+    not_when: "Pure UI work — that's frontend-engineer."
+    provides: [backend_build, api, data_model]
+    trust: T0
+    cost: "Tier-2 worker, own worktree"
+  - id: qa-engineer
+    kind: agent
+    ref: qa-engineer
+    use_when: "Independent verification that a change meets its acceptance criteria."
+    not_when: "The implementer reviewing their own work."
+    provides: [verification, test_gaps]
+    trust: T0
+    cost: "Tier-1, one pass"
+  - id: code-reviewer
+    kind: agent
+    ref: code-reviewer
+    use_when: "Independent correctness/root-cause review of a task branch."
+    not_when: "Security-specific review — use security-reviewer."
+    provides: [code_review]
+    trust: T0
+    cost: "Tier-1, read-only"
+  - id: security-reviewer
+    kind: agent
+    ref: security-reviewer
+    use_when: "A change touches auth, permissions, secrets, payments, PII, uploads, migrations, or multi-tenancy."
+    not_when: "Running live exploitation against a target — that's pen_test, and only when authorized."
+    provides: [security_review]
+    trust: T0
+    cost: "Tier-1, read-only, auto-triggered by risk match"
+  - id: pen-test
+    kind: agent
+    ref: pen_test
+    use_when: "Authorized, stakeholder-approved exploitation of a named target in config/authorized-targets.yaml."
+    not_when: "No written authorization, or the target is not listed — then it does not run at all."
+    provides: [vapt, exploitation]
+    trust: T0
+    cost: "Tier-1; GATED on authorized-targets.yaml"
+  - id: finance-analyst
+    kind: agent
+    ref: finance-analyst
+    use_when: "Real finance deliverables — models, comps, decks — for a deal or planning."
+    not_when: "company-os's own cost auditing (that's cfo-advisor)."
+    provides: [financial_modeling]
+    trust: T0
+    cost: "Tier-1"
+  - id: legal-analyst
+    kind: agent
+    ref: legal-analyst
+    use_when: "Contract/NDA review against a playbook, or flagging compliance/legal-risk exposure."
+    not_when: "A substitute for licensed counsel on a real legal decision."
+    provides: [legal_review, compliance_flag]
+    trust: T0
+    cost: "Tier-1"
+
+  # --- Native skills (T0/T2, already in this repo) ----------------------
+  - id: ux-flow
+    kind: native_skill
+    ref: ux-flow
+    use_when: "Producing the states/edge-case/IA contract before frontend builds a new screen."
+    not_when: "The screen already has a spec."
+    provides: [ux_flow]
+    trust: T0
+    cost: "skill load"
+  - id: frontend-design
+    kind: catalog_unit
+    ref: anthropics-skills:frontend-design
+    use_when: "Giving new UI an intentional visual direction instead of templated defaults."
+    not_when: "A backend-only or CLI deliverable."
+    provides: [visual_design]
+    trust: T1
+    cost: "skill load"
+  - id: pen-test-skill
+    kind: native_skill
+    ref: pen_test
+    use_when: "The pen_test agent needs its owned methodology and native probes for an authorized engagement."
+    not_when: "Outside an authorized engagement."
+    provides: [vapt_methodology]
+    trust: T0
+    cost: "skill load; paired with pen-test agent"
+
+  # --- Video / reel / content (T2/T3) -----------------------------------
+  - id: hyperframes
+    kind: catalog_unit
+    ref: heygen-com-hyperframes:hyperframes
+    use_when: "Any request to make/edit a video, animation, motion graphic, captioned clip, or title card."
+    not_when: "Only recording a browser session (no composition)."
+    provides: [video_compose, animation]
+    trust: T2
+    cost: "skill load; render is wall-clock heavy"
+  - id: product-launch-video
+    kind: catalog_unit
+    ref: heygen-com-hyperframes:product-launch-video
+    use_when: "Turning a product/marketing URL or brief into a promo/launch video."
+    not_when: "A general multi-scene piece with no product-launch intent."
+    provides: [promo_video]
+    trust: T2
+    cost: "skill load"
+  - id: media-use
+    kind: catalog_unit
+    ref: heygen-com-hyperframes:media-use
+    use_when: "Sourcing or generating footage, BGM, SFX, or a voiceover for a composition."
+    not_when: "Mixing audio already placed — that's hyperframes-audio."
+    provides: [media_sourcing, voiceover]
+    trust: T2
+    cost: "skill load; may call paid generation"
+  - id: reel-recreate
+    kind: catalog_unit
+    ref: edenfunf-reelmimic:hyperframes
+    use_when: "Recreating the STRUCTURE/style of a reference reel as an original composition."
+    not_when: "Downloading or re-posting someone else's actual footage — that is not done."
+    provides: [reel_structure]
+    trust: T2
+    cost: "skill load"
+  - id: ffmpeg
+    kind: catalog_unit
+    ref: digitalsamba-claude-code-video-toolkit:ffmpeg
+    use_when: "Low-level video/audio transforms: cut, concat, transcode, extract."
+    not_when: "Authoring a composition — that's hyperframes."
+    provides: [video_transform]
+    trust: T2
+    cost: "skill load; needs ffmpeg binary present"
+
+  # --- Platform/channel strategy (agency-agents, T3 — read before use) --
+  - id: instagram-curator
+    kind: repo
+    ref: msitarzewski-agency-agents
+    path: "marketing/marketing-instagram-curator.md"
+    use_when: "Planning Instagram content strategy, cadence, and format (advice, not posting)."
+    not_when: "Actually publishing to an account — no posting integration exists here."
+    provides: [ig_strategy, channel_strategy]
+    trust: T3
+    cost: "read the agent prompt first; it is a role spec, not a tool"
+  - id: content-creator
+    kind: repo
+    ref: msitarzewski-agency-agents
+    path: "marketing/marketing-content-creator.md"
+    use_when: "Multi-platform content planning across IG/YT/short-video."
+    not_when: "Publishing or account automation."
+    provides: [content_strategy, channel_strategy]
+    trust: T3
+    cost: "read the agent prompt first; it is a role spec, not a tool"
+  - id: multi-platform-publisher
+    kind: repo
+    ref: msitarzewski-agency-agents
+    path: "marketing/marketing-multi-platform-publisher.md"
+    use_when: "Planning a repeatable multi-platform publishing workflow (strategy and structure)."
+    not_when: "Automated posting — no account/API integration exists in this repo."
+    provides: [publishing_workflow, channel_strategy]
+    trust: T3
+    cost: "read the agent prompt first; posting itself is a known gap"
+
+  # --- Mobile / app building (T3) ---------------------------------------
+  - id: react-native-patterns
+    kind: catalog_unit
+    ref: affaan-m-ecc:react-native-patterns
+    use_when: "Building a cross-platform mobile app (health tracker, music client, etc.)."
+    not_when: "A web-only app."
+    provides: [mobile_patterns]
+    trust: T3
+    cost: "skill load"
+
+  # --- Health domain (T3) -----------------------------------------------
+  - id: health-phi-compliance
+    kind: catalog_unit
+    ref: affaan-m-ecc:healthcare-phi-compliance
+    use_when: "A health app stores personal health data and needs privacy/handling guidance."
+    not_when: "A tracker holding no identifiable health data."
+    provides: [phi_compliance, privacy_guidance]
+    trust: T3
+    cost: "skill load; guidance, not a legal sign-off"
+
+  # --- Trading domain (T3 — advisory/analysis only) ---------------------
+  - id: trading-agent-security
+    kind: catalog_unit
+    ref: affaan-m-ecc:llm-trading-agent-security
+    use_when: "Reviewing the safety of an LLM-driven trading agent's design before it touches anything live."
+    not_when: "A general security review — that's security-reviewer."
+    provides: [trading_safety_review]
+    trust: T3
+    cost: "skill load"
+
+  # --- Secure coding reference (T3) -------------------------------------
+  - id: ecc-security-review
+    kind: catalog_unit
+    ref: affaan-m-ecc:security-review
+    use_when: "A secure-coding checklist reference during a build, before a formal review."
+    not_when: "A substitute for the security-reviewer agent's independent pass."
+    provides: [secure_coding_ref]
+    trust: T3
+    cost: "skill load"
+
+  # --- Native skills authored 2026-10-24 from Riyan's reference docs ---
+  - id: trading-research-loop
+    kind: native_skill
+    ref: trading-research-loop
+    use_when: "Building/reviewing an AI trading-strategy research system: the research->backtest->paper->memory loop with its safety discipline."
+    not_when: "A price alert or portfolio tracker with no strategy/execution — that's an app build."
+    provides: [trading_research_method, overfitting_defense, trading_kill_switch]
+    trust: T2
+    cost: "skill load; paper-only, live money is an escalation"
+  - id: opportunity-research-loop
+    kind: native_skill
+    ref: opportunity-research-loop
+    use_when: "Finding/validating what is worth building from market signals, with sourced evidence vs. labelled assumptions."
+    not_when: "The user already knows what to build — route to the build/trading/video playbook."
+    provides: [opportunity_discovery, demand_validation]
+    trust: T2
+    cost: "skill load; research-heavy"
+  - id: motion-as-code
+    kind: native_skill
+    ref: motion-as-code
+    use_when: "A voiceover-locked explainer wanted as code (every frame a function of time), on the three.js/bun render path."
+    not_when: "Most video work — HyperFrames is the default; use this only for the code-as-frames approach."
+    provides: [motion_as_code]
+    trust: T2
+    cost: "skill load; needs bun+chrome+ffmpeg"
+
+  # --- Closes KNOWN_GAPS.md #1/#4: video-editor and its own documented
+  # toolset were onboarded but unreachable from the router. Wired now, each
+  # `confirm: true` — real, trusted, reachable, but never auto-chosen; the PM
+  # asks once before staffing/loading any of these (see explain()'s
+  # `needs_confirmation`). Flip a specific entry to auto once it has proven
+  # out in real use. ---
+  - id: video-editor
+    kind: agent
+    ref: video-editor
+    use_when: "The outcome is genuinely a rendered video/motion-graphics deliverable, not a static image or a UI screen."
+    not_when: "A static image (frontend-engineer + claude-image-generation) or a UI screen."
+    provides: [video_build]
+    trust: T0
+    confirm: true
+    cost: "Tier-2 worker, own worktree; render is wall-clock heavy"
+  - id: buildwithdarius-reel-editor
+    kind: tool
+    ref: buildwithdarius-reel-editor
+    use_when: "Self-checking a cut before calling it done: RMS-envelope cut timing, no gap >0.25s, nothing frozen >2s, a new visual every 2-3s, -14 LUFS/-1 dBTP, frame-by-frame look at every cut."
+    not_when: "A narrated film with no presenter — its retake/face-safe-zone rules assume a talking-head reel."
+    provides: [video_quality_check]
+    trust: T3
+    confirm: true
+    cost: "doctrine only, no render cost"
+  - id: diffusionstudio-core
+    kind: tool
+    ref: diffusionstudio-core
+    use_when: "In-browser/WebCodecs compositing is specifically wanted over an HTML+GSAP or React composition."
+    not_when: "Ordinary composition work — hyperframes is the default render path."
+    provides: [video_render_alt]
+    trust: T2
+    confirm: true
+    cost: "skill load; alternate render path"
+  - id: diffusionstudio-editor
+    kind: tool
+    ref: diffusionstudio-editor
+    use_when: "Pairs with diffusionstudio-core for agent-driven in-browser editing."
+    not_when: "Ordinary composition work — hyperframes is the default render path."
+    provides: [video_render_alt]
+    trust: T2
+    confirm: true
+    cost: "skill load; alternate render path"
+  - id: remotion-dev-skills
+    kind: tool
+    ref: remotion-dev-skills
+    use_when: "The video needs React component reuse specifically."
+    not_when: "Most video work — hyperframes is the default."
+    provides: [video_render_alt]
+    trust: T3
+    confirm: true
+    cost: "skill load; no declared license at the skills-repo level, confirm before redistributing"
+  - id: hetpatel-11-adobe-premiere-pro-mcp
+    kind: tool
+    ref: hetpatel-11-adobe-premiere-pro-mcp
+    use_when: "The rendered clip should be placed directly onto a real Premiere timeline (new sequence) for further hand editing."
+    not_when: "No licensed local Adobe Premiere Pro 2020+ install is confirmed on the execution machine — check before assuming this is wired up."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local MCP; needs Node 20+ and a licensed Premiere install on the same machine"
+  - id: samuelgursky-davinci-resolve-mcp
+    kind: tool
+    ref: samuelgursky-davinci-resolve-mcp
+    use_when: "Placing/editing in a real DaVinci Resolve project when Resolve STUDIO (paid tier) is confirmed installed."
+    not_when: "Resolve FREE is what's actually installed — use hiteshk03-davinci-resolve-mcp instead."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local MCP; needs DaVinci Resolve Studio"
+  - id: hiteshk03-davinci-resolve-mcp
+    kind: tool
+    ref: hiteshk03-davinci-resolve-mcp
+    use_when: "Placing/editing in a real DaVinci Resolve project on the FREE edition — the realistic option on this machine."
+    not_when: "Resolve Studio is confirmed installed — samuelgursky-davinci-resolve-mcp covers the full API."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local MCP; free edition, local Whisper transcription"
+
+  # --- Closes KNOWN_GAPS.md #2: reverse engineering was registered,
+  # indexed, and Riyan's explicit priority pick, but unreachable from the
+  # router. confirm: true — registry flags this repo's own star/fork counts
+  # as a likely bought-engagement pattern; Riyan approved it anyway at T3,
+  # so the PM asks every time rather than ever loading it silently. ---
+  # --- Riyan's direct picks for video-editor, 2026-10-29. All confirm: true —
+  # same ask-before-using discipline as the rest of this file's video section;
+  # none of these has displaced the existing default, each is offered
+  # alongside it. ---
+  - id: kajisho5-ffmpeg-skill
+    kind: tool
+    ref: kajisho5-ffmpeg-skill
+    use_when: "42 FFmpeg tools with a machine-readable contract are wanted over the simpler digitalsamba ffmpeg wrapper — e.g. scripting a transform pipeline, not a one-off cut."
+    not_when: "An ordinary cut/concat/transcode — digitalsamba's ffmpeg entry already covers that with no extra MCP-server install."
+    provides: [video_transform]
+    trust: T3
+    confirm: true
+    cost: "skill load; the MCP server needs its own install step, not just a clone"
+  - id: kurbaitaev-ghost-editor
+    kind: tool
+    ref: kurbaitaev-ghost-editor
+    use_when: "A talking-head reel wants one of its 7 named edit styles, face-safe captions, or its reverse-engineer-the-reference-edit mode, on the same HyperFrames stack video-editor already uses."
+    not_when: "A narrated film with no presenter, or when edenfunf-reelmimic's structure-only approach is what's wanted instead."
+    provides: [reel_structure]
+    trust: T3
+    confirm: true
+    cost: "skill load; HyperFrames-native, no extra runtime"
+  - id: agricidaniel-claude-shorts
+    kind: tool
+    ref: agricidaniel-claude-shorts
+    use_when: "Repurposing an existing long-form asset into scored, captioned short clips — extraction, not from-scratch production."
+    not_when: "Producing a video from scratch — that's hyperframes/video-editor; this has nothing to extract from."
+    provides: [shorts_repurposing]
+    trust: T3
+    confirm: true
+    cost: "skill load; Remotion-rendered caption output"
+
+  # --- Answering "why are these not wired" (2026-10-29): these purpose texts
+  # name video-editor or the hyperframes render path directly and were simply
+  # never compared against what's already wired. All confirm: true. ---
+  - id: 0xsline-openchatcut
+    kind: tool
+    ref: 0xsline-openchatcut
+    use_when: "A real local editable app is wanted as the placement target (Electron+React+Remotion, real multi-track timeline), not a bridge to a commercial NLE."
+    not_when: "Premiere/Resolve are the actual target NLE — use their MCPs instead. AGPL-3.0: fine to run standalone, but modifying and distributing or offering it as a network service triggers source-disclosure."
+    provides: [video_placement]
+    trust: T2
+    confirm: true
+    cost: "local app install, not just a skill load"
+  - id: sunwood-ai-labs-hyperframes-motion-reel-skill
+    kind: tool
+    ref: sunwood-ai-labs-hyperframes-motion-reel-skill
+    use_when: "Showreel-grade, beat-synced motion graphics on the same HyperFrames stack — a complement to hyperframes, not a replacement."
+    not_when: "Most composition work — hyperframes alone already covers it."
+    provides: [video_compose, animation]
+    trust: T2
+    confirm: true
+    cost: "skill load; HyperFrames-native"
+  - id: abubakrchan-product-launch-motion
+    kind: tool
+    ref: abubakrchan-product-launch-motion
+    use_when: "A product-launch motion video wants code-driven beat-synced SFX and motion blur over the default product-launch-video skill."
+    not_when: "product-launch-video already covers the goal — compare before reaching for both."
+    provides: [promo_video]
+    trust: T2
+    confirm: true
+    cost: "skill load; built for/with Opus 5.5"
+  - id: higgsfield-motion
+    kind: tool
+    ref: higgsfield-motion
+    use_when: "A code-rendered film (HTML/CSS/SVG/WebGL -> stills/MP4) with a token-based brand identity is wanted as an alternate render path."
+    not_when: "No formal license on this one — a free blog download with public-distribution intent, not a licensed repo. Confirm terms before anything beyond evaluation."
+    provides: [video_render_alt]
+    trust: T3
+    confirm: true
+    cost: "skill load; no formal license file"
+  - id: higgsfield-motion-saas
+    kind: tool
+    ref: higgsfield-motion-saas
+    use_when: "A SaaS/app launch-motion video wants its cut-hiding transition library (headless-Chromium or AE ExtendScript path)."
+    not_when: "Same license caveat as higgsfield-motion — no formal license, confirm terms first."
+    provides: [promo_video]
+    trust: T3
+    confirm: true
+    cost: "skill load; no formal license file"
+  - id: fishaudio-fish-audio-plugin
+    kind: tool
+    ref: fishaudio-fish-audio-plugin
+    use_when: "Cloud voice generation/cloning/transcription is acceptable and media-use's default voiceover isn't enough."
+    not_when: "Audio must stay local — this is a remote, OAuth-authenticated cloud service; requests leave the machine. Verify current Fish Audio pricing before relying on it beyond evaluation."
+    provides: [voiceover]
+    trust: T2
+    confirm: true
+    cost: "skill load; remote API, may be paid depending on current pricing"
+  - id: resembleai-chatterbox
+    kind: tool
+    ref: resembleai-chatterbox
+    use_when: "Zero-shot voice cloning from a ~10s reference clip is wanted, fully local, with monetizable output — the only mature cloning model here with a permissive licence on the weights, not just the code."
+    not_when: "media-use's default voiceover already covers the need without cloning a specific voice."
+    provides: [voiceover]
+    trust: T2
+    confirm: true
+    cost: "local inference (MPS/CUDA/CPU); watermarks output with Resemble's inaudible Perth marker"
+  - id: harry0703-moneyprinterturbo
+    kind: tool
+    ref: harry0703-moneyprinterturbo
+    use_when: "A fully-automated topic-to-video pipeline is wanted for content_engine's cadence, as an alternate to hand-composing each video on hyperframes."
+    not_when: "A one-off, deliberately-directed video — this is a from-a-topic pipeline, not a composition tool with editorial control."
+    provides: [video_compose, animation]
+    trust: T3
+    confirm: true
+    cost: "skill load; AI pipeline, runs end-to-end per topic"
+  - id: k2-fsa-omnivoice
+    kind: tool
+    ref: k2-fsa-omnivoice
+    use_when: "Voice cloning is needed in one of 600+ languages media-use/fishaudio/resembleai don't cover, and the output is NOT monetized."
+    not_when: "Any monetized output — the pre-trained weights are CC-BY-NC, so only resembleai-chatterbox is licensed for that case."
+    provides: [voiceover]
+    trust: T3
+    confirm: true
+    cost: "skill load; code is Apache-2.0, weights are CC-BY-NC"
+  - id: debpalash-voicestudio
+    kind: tool
+    ref: debpalash-voicestudio
+    use_when: "Local voice cloning and dubbing is wanted standalone, same reasoning as 0xsline-openchatcut: fine to run locally for its own output."
+    not_when: "Modifying and distributing it, or offering it as a network service — AGPL-3.0 network-copyleft triggers source-disclosure then, same caveat as 0xsline-openchatcut."
+    provides: [voiceover]
+    trust: T3
+    confirm: true
+    cost: "skill load; local app"
+
+  - id: leonxlnx-earshot
+    kind: tool
+    ref: leonxlnx-earshot
+    use_when: "Checking a cut's audio against a measured standard before calling it done: LUFS/true-peak/spectrum measurement, or a sound-design critique with a verdict and ranked fix list — the audio-side version of buildwithdarius-reel-editor's visual quality check."
+    not_when: "No audio-quality claim is being made — this is a measurement/critique tool, not a mixer (that's hyperframes-audio)."
+    provides: [audio_quality_check]
+    trust: T2
+    confirm: true
+    cost: "skill load; describe/match/critique need a ~1.1GB model download, measure/sfx do not"
+
+  - id: morluto-rea
+    kind: tool
+    ref: morluto-rea
+    use_when: "Explaining shipped-artifact behavior down to native binaries: decompiling, comparing versions, guiding a reconstruction."
+    not_when: "Ordinary source-repository architecture questions — that's reading the repo, not REA."
+    provides: [reverse_engineering]
+    trust: T3
+    confirm: true
+    cost: "skill load; registry flags this repo's star/fork counts as a likely bought-engagement pattern — Riyan approved anyway, 2026-10-16"

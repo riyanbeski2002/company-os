@@ -35,3 +35,11 @@ external/*/
 # Rendered video output (launch-video iterations etc.) — large binaries,
 # disposable creative output, not source. Keep locally, never in history.
 assets/
+
+# Skills loaded at runtime by `capability.py load`: symlinks named
+# <owner-repo>__<skill> into external/ (itself ignored above), absolute to
+# this machine. Local load state, not source — first-party skills never use "__".
+# A single-skill repo loads under its bare id (no "__"), so list those by name;
+# a new one shows up as untracked, which is the safe way for this to fail.
+skills/*__*
+skills/wheresryan22-anatomy
