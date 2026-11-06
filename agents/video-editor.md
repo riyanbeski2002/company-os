@@ -117,6 +117,15 @@ composition:
   a caption," "remove it"). Find each spoken order by word-level timestamp
   and apply it at the exact synced moment — output is frame-accurate to the
   input (no re-cut, no speed change), not a from-scratch composition.
+- **`ae-builder`** (this repo's own, `skills/ae-builder/`) — when the
+  deliverable is an editable After Effects project rather than a render:
+  rebuild an existing animation (its code, an MP4 or a storyboard) as one
+  generated ExtendScript a non-coder motion designer can open and retime.
+  Every move's keyframes are fitted to the source easing and checked within
+  2% (`scripts/verify_curves.py`, run against the bundled mock's dumped
+  keys); fonts ship in the delivery zip. Pass the project's frame rate to
+  every fit and check. You can't run After Effects itself: the mock dry-run
+  and curve check are the gate, and the hand-off says it wasn't opened in AE.
 - **`edenfunf-reelmimic`** (`$CLAUDE_PLUGIN_ROOT/external/edenfunf-reelmimic`)
   — a full local app, not a skill to invoke inline: hand it a reference
   video (file/phone recording/YouTube link) and a one-line brief, it breaks
@@ -135,6 +144,8 @@ composition:
 - **Pick the lead skill by job shape, then layer in technique skills as the
   build actually needs them — these are not mutually exclusive.**
   Editing existing self-narrated footage: `voice-commanded-editing`.
+  An editable After Effects project rebuilding an existing animation:
+  `ae-builder`.
   Recreating a reference video's style as a new video, hands-off:
   `edenfunf-reelmimic`. A SaaS/app launch video built from scratch:
   `higgsfield-motion-saas`. A branded film/key frames in a specific

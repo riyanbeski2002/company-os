@@ -699,6 +699,21 @@ it, per your rule on paid runs).
 ## M5: harness-agnostic PM + mixed-workforce run (migration doc §5) — plan approved by Riyan
 
 Build (items 1–4) done 2026-10-31: suite 1070 OK. Live runs (5–7) next.
+Run scripts prepared and dry-run with stubbed CLIs (scratchpad m5_run1.py,
+m5_run2.py, m5_common.py): fixture + onboard + routing work, and a stubbed
+plan/staff/run/consult put backend-engineer on codex (shim guards) and the
+consulted code-reviewer on claude.
+
+Run 1 (live, 2026-11-01): all 7 acceptance checks PASS. PM (claude) $1.81 /
+20 turns; backend-engineer on codex (48s, ChatGPT quota); review $0.13, QA
+$0.10, security $0.12 on claude, each a real read (4–6 turns; security found a
+low-severity row-forgery via multi-line reason, PM escalated it plus a policy
+question). Merged to the fixture's `integration` branch; suite green there;
+cleanup --dry-run empty. Guards not exercised (no denied action). Found:
+- codex workers can't commit: the worktree's gitdir (.git/worktrees/<task>)
+  is outside codex's workspace-write root. The PM committed for it. Fix:
+  add the git dir to codex's writable roots (open).
+- my checker first tested `main`; fixed to test the merged branch.
 
 Goal: one PM coordinates workers on different CLIs on the expense-demo
 fixture. The change is real, it merges on green, worktrees are cleaned up,
@@ -736,7 +751,7 @@ Build (no model calls; full suite + stubbed-CLI tests):
 
 Live runs (scripts in scratchpad, dry-run with model calls stubbed, then
 Riyan runs each with `! python3 <path>`):
-- [ ] 5. `m5_run1.py`, with PM=claude, backend-engineer=codex, and every gate
+- [x] 5. `m5_run1.py`, with PM=claude, backend-engineer=codex, and every gate
       (qa, code-reviewer, security if triggered)=claude:
       - `tools/mkfixture.sh` into a scratchpad dir (never ~/dev/expense-demo).
       - `company onboard`.
@@ -767,3 +782,49 @@ fixture. I'll print an estimate from the earlier fixture runs in the
 dry-run before you spend anything. Not in M5: agy (parked), opencode
 (catalogued only), BYO-key providers in the live run (M4's live check
 stays a separate script).
+
+## ae-builder → video-editor (Riyan, 2026-11-01) — built
+
+Riyan: authored by him in claude.ai, so first-party (T0), public. Done:
+skill's own smoke test passes its mock (NO ISSUES) and verify_curves (4/4,
+max 1.79%); tests/test_ae_builder.py (5, two mutation-checked); suite 1075 OK.
+
+Goal: video-editor can deliver a hand-editable After Effects project that
+rebuilds an existing animation (from code, an MP4 or a storyboard), with easing
+fitted to the source and checked numerically, fonts bundled. Source: the
+ae-builder.skill zip Riyan supplied (reviewed read-only: nothing malicious, no
+injection; its only network use is font downloads from Google Fonts/jsDelivr).
+
+- [x] 1. Bring it in through the normal first-party path: stage with
+      `tools/propose_skill.py ae-builder`, promote with
+      `tools/promote_skill.py ae-builder --approved-by riyan` (registry entry,
+      trust tier per provenance below).
+- [x] 2. Adapt to how video-editor runs (a headless worker in a worktree):
+      - paths: `/home/claude` and `/mnt/user-data/outputs/...` (claude.ai
+        sandbox paths) → the task's own output folder in the worktree;
+      - "Ask in one round (AskUserQuestion)" → read resolution/fps/AE
+        version/footage from the brief; anything missing defaults to "match
+        the source" and is stated in the handoff (a worker can't ask);
+      - fps: `verify_curves.py` and `ease_fit.py` hard-code 25; add an
+        `--fps`/`fps=` parameter (default 25, so existing behaviour holds);
+      - `fetch_fonts.py`: Fontsource slug for multi-word families
+        ("Space Grotesk" → `space-grotesk`);
+      - `verify_curves.py` imports `ease_fit` relative to its own folder
+        explicitly, so it works however it's invoked;
+      - a Requirements section: python3 + numpy (fonttools optional), node,
+        ffmpeg for MP4 frame extraction, AE 2023+ (24+ for the font check);
+      - one line: the Node mock runs a .jsx with full Node access, so only
+        ever on scripts this skill generated.
+- [x] 3. agents/video-editor.md: a new job shape in "Pick the lead skill" —
+      "the deliverable is an editable AE project rebuilding an existing
+      animation" → `ae-builder`.
+- [x] 4. Verify: the skill's own smoke test through its own mock
+      (`node scripts/ae_mock_dryrun.js assets/smoke_test.jsx`), `ease_fit`
+      fit + `verify_curves` at 25 and 30 fps, and a small repo test pinning
+      the fps parameter, the slug fix and the video-editor routing line.
+      Full suite.
+
+Not changed: the skill's method (beat sheet, fitted beziers, 2% curve gate,
+rig conventions). One inconsistency left as found and noted in the skill:
+gravity influences 33.3/33.3 in easing_translation.md vs 28.8/37.8 in
+curves.jsx (can't tell which is right without AE).

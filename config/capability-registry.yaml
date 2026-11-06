@@ -1492,3 +1492,13 @@ entries:
     approved_by: riyan
     approved_at: "2026-10-29"
     checked_at: "2026-10-29"
+  - id: ae-builder
+    type: skill
+    category: "design.motion"
+    purpose: "Rebuild an existing animation (code, MP4, storyboard) as a hand-editable After Effects project: one generated ExtendScript, keyframes fitted to the source easing and verified within 2% per move, slider-driven rigs, fonts bundled. video-editor's lead skill when the deliverable is an AE project."
+    trust_tier: T0
+    source: "authored by riyan (claude.ai); adapted for video-editor in this repo"
+    license: "original"
+    approved_by: riyan
+    approved_at: "2026-11-01"
+    checked_at: "2026-11-01"
