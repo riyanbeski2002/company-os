@@ -828,3 +828,52 @@ Not changed: the skill's method (beat sheet, fitted beziers, 2% curve gate,
 rig conventions). One inconsistency left as found and noted in the skill:
 gravity influences 33.3/33.3 in easing_translation.md vs 28.8/37.8 in
 curves.jsx (can't tell which is right without AE).
+
+## One-line install + "which coding assistant?" (Riyan, 2026-11-10) — PLAN, awaiting confirmation
+
+Goal: a beginner with no paid AI account runs one command, picks an assistant,
+and has a working coding assistant in the terminal. ESC-010 resolved **B**:
+the free tier is opencode (plain assistant; Company OS's worker governance
+does not run on opencode — not cleared as a harness, see config/harness.yaml).
+
+Found while planning (live, opencode 2.2.2 on this machine):
+- opencode ships its own free models (`opencode/big-pickle`,
+  `opencode/glm-5.3-flash-free`, …) that need **no API key and no signup**.
+  Groq/Cerebras 70B models only appear after adding a key.
+- So LiteLLM has no job on this path: opencode talks to providers directly.
+  Dropped unless Riyan wants it for another reason.
+- Some free models may use prompts to improve the model during their free
+  period (OpenCode Zen docs). The installer must say so, plainly.
+- `--standalone` runs a private server instead of the background service —
+  the likely fix for the home-directory snapshot daemon seen 2026-10-31.
+
+Steps:
+- [ ] 1. `get.sh` (bootstrap): `curl -fsSL <raw github url>/get.sh | bash` —
+      checks git + python3, clones/updates `~/.company-os`, runs install.sh.
+      Needs the 18 local commits pushed first (the raw URL serves origin/main).
+- [ ] 2. install.sh asks: 1) Claude Code (paid)  2) Codex (ChatGPT plan)
+      3) Free (opencode, default when nothing else is installed). Also
+      `--assistant claude|codex|free` for non-interactive use and tests.
+      Today's Claude steps (agents/skills/hooks into ~/.claude) run only for 1.
+- [ ] 3. Free path: install opencode if missing (official installer); set a
+      key-free model as default in ~/.config/opencode/opencode.json by merging
+      (never clobber existing MCP/settings); print the data-use warning.
+      Optional prompt: "Paste a free Groq key for a 70B model (Enter to skip)"
+      → stored via `opencode auth`, never in our files; default switches to
+      the Groq 70B model with the key-free model as fallback.
+- [ ] 4. Re-verify the daemon problem live on 2.2.2; if it still snapshots
+      outside the project, launch through a small `company code` wrapper that
+      uses `--standalone` and refuses to start in $HOME.
+- [ ] 5. "Ready" check: one tiny real task in a temp folder (create a file,
+      read it back). Only print "ready" if it passes; otherwise say what failed.
+      Spends tokens → Riyan runs the live check himself (script + `!` line).
+- [ ] 6. Codex path: detect `codex`; if missing, print its install + `codex login`.
+- [ ] 7. tests/test_install.py: run install.sh under a temp HOME with stub
+      opencode/claude/codex binaries — choice routing, config merge keeps
+      existing keys, nothing key-shaped lands in repo files, re-run is idempotent.
+- [ ] 8. README install section rewritten for a beginner.
+- [ ] 9. Gates: `secrets` trigger fired (API key handling) → review + security,
+      once, at the PR (one gate_group).
+
+Staffing: Tier 2, one backend-engineer task (installer + tests; ~400 lines, over
+the fast-path bound). Worker launches spend tokens → prepared as commands for Riyan.
