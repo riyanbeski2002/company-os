@@ -23,6 +23,51 @@ import staffing
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 
+
+def launch_plugin_root(repo: Path) -> Path:
+    """The --plugin-dir a writing worker on `repo` is launched with.
+
+    Claude Code refuses every Write/Edit to a file under the loaded plugin
+    directory ("... which is a sensitive file", no override in headless mode).
+    When company-os works on itself the plugin dir IS the repo, and every
+    task worktree (.company/worktrees/) sits inside it, so a self-hosted
+    worker could edit nothing. Bisected live on claude 2.1.322, 2026-11-10:
+    same worktree and flags, --plugin-dir <repo> refused, --plugin-dir <copy
+    outside the repo> wrote (this is what ESC-009 actually was).
+
+    So a self-hosted launch gets a read-only export of the committed HEAD,
+    outside the repo — the same commit its worktree branches from, so the
+    worker runs under the hooks and personas that were reviewed, never ones
+    edited mid-task. external/ (gitignored, clone-only) is linked through,
+    since workers read capability repos via $CLAUDE_PLUGIN_ROOT/external.
+    Any other repo is not inside the plugin dir and keeps PLUGIN_ROOT.
+    """
+    if Path(repo).resolve() != PLUGIN_ROOT:
+        return PLUGIN_ROOT
+    sha = subprocess.run(["git", "-C", str(PLUGIN_ROOT), "rev-parse", "HEAD"],
+                         capture_output=True, text=True, check=True).stdout.strip()
+    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    dest = cache / "company-os" / "plugin" / sha
+    if (dest / ".complete").exists():
+        return dest
+    tmp = dest.with_name(f"{sha}.tmp-{os.getpid()}")
+    tmp.mkdir(parents=True, exist_ok=True)
+    archive = subprocess.run(["git", "-C", str(PLUGIN_ROOT), "archive", sha],
+                             capture_output=True, check=True).stdout
+    subprocess.run(["tar", "-x", "-C", str(tmp)], input=archive, check=True)
+    ext = tmp / "external"
+    if ext.exists() and not ext.is_symlink():
+        import shutil
+        shutil.rmtree(ext)  # the archive carries only external/README.md
+    ext.symlink_to(PLUGIN_ROOT / "external")
+    (tmp / ".complete").write_text(sha + "\n")
+    try:
+        tmp.rename(dest)
+    except OSError:  # a concurrent launch finished first; theirs is identical
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+    return dest
+
 # Structured output contract. Forcing a schema means the worker's report is
 # parsed, not interpreted.
 RESULT_SCHEMA = {
@@ -346,7 +391,8 @@ def role_tools(role: str) -> str:
 def build_command(task: dict, role: str, model: str | None = None,
                    effort: str | None = None, skip_permissions: bool = False,
                    harness_spec: dict | None = None, company_root: Path | None = None,
-                   sandbox: dict | None = None) -> list[str]:
+                   sandbox: dict | None = None,
+                   plugin_root: Path | None = None) -> list[str]:
     """Fill the role's configured harness command template (config/harness.yaml).
 
     Model/effort come from staffing.yaml's tier policy (D11), not a default —
@@ -362,7 +408,7 @@ def build_command(task: dict, role: str, model: str | None = None,
     """
     spec = harness_spec or harness.resolve(harness.load_config(company_root or PLUGIN_ROOT), role)
     return harness.build_command(
-        spec, role=role, plugin_root=PLUGIN_ROOT,
+        spec, role=role, plugin_root=plugin_root or PLUGIN_ROOT,
         allowed_tools=role_tools(role),
         schema=RESULT_SCHEMA, model=model, effort=effort,
         skip_permissions=skip_permissions, settings=sandbox,
@@ -548,7 +594,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             proc = subprocess.Popen(
                 build_command(task, role, model=policy.get("model"), effort=policy.get("effort"),
                               skip_permissions=skip_permissions, harness_spec=harness_spec,
-                              sandbox=sandbox),
+                              sandbox=sandbox, plugin_root=launch_plugin_root(repo)),
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
                               thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
@@ -704,7 +750,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
             proc = subprocess.Popen(
                 build_command({"id": claim_id}, role, model=policy.get("model"),
                               effort=policy.get("effort"), harness_spec=harness_spec,
-                              sandbox=sandbox),
+                              sandbox=sandbox, plugin_root=launch_plugin_root(repo)),
                 cwd=str(worktree), env=env,
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
