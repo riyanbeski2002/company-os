@@ -53,7 +53,10 @@ class MapIntegrityTest(unittest.TestCase):
     def test_repo_paths_exist_on_disk(self):
         for e in CMAP:
             if e["kind"] == "repo" and "path" in e:
-                p = ROOT / REGISTRY[e["ref"]]["local_path"] / e["path"]
+                clone = ROOT / REGISTRY[e["ref"]]["local_path"]
+                if not clone.exists():  # external/ is gitignored: absent in a fresh clone
+                    continue
+                p = clone / e["path"]
                 with self.subTest(id=e["id"]):
                     self.assertTrue(p.exists(), f"{p} missing")
 

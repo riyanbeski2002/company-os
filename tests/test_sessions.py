@@ -164,8 +164,15 @@ class TestSessionPing(unittest.TestCase):
     def setUp(self):
         self.pane = f"cos-ping-test-{uuid.uuid4().hex[:8]}"
         self.out = Path(tempfile.mkstemp()[1])
-        subprocess.run(["tmux", "new-session", "-d", "-s", self.pane, "-x", "80", "-y", "24",
-                        f"cat > {self.out}"], check=True)
+        try:
+            r = subprocess.run(["tmux", "new-session", "-d", "-s", self.pane, "-x", "80",
+                                "-y", "24", f"cat > {self.out}"], capture_output=True, text=True)
+        except FileNotFoundError:
+            self.out.unlink(missing_ok=True)
+            self.skipTest("tmux not installed")
+        if r.returncode != 0:  # e.g. a worker sandbox that denies tmux's socket
+            self.out.unlink(missing_ok=True)
+            self.skipTest(f"tmux cannot start a session here: {r.stderr.strip()[:120]}")
         time.sleep(0.3)  # let the pane's shell/cat actually come up before we type into it
 
     def tearDown(self):

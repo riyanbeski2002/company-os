@@ -49,6 +49,10 @@ class TestSlots(unittest.TestCase):
 
         Counting it as live would queue every later worker behind a corpse.
         """
+        ps = subprocess.run(["ps", "-o", "state=", "-p", str(os.getpid())],
+                            capture_output=True, text=True)
+        if not ps.stdout.strip():  # sandboxed: _is_zombie() can't tell, assumes alive by design
+            self.skipTest("ps cannot read process state here")
         proc = subprocess.Popen([sys.executable, "-c", "pass"])
         time.sleep(0.5)                      # exited, deliberately not reaped
         d = self.root / "state" / "slots"
