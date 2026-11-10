@@ -719,6 +719,18 @@ def _diff_summary_for_gate(repo, root, task, role, worker_mod):
     return gitutil.diff_patch_or_stat(wt, base)
 
 
+def _spawn_detached(argv: list[str], state: Path, project: str):
+    """Start a supervisor that outlives the caller. Its stdout is the JSON
+    result (detached.json); stderr goes to detached.err — interleaving a
+    warning into the result file made it unparseable (2026-11-10)."""
+    import subprocess
+    state.mkdir(parents=True, exist_ok=True)
+    with open(state / "detached.json", "w") as out, open(state / "detached.err", "w") as err:
+        return subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out, stderr=err,
+                                start_new_session=True,
+                                env={**os.environ, "COMPANY_PROJECT": project})
+
+
 def cmd_run(args):
     """Launch a Tier-2 worker for one task and supervise it to completion."""
     import packet as packet_mod
@@ -807,11 +819,7 @@ def cmd_run(args):
             argv += ["--effort", args.effort]
 
         state = root / "state" / "workers" / actor
-        state.mkdir(parents=True, exist_ok=True)
-        out = open(state / "detached.json", "w")
-        proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out,
-                                stderr=subprocess.STDOUT, start_new_session=True,
-                                env={**os.environ, "COMPANY_PROJECT": task["project"]})
+        proc = _spawn_detached(argv, state, task["project"])
         emit({"ok": True, "detached": True, "task": task["id"], "actor": actor,
               "supervisor_pid": proc.pid, "result_file": str(state / "detached.json"),
               "note": "poll `company status`; the worker survives this turn ending"})
@@ -958,11 +966,7 @@ def cmd_gate_group(args):
             argv += ["--max-concurrent", str(args.max_concurrent)]
 
         state = root / "state" / "workers" / actor
-        state.mkdir(parents=True, exist_ok=True)
-        out = open(state / "detached.json", "w")
-        proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=out,
-                                stderr=subprocess.STDOUT, start_new_session=True,
-                                env={**os.environ, "COMPANY_PROJECT": project})
+        proc = _spawn_detached(argv, state, project)
         emit({"ok": True, "detached": True, "group": args.group, "actor": actor,
               "supervisor_pid": proc.pid, "result_file": str(state / "detached.json"),
               "note": "poll `company status`; the review survives this turn ending"})

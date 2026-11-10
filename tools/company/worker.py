@@ -44,29 +44,76 @@ def launch_plugin_root(repo: Path) -> Path:
     """
     if Path(repo).resolve() != PLUGIN_ROOT:
         return PLUGIN_ROOT
+    import shutil
+    import tempfile
     sha = subprocess.run(["git", "-C", str(PLUGIN_ROOT), "rev-parse", "HEAD"],
                          capture_output=True, text=True, check=True).stdout.strip()
     cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-    dest = cache / "company-os" / "plugin" / sha
+    parent = cache / "company-os" / "plugin"
+    dest = parent / sha
     if (dest / ".complete").exists():
         return dest
-    tmp = dest.with_name(f"{sha}.tmp-{os.getpid()}")
-    tmp.mkdir(parents=True, exist_ok=True)
+    parent.mkdir(parents=True, exist_ok=True)
+    _prune_plugin_snapshots(parent, keep=sha)
+    tmp = Path(tempfile.mkdtemp(dir=parent, prefix=f"{sha}.tmp-"))  # unique: never reused
     archive = subprocess.run(["git", "-C", str(PLUGIN_ROOT), "archive", sha],
                              capture_output=True, check=True).stdout
     subprocess.run(["tar", "-x", "-C", str(tmp)], input=archive, check=True)
     ext = tmp / "external"
     if ext.exists() and not ext.is_symlink():
-        import shutil
         shutil.rmtree(ext)  # the archive carries only external/README.md
     ext.symlink_to(PLUGIN_ROOT / "external")
     (tmp / ".complete").write_text(sha + "\n")
+    _make_read_only(tmp)
     try:
         tmp.rename(dest)
     except OSError:  # a concurrent launch finished first; theirs is identical
-        import shutil
-        shutil.rmtree(tmp, ignore_errors=True)
+        _remove_tree(tmp)
     return dest
+
+
+def _make_read_only(root: Path) -> None:
+    """Strip write bits from the snapshot (files and dirs; the external/
+    symlink itself is left alone, its target is the live clone)."""
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+        for name in filenames + dirnames:
+            path = Path(dirpath) / name
+            if not path.is_symlink():
+                path.chmod(path.stat().st_mode & ~0o222)
+    root.chmod(root.stat().st_mode & ~0o222)
+
+
+def _remove_tree(root: Path) -> None:
+    """rmtree a snapshot made read-only by _make_read_only."""
+    import shutil
+    for dirpath, dirnames, _ in os.walk(root):
+        for name in dirnames:
+            p = Path(dirpath) / name
+            if not p.is_symlink():
+                p.chmod(p.stat().st_mode | 0o700)
+    root.chmod(root.stat().st_mode | 0o700)
+    shutil.rmtree(root, ignore_errors=True)
+
+
+SNAPSHOTS_KEPT = 5           # recent HEADs a still-running worker may be using
+STALE_TMP_AFTER_S = 86400    # an unfinished export this old is a crashed launch
+
+
+def _prune_plugin_snapshots(parent: Path, keep: str) -> None:
+    """Bound the cache: drop crashed exports older than a day, and all but
+    the newest SNAPSHOTS_KEPT finished snapshots (never `keep`)."""
+    now = time.time()
+    done = []
+    for entry in parent.iterdir():
+        if ".tmp-" in entry.name:
+            if now - entry.stat().st_mtime > STALE_TMP_AFTER_S:
+                _remove_tree(entry)
+        elif entry.name != keep and (entry / ".complete").exists():
+            done.append(entry)
+    done.sort(key=lambda e: e.stat().st_mtime, reverse=True)
+    for old in done[SNAPSHOTS_KEPT - 1:]:
+        _remove_tree(old)
+
 
 # Structured output contract. Forcing a schema means the worker's report is
 # parsed, not interpreted.
@@ -108,6 +155,8 @@ ROLE_TOOLS = {
 # reviewer ending cleanly with no verdict looked identical to success. The
 # fix below makes that impossible to miss: if a gate role's worker exits
 # without a matching verdict event, that is GATE_NO_VERDICT, not "done."
+# NOTE: also the sandbox's network policy — every role listed here gets
+# localhost access (sandbox_settings, ESC-013). Adding a role widens that.
 GATE_VERDICT_EVENTS = {
     "code-reviewer": ("REVIEW_PASSED", "REVIEW_FAILED"),
     "qa-engineer": ("QA_PASSED", "QA_FAILED"),
@@ -220,8 +269,10 @@ def _link_loaded_skills(repo: Path, wt: Path) -> None:
     skill-discovery scans the *worktree's* skills/, not the main checkout's,
     so a worker otherwise can't see a skill loaded in the main checkout even
     though it CAN already read anything under external/ (that's resolved via
-    $CLAUDE_PLUGIN_ROOT, which always points at the main checkout regardless
-    of worktree — see agents/company-pm.md).
+    $CLAUDE_PLUGIN_ROOT: the main checkout, or — when company-os works on
+    itself — a committed snapshot whose external/ links back to the main
+    checkout's; see launch_plugin_root. Uncommitted config/registry edits
+    are therefore invisible to self-hosted workers until committed).
 
     skills/<id> entries created by `capability.py load` are symlinks into
     external/<id>/... (itself gitignored, main-checkout-only); we recreate
@@ -327,7 +378,8 @@ def sandbox_settings(company_root: Path, workdir: Path,
 
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
               worktree: Path, thinking: bool = True,
-              harness_spec: dict | None = None, allowed_tools: str | None = None) -> dict:
+              harness_spec: dict | None = None, allowed_tools: str | None = None,
+              plugin_root: Path | None = None) -> dict:
     """Build the worker's environment.
 
     COMPANY_REPO is the *worktree*, not the main checkout: the worker's whole
@@ -363,6 +415,11 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
         "COMPANY_PROJECT": task.get("project", ""),
         "PATH": f"{PLUGIN_ROOT / 'bin'}:{env.get('PATH', '')}",
     })
+    if plugin_root is not None:
+        # The --plugin-dir this worker was launched with (a snapshot on
+        # self-hosted launches, see launch_plugin_root) — the shell guard
+        # allows `cd` into it the same way it allows the main repo.
+        env["COMPANY_PLUGIN_ROOT"] = str(plugin_root)
     if allowed_tools is not None:
         # The role's tool restriction, for hooks/guard.py: Claude Code enforces
         # an agent file's `tools:` natively, but a harness that gets the persona
@@ -552,6 +609,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         wt, branch = ensure_worktree(repo, company_root, task)
         _check_project(harness_spec, wt)
         sandbox = sandbox_settings(company_root, wt, role)
+        plugin_root = launch_plugin_root(repo)  # before WORKER_STARTED: a failed export never starts
 
         state = company_root / "state" / "workers" / actor
         state.mkdir(parents=True, exist_ok=True)
@@ -587,18 +645,18 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         # inline).
         worker_input = packet
         if not harness_spec.get("native_agent_loading"):
-            worker_input = harness.load_persona(PLUGIN_ROOT, role) + "\n\n---\n\n" + packet
+            worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + packet
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
                 build_command(task, role, model=policy.get("model"), effort=policy.get("effort"),
                               skip_permissions=skip_permissions, harness_spec=harness_spec,
-                              sandbox=sandbox, plugin_root=launch_plugin_root(repo)),
+                              sandbox=sandbox, plugin_root=plugin_root),
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
                               thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
-                              allowed_tools=role_tools(role)),
+                              allowed_tools=role_tools(role), plugin_root=plugin_root),
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
             (state / "pid").write_text(str(proc.pid))
@@ -726,6 +784,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         policy = staffing.model_policy(policy_cfg, tier=2, gated=True, role=role)
         task_ids = [t["id"] for t in tasks]
         sandbox = sandbox_settings(company_root, worktree, role)
+        plugin_root = launch_plugin_root(repo)  # before WORKER_STARTED: a failed export never starts
 
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
@@ -738,19 +797,19 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
                         worktree, thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
-                        allowed_tools=role_tools(role))
+                        allowed_tools=role_tools(role), plugin_root=plugin_root)
         env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
 
         worker_input = packet
         if not harness_spec.get("native_agent_loading"):
-            worker_input = harness.load_persona(PLUGIN_ROOT, role) + "\n\n---\n\n" + packet
+            worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + packet
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
             proc = subprocess.Popen(
                 build_command({"id": claim_id}, role, model=policy.get("model"),
                               effort=policy.get("effort"), harness_spec=harness_spec,
-                              sandbox=sandbox, plugin_root=launch_plugin_root(repo)),
+                              sandbox=sandbox, plugin_root=plugin_root),
                 cwd=str(worktree), env=env,
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )

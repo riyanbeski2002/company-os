@@ -112,6 +112,9 @@ class TestAppend(unittest.TestCase):
             with self.assertRaises(ValueError, msg=name):
                 self.log.append(make_event(event=name, actor="w1", project="p",
                                            task="T-1", data={"need": "x"}))
+        with self.assertRaises(ValueError):  # any truthy id is not enough
+            self.log.append(make_event(event="ESCALATION_RAISED", actor="w1", project="p",
+                                       task="T-1", data={"id": "x", "need": "x"}))
         written = self.log.append(make_event(
             event="ESCALATION_RAISED", actor="w1", project="p", task="T-1",
             data={"id": "ESC-001", "need": "x"}))

@@ -12,6 +12,7 @@ import fcntl
 import filecmp
 import json
 import os
+import re
 import shutil
 import time
 from contextlib import contextmanager
@@ -227,12 +228,12 @@ def validate(event: dict) -> None:
     if name == "LESSON_RECORDED" and "source_ref" in (event.get("data") or {}):
         _validate_source_ref(event["data"]["source_ref"])
     if name in ("ESCALATION_RAISED", "ESCALATION_RESOLVED") \
-            and not (event.get("data") or {}).get("id"):
+            and not re.fullmatch(r"ESC-\d+", str((event.get("data") or {}).get("id") or "")):
         # An escalation without an id can never appear in `company status` or
         # be resolved: escalations.fold() can only skip it. Seen live (seq 182):
         # a worker's raw `company event ... ESCALATION_RAISED` refusing a live
         # exploitation run stayed invisible for weeks.
-        raise ValueError(f"{name} requires data.id — raise escalations with "
+        raise ValueError(f"{name} requires data.id shaped ESC-<n> — raise escalations with "
                          f"`company escalate`, which assigns one")
     if name == "ROUTE_OUTCOME":
         _validate_route_outcome(event)

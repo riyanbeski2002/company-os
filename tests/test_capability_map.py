@@ -51,14 +51,17 @@ class MapIntegrityTest(unittest.TestCase):
                     self.fail(f"unknown kind {kind}")
 
     def test_repo_paths_exist_on_disk(self):
-        for e in CMAP:
-            if e["kind"] == "repo" and "path" in e:
-                clone = ROOT / REGISTRY[e["ref"]]["local_path"]
-                if not clone.exists():  # external/ is gitignored: absent in a fresh clone
-                    continue
-                p = clone / e["path"]
-                with self.subTest(id=e["id"]):
-                    self.assertTrue(p.exists(), f"{p} missing")
+        entries = [e for e in CMAP if e["kind"] == "repo" and "path" in e]
+        clones = [ROOT / REGISTRY[e["ref"]]["local_path"] for e in entries]
+        # external/ is gitignored: a fresh clone or a worker worktree has none
+        # of them. Skip only then — once any clone exists, a missing one (or a
+        # wrong local_path) is a real bug, not an environment gap.
+        if entries and not any(c.exists() for c in clones):
+            self.skipTest("no external/ clones present (run tools/sync_external_capabilities.py)")
+        for e, clone in zip(entries, clones):
+            p = clone / e["path"]
+            with self.subTest(id=e["id"]):
+                self.assertTrue(p.exists(), f"{p} missing")
 
     def test_trust_matches_registry_where_registry_knows(self):
         for e in CMAP:

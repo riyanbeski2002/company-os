@@ -210,9 +210,11 @@ RULES: list[tuple[re.Pattern[str], str]] = [
 # `cd` is deliberately NOT a write pattern: it's pure navigation, and the
 # capability-registry workflow (external/<id>/, skills/<id>/) requires every
 # worker to be able to `cd` into the MAIN checkout to read vetted capabilities
-# there — that's the whole point of $CLAUDE_PLUGIN_ROOT/COMPANY_MAIN_REPO
-# always pointing at it regardless of which worktree launched the worker (see
-# agents/company-pm.md). A worker's writes are still fully blocked outside its
+# there — that's the whole point of COMPANY_MAIN_REPO always pointing at it
+# regardless of which worktree launched the worker. $CLAUDE_PLUGIN_ROOT is the
+# main checkout too, except on self-hosted launches where it is a committed
+# snapshot outside the repo (worker.launch_plugin_root), so COMPANY_PLUGIN_ROOT
+# gets the same cd allowance. A worker's writes are still fully blocked outside its
 # worktree by the ownership hook (Write/Edit/NotebookEdit) and by the write
 # patterns below for the shell-redirect escape those tools don't see — cd
 # alone changes no bytes, so it gets its own, more permissive allowlist.
@@ -228,7 +230,8 @@ CD_PATTERN = re.compile(r"\bcd\s+(/[^\s;|&]+)")
 ESCAPE_ALLOW_PREFIXES = ("/tmp/", "/private/tmp/", "/var/folders/", "/dev/")
 
 
-def find_escape(command: str, worktree: str, company_root: str, main_repo: str = "") -> str | None:
+def find_escape(command: str, worktree: str, company_root: str, main_repo: str = "",
+                plugin_root: str = "") -> str | None:
     for pattern in WRITE_ESCAPE_PATTERNS:
         for target in pattern.findall(command):
             path = os.path.normpath(target)
@@ -249,6 +252,10 @@ def find_escape(command: str, worktree: str, company_root: str, main_repo: str =
             continue
         if main_repo and (path == main_repo or path.startswith(main_repo + "/")):
             continue
+        # the launch's --plugin-dir: a snapshot outside the repo on self-hosted
+        # launches, read via $CLAUDE_PLUGIN_ROOT exactly like the main repo
+        if plugin_root and (path == plugin_root or path.startswith(plugin_root + "/")):
+            continue
         return path
     return None
 
@@ -264,7 +271,8 @@ def check_command(command: str | None) -> str | None:
         worktree = os.path.normpath(os.environ.get("COMPANY_REPO", "")) if os.environ.get("COMPANY_REPO") else ""
         croot = os.path.normpath(os.environ.get("COMPANY_ROOT", "")) if os.environ.get("COMPANY_ROOT") else ""
         main_repo = os.path.normpath(os.environ.get("COMPANY_MAIN_REPO", "")) if os.environ.get("COMPANY_MAIN_REPO") else ""
-        escaped = find_escape(command, worktree, croot, main_repo)
+        plugin_root = os.path.normpath(os.environ["COMPANY_PLUGIN_ROOT"]) if os.environ.get("COMPANY_PLUGIN_ROOT") else ""
+        escaped = find_escape(command, worktree, croot, main_repo, plugin_root)
         if escaped:
             _record_command(task_id, command, "shell write outside the worktree")
             return (
