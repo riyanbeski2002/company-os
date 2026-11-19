@@ -93,6 +93,12 @@ EVENTS = {
     # Task id travels in data.task, not top-level `task`: these describe the
     # disk, not the task's lifecycle, and must not move fold()'s updated_at.
     "WORKTREE_CREATED", "WORKTREE_REMOVED", "WORKTREE_CLEANUP_BLOCKED",
+    # finos ESC-239 (worker.start_gate_services): nothing recorded that a
+    # gate's declared services (a verify database) were brought up outside
+    # the sandbox, with what, or that teardown ran — without it a gate's
+    # UNVERIFIED can't be told apart from "its database never started".
+    # Task id in data.task, same reason as WORKTREE_*: infra, not lifecycle.
+    "GATE_SERVICES_UP", "GATE_SERVICES_DOWN",
 }
 
 # Events asserting a fact must carry machine-checkable evidence (D6). An event

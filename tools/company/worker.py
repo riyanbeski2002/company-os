@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -379,7 +382,7 @@ def sandbox_settings(company_root: Path, workdir: Path,
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
               worktree: Path, thinking: bool = True,
               harness_spec: dict | None = None, allowed_tools: str | None = None,
-              plugin_root: Path | None = None) -> dict:
+              plugin_root: Path | None = None, extra_env: dict | None = None) -> dict:
     """Build the worker's environment.
 
     COMPANY_REPO is the *worktree*, not the main checkout: the worker's whole
@@ -405,6 +408,10 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
         for var in remove:
             env.pop(var, None)
         env.update(add)
+    if extra_env:
+        # gate_services output (start_gate_services). Applied before the
+        # COMPANY_* block so it can never override company-os's own vars.
+        env.update(extra_env)
 
     env.update({
         "COMPANY_TASK": task["id"],
@@ -433,6 +440,329 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
         # efficiency addendum v1).
         env["MAX_THINKING_TOKENS"] = "0"
     return env
+
+
+# ---------------------------------------------------------------------------
+# gate_services (finos ESC-239, option A, Riyan 2026-11-19)
+#
+# A gate role that must run a database-backed suite can't start the database
+# itself: its sandbox blocks Docker. The project declares the services in
+# .company/config/project.yaml instead, and company-os brings them up OUTSIDE
+# the sandbox before the gate launches and tears them down afterwards:
+#
+#   gate_services:
+#     - up: "bash scripts/verify-db-up.sh"
+#       env_from_output: {SECURITY_TEST_DATABASE_URL: 'SECURITY_TEST_DATABASE_URL=(\S+)'}
+#       down: "bash scripts/verify-db-up.sh --stop"
+#       timeout_s: 600          # optional, applies to up and down separately
+#
+# Trust boundary: up/down run with cwd = the project's MAIN checkout, and the
+# config is read from the main checkout's .company/ — never from the gate's
+# worktree. The worktree is the branch under review; running its scripts
+# unsandboxed (with Docker) would hand any implementer root-equivalent
+# execution. The script gets the branch as DATA only: COMPANY_GATE_WORKTREE
+# is a snapshot of the reviewed branch's commit, read through the MAIN
+# repo's gitdir (never the worktree's own .git, which the implementer can
+# repoint), regular files only — so a planted link can't make the
+# unsandboxed script read (and echo) ~/.ssh or .company/secrets.
+#
+# - Only stdout is parsed, and the FIRST match wins: anything the branch can
+#   make the script print comes after the script's own line.
+# - Command output is logged under .company/secrets/ (denied to every
+#   sandboxed worker): it can carry credentials. Events carry var NAMES only.
+# - The command strings themselves do go into events: keep secrets out of
+#   them (read them from a file or env inside the script instead).
+# ---------------------------------------------------------------------------
+
+_ENV_NAME = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+# Injected after the harness's strip_env and the provider's key vars, so a
+# name here could re-add a stripped credential, retarget the model provider,
+# or hijack the worker's interpreter/loader/shell. Trusted config or not,
+# none of these is a service endpoint.
+_RESERVED_ENV = re.compile(
+    r"^(COMPANY_|ANTHROPIC_|CLAUDE_|OPENAI_|CODEX_|GEMINI_|GOOGLE_|AWS_|LD_|DYLD_|"
+    r"PYTHON|NODE_|NPM_|GIT_|SSH_|BUN_)|^(PATH|HOME|SHELL|USER|TMPDIR|ENV|BASH_ENV|"
+    r"MAX_THINKING_TOKENS|VERIFY_ID|IFS|PS4|SSL_CERT_FILE|SSL_CERT_DIR|"
+    r"JAVA_TOOL_OPTIONS|RUBYOPT|[A-Z_]*_PROXY)$|^(BASH_FUNC_|PERL5)")
+GATE_SERVICE_TIMEOUT = 600
+
+
+def _service_id(raw: str) -> str:
+    """A VERIFY_ID safe as a docker compose project name / path segment."""
+    return re.sub(r"[^a-z0-9_-]+", "-", raw.lower()).strip("-_") or "gate"
+
+
+def load_gate_services(company_root: Path) -> list[dict]:
+    """The validated `gate_services` list, or [] when none is declared. A
+    malformed entry is a WorkerError: a gate silently launched without the
+    services it was configured to have would just report UNVERIFIED."""
+    try:
+        cfg = staffing.load_config(company_root, "project.yaml")
+    except FileNotFoundError:
+        return []
+    services = cfg.get("gate_services") or []
+    if not isinstance(services, list):
+        raise WorkerError("project.yaml gate_services must be a list")
+    out = []
+    for i, svc in enumerate(services):
+        where = f"project.yaml gate_services[{i}]"
+        if not isinstance(svc, dict) or not isinstance(svc.get("up"), str) or not svc["up"].strip():
+            raise WorkerError(f"{where} needs an `up` command string")
+        if svc.get("down") is not None and not isinstance(svc["down"], str):
+            raise WorkerError(f"{where}: `down` must be a command string")
+        patterns = svc.get("env_from_output") or {}
+        if not isinstance(patterns, dict):
+            raise WorkerError(f"{where}: env_from_output must map VAR: regex")
+        compiled = {}
+        for var, pat in patterns.items():
+            if not isinstance(var, str) or not _ENV_NAME.match(var) \
+                    or _RESERVED_ENV.match(var):
+                raise WorkerError(f"{where}: {var!r} is not an injectable env var name")
+            try:
+                rx = re.compile(str(pat))
+            except re.error as exc:
+                raise WorkerError(f"{where}: bad regex for {var}: {exc}") from None
+            if rx.groups != 1:
+                raise WorkerError(f"{where}: regex for {var} needs exactly one capture group")
+            compiled[var] = rx
+        timeout = svc.get("timeout_s", GATE_SERVICE_TIMEOUT)
+        if not isinstance(timeout, int) or timeout <= 0:
+            raise WorkerError(f"{where}: timeout_s must be a positive integer")
+        out.append({"up": svc["up"], "down": svc.get("down"),
+                    "env_from_output": compiled, "timeout_s": timeout})
+    return out
+
+
+def _run_service_cmd(cmd: str, repo: Path, env: dict, timeout: int, log_path: Path) -> tuple:
+    """(exit_code or None on timeout, stdout). Both streams go to log_path,
+    never into an event: they can carry credentials."""
+    # Own process group: on timeout the whole tree dies (a `docker compose
+    # up --wait` under the script), not just the shell.
+    proc = subprocess.Popen(cmd, shell=True, cwd=str(repo), env=env, text=True,
+                            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, start_new_session=True)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+        code = proc.returncode
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        out, err = proc.communicate()
+        code = None
+    except BaseException:  # SIGTERM-as-SystemExit, Ctrl-C: don't leave it running
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        raise
+    out, err = out or "", err or ""
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(f"$ {cmd}\n--- stdout\n{out}\n--- stderr\n{err}\n[exit {code}]\n")
+    return code, out
+
+
+def _git_trusted(repo: Path, *args, **kw) -> subprocess.CompletedProcess:
+    """git against the MAIN checkout's gitdir only. Never `-C <worktree>`:
+    a worktree's `.git` file is writable by the implementer, who could point
+    it at a gitdir whose config runs commands (smudge filters, fsmonitor)
+    the moment git touches it — unsandboxed, here."""
+    env = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0"}
+    return subprocess.run(["git", "-C", str(repo), *args], env=env, **kw)
+
+
+def _snapshot_tree(repo: Path, ref: str, dest: Path) -> Path:
+    """The reviewed commit as plain files, read blob by blob from the main
+    repo's object store (ls-tree + cat-file: no attributes, no filters, no
+    worktree config). Only regular files are written, by us; symlinks and
+    submodules are dropped, so nothing the unsandboxed script reads can
+    point outside it."""
+    r = _git_trusted(repo, "rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}",
+                     capture_output=True, text=True)
+    if r.returncode != 0:
+        raise WorkerError(f"could not snapshot {ref!r} for gate_services: {r.stderr.strip()[:300]}")
+    sha = r.stdout.strip()
+    r = _git_trusted(repo, "ls-tree", "-r", "-z", "--full-tree", sha, capture_output=True)
+    if r.returncode != 0:
+        raise WorkerError(f"could not list {sha} for gate_services: "
+                          f"{r.stderr.decode(errors='replace').strip()[:300]}")
+    entries = []
+    for rec in r.stdout.split(b"\0"):
+        if not rec:
+            continue
+        meta, _, path = rec.partition(b"\t")
+        mode, kind, obj = meta.decode().split()
+        rel = Path(path.decode("utf-8", errors="surrogateescape"))
+        if kind != "blob" or mode not in ("100644", "100755"):
+            continue  # symlink (120000), submodule (160000)
+        if rel.is_absolute() or ".." in rel.parts or ".git" in rel.parts:
+            continue
+        entries.append((obj, mode, rel))
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+    batch = "".join(f"{obj}\n" for obj, _, _ in entries).encode()
+    r = _git_trusted(repo, "cat-file", "--batch", input=batch, capture_output=True)
+    if r.returncode != 0:
+        raise WorkerError(f"could not read {sha}'s blobs for gate_services")
+    buf, pos = r.stdout, 0
+    for obj, mode, rel in entries:
+        nl = buf.index(b"\n", pos)
+        header = buf[pos:nl].split()
+        if header[0].decode() != obj or header[1] != b"blob":
+            raise WorkerError(f"unexpected cat-file output for {obj} while snapshotting {sha}")
+        size = int(header[2])
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(buf[nl + 1:nl + 1 + size])
+        if mode == "100755":
+            target.chmod(0o755)
+        pos = nl + 1 + size + 1  # content, then its trailing newline
+    return dest
+
+
+def _trap_signals(handle: dict) -> None:
+    """A launcher killed outright (tmux pane closed) would skip every
+    `finally` and leave the services running: turn SIGTERM/SIGHUP into
+    SystemExit while services are up. Main thread only (Python's rule)."""
+    if threading.current_thread() is not threading.main_thread():
+        return
+    def _exit(signum, _frame):
+        raise SystemExit(128 + signum)
+    handle["prev_signals"] = {sig: signal.signal(sig, _exit)
+                              for sig in (signal.SIGTERM, signal.SIGHUP)}
+
+
+def _restore_signals(handle: dict) -> None:
+    for sig, prev in (handle.pop("prev_signals", None) or {}).items():
+        signal.signal(sig, prev)
+
+
+def start_gate_services(repo: Path, company_root: Path, role: str, actor: str,
+                        project: str, task_id: str | None, ref: str,
+                        verify_id: str) -> dict | None:
+    """Bring up the project's gate_services for a gate role. Returns a handle
+    for stop_gate_services (None: nothing to do — not a gate role, or none
+    declared). Raises WorkerError, after tearing down whatever it started, if
+    any `up` fails or its declared env vars can't be parsed: a gate that would
+    only report UNVERIFIED is never launched."""
+    if role not in GATE_VERDICT_EVENTS:
+        return None  # implementers are untouched
+    services = load_gate_services(company_root)
+    if not services:
+        return None
+    # Denied to every sandboxed worker (sandbox_settings, guard_secrets).
+    secret_dir = company_root / "secrets" / "gate_services"
+    secret_dir.mkdir(parents=True, exist_ok=True)
+    log_path = secret_dir / f"{_service_id(actor)}.log"
+    snapshot = company_root / "state" / "gate-services" / verify_id
+    handle = {"repo": repo, "company_root": company_root, "actor": actor,
+              "project": project, "task": task_id, "env": None, "snapshot": snapshot,
+              "log": log_path, "started": [], "inject": {}, "verify_id": verify_id}
+    log = EventLog(company_root)
+    _trap_signals(handle)
+    try:
+        base_env = dict(os.environ)
+        base_env.update({"COMPANY_GATE_WORKTREE": str(_snapshot_tree(repo, ref, snapshot)),
+                         "VERIFY_ID": verify_id})
+        handle["env"] = base_env
+        for svc in services:
+            handle["started"].append(svc)  # down runs even for a half-started up
+            code, output = _run_service_cmd(svc["up"], repo, base_env, svc["timeout_s"], log_path)
+            problem = None
+            if code != 0:
+                problem = (f"timed out after {svc['timeout_s']}s" if code is None
+                           else f"exited {code}")
+            else:
+                for var, rx in svc["env_from_output"].items():
+                    # FIRST match wins: the script may echo output from the
+                    # branch under review (its migrations) after its own
+                    # line, and that must not be able to pick the gate's DB.
+                    m = rx.search(output)
+                    if not m:
+                        problem = f"printed no value for {var} (/{rx.pattern}/)"
+                        break
+                    handle["inject"][var] = m.group(1)
+            if problem:
+                log.append(make_event(
+                    event="GATE_SERVICES_UP", actor=actor, project=project,
+                    data={"ok": False, "task": task_id, "role": role, "verify_id": verify_id,
+                          "up": svc["up"], "exit_code": code, "error": problem,
+                          "log": str(log_path)}))
+                raise WorkerError(
+                    f"gate_services `up` ({svc['up']}) {problem}, so the {role} gate was not "
+                    f"launched (it could only report UNVERIFIED). Output: {log_path}")
+        log.append(make_event(
+            event="GATE_SERVICES_UP", actor=actor, project=project,
+            data={"ok": True, "task": task_id, "role": role, "verify_id": verify_id,
+                  "services": [s["up"] for s in services],
+                  # names only: values (database URLs) can carry credentials
+                  "env_vars": sorted(handle["inject"]), "log": str(log_path)}))
+    except BaseException:
+        stop_gate_services(handle)  # whatever went wrong, nothing is left running
+        raise
+    return handle
+
+
+def _services_note(handle: dict | None) -> str:
+    """Tell the gate what it was given. Without this a gate sees Docker
+    denied by its sandbox and reports UNVERIFIED without ever looking for
+    the URL in its env (finos m5-phase1, 2026-11-19: the single-task run
+    only worked because the PM happened to say so in a handoff)."""
+    if not handle or not handle["inject"]:
+        return ""
+    names = ", ".join(sorted(handle["inject"]))
+    return ("\n\nGATE SERVICES (started for you by company-os, outside your sandbox)\n"
+            f"These are set in your environment, pointing at services already running "
+            f"against this review's commit: {names}. Use them for the database-backed "
+            f"checks. Do not start or stop services yourself (Docker is denied to you "
+            f"by design); company-os tears them down after you exit.\n")
+
+
+def stop_gate_services(handle: dict | None) -> None:
+    """Run every started service's `down`, newest first. Never raises: it runs
+    from a `finally`, and must not mask the gate's own result — a failed
+    teardown is recorded in GATE_SERVICES_DOWN instead."""
+    if not handle:
+        return
+    gate = handle.pop("proc", None)
+    if gate is not None and gate.poll() is None:
+        # Only on an abnormal exit (the launcher itself was signalled): a
+        # gate left running against a torn-down DB would report UNVERIFIED.
+        gate.terminate()
+    if not handle["started"]:
+        _restore_signals(handle)
+        shutil.rmtree(handle["snapshot"], ignore_errors=True)
+        return
+    # A second SIGTERM mid-teardown must not abort the `down` itself.
+    for sig in handle.get("prev_signals") or {}:
+        signal.signal(sig, signal.SIG_IGN)
+    results = []
+    try:
+        for svc in reversed(handle["started"]):
+            if not svc.get("down"):
+                continue
+            try:
+                code, _ = _run_service_cmd(svc["down"], handle["repo"], handle["env"],
+                                           svc["timeout_s"], handle["log"])
+            except Exception as exc:  # noqa: BLE001 — recorded, never raised
+                code = f"error: {exc}"
+            results.append({"down": svc["down"], "exit_code": code})
+    finally:
+        handle["started"] = []
+        _restore_signals(handle)
+        shutil.rmtree(handle["snapshot"], ignore_errors=True)
+    try:
+        EventLog(handle["company_root"]).append(make_event(
+            event="GATE_SERVICES_DOWN", actor=handle["actor"], project=handle["project"],
+            # None, not True, when no service declared a `down`: nothing ran.
+            data={"task": handle["task"],
+                  "ok": all(r["exit_code"] == 0 for r in results) if results else None,
+                  "verify_id": handle["verify_id"], "results": results,
+                  "log": str(handle["log"])}))
+    except Exception:  # noqa: BLE001
+        pass
 
 
 READONLY_TOOLS = "Read,Grep,Glob,Bash"
@@ -604,12 +934,16 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             f"{busy} is already working in {task['id']}'s worktree. Two workers in "
             f"one worktree overwrite each other. Wait for it, or `company stop`."
         )
+    services = None
     try:
         log = EventLog(company_root)
         wt, branch = ensure_worktree(repo, company_root, task)
         _check_project(harness_spec, wt)
         sandbox = sandbox_settings(company_root, wt, role)
         plugin_root = launch_plugin_root(repo)  # before WORKER_STARTED: a failed export never starts
+        # Before WORKER_STARTED too: a failed `up` never starts the gate.
+        services = start_gate_services(repo, company_root, role, actor, task.get("project", ""),
+                                       task["id"], branch, _service_id(task["id"]))
 
         state = company_root / "state" / "workers" / actor
         state.mkdir(parents=True, exist_ok=True)
@@ -643,7 +977,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         # packet instead — the default `claude` harness skips this (it would
         # otherwise load the same persona twice, once natively and once
         # inline).
-        worker_input = packet
+        worker_input = packet + _services_note(services)
         if not harness_spec.get("native_agent_loading"):
             worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + packet
 
@@ -656,11 +990,14 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                 cwd=str(wt),
                 env=build_env(repo, company_root, task, actor, wt,
                               thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
-                              allowed_tools=role_tools(role), plugin_root=plugin_root),
+                              allowed_tools=role_tools(role), plugin_root=plugin_root,
+                              extra_env=services and services["inject"]),
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
             (state / "pid").write_text(str(proc.pid))
             (state / "started_task").write_text(task["id"])
+            if services:
+                services["proc"] = proc
             # The pid + started_task markers above are now on disk, which is
             # what live_worker_on's ongoing liveness check relies on — the
             # claim's only job was covering the window before this point, so
@@ -684,7 +1021,11 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                     proc.kill()
                 timed_out = True
 
+        # Before WORKER_EXITED: once the exit is visible a relaunch may start
+        # its own `up` under the same VERIFY_ID, and our `down` must not kill
+        # it. (The `finally` call is then a no-op safety net.)
         elapsed = round(time.monotonic() - started, 1)
+        stop_gate_services(services)
         result = _read_result(out_path, harness_spec, proc.returncode)
         session_id = result.get("session_id")
         if session_id:
@@ -745,6 +1086,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
     finally:
         # Covers every early-exit path above (ensure_worktree raising, etc.)
         # that never reached the release call in the normal path.
+        stop_gate_services(services)
         release_claim(company_root, task["id"])
 
 
@@ -774,6 +1116,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
             f"{busy} is already running the {role} gate on group {group_id!r}. "
             f"Wait for it, or `company stop`."
         )
+    services = None
     try:
         log = EventLog(company_root)
         state = company_root / "state" / "workers" / actor
@@ -785,6 +1128,12 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         task_ids = [t["id"] for t in tasks]
         sandbox = sandbox_settings(company_root, worktree, role)
         plugin_root = launch_plugin_root(repo)  # before WORKER_STARTED: a failed export never starts
+        # Per role: the group's three gates run concurrently, so each needs
+        # its own service instance or one gate's `down` kills another's DB.
+        # The branch gategroup.build_group_review made for this role's review.
+        services = start_gate_services(repo, company_root, role, actor, project, None,
+                                       f"_gate-group-{group_id}-{role}",
+                                       _service_id(f"gg-{group_id}-{role}"))
 
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
@@ -797,10 +1146,11 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
                         worktree, thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
-                        allowed_tools=role_tools(role), plugin_root=plugin_root)
+                        allowed_tools=role_tools(role), plugin_root=plugin_root,
+                        extra_env=services and services["inject"])
         env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
 
-        worker_input = packet
+        worker_input = packet + _services_note(services)
         if not harness_spec.get("native_agent_loading"):
             worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + packet
 
@@ -815,6 +1165,8 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
             )
             (state / "pid").write_text(str(proc.pid))
             (state / "started_task").write_text(claim_id)
+            if services:
+                services["proc"] = proc
             release_claim(company_root, claim_id)
             try:
                 proc.communicate(input=worker_input, timeout=timeout)
@@ -827,7 +1179,11 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                     proc.kill()
                 timed_out = True
 
+        # Before WORKER_EXITED: once the exit is visible a relaunch may start
+        # its own `up` under the same VERIFY_ID, and our `down` must not kill
+        # it. (The `finally` call is then a no-op safety net.)
         elapsed = round(time.monotonic() - started, 1)
+        stop_gate_services(services)
         result = _read_result(out_path, harness_spec, proc.returncode)
         session_id = result.get("session_id")
         if session_id:
@@ -871,6 +1227,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
             "stdout": str(out_path), "stderr": str(err_path),
         }
     finally:
+        stop_gate_services(services)
         release_claim(company_root, claim_id)
 
 

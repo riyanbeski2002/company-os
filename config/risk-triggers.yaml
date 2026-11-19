@@ -109,8 +109,12 @@ triggers:
   - name: governance-mechanism
     keywords: [pretooluse hook, guard_paths, guard_secrets, protect_branches,
               quality-gates.yaml, risk-triggers.yaml, staffing.yaml,
-              allowedtools, role_tools, fast_path, baseline_gates]
+              allowedtools, role_tools, fast_path, baseline_gates, gate_services]
+    # .company/config/project.yaml: its gate_services commands run OUTSIDE
+    # the sandbox on every gate launch (finos ESC-239), so a branch changing
+    # them must not merge on code review alone.
     paths: ["hooks/**", "config/quality-gates.yaml", "config/risk-triggers.yaml",
+           "**/.company/config/project.yaml",
            "config/staffing.yaml", "**/worker.py", "**/staffing.py", "**/cli.py",
            "**/taskstate.py", "**/eventlog.py"]
     gates: [review, security]
