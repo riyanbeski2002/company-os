@@ -231,3 +231,24 @@ class TestDoneNeedsASignedDefinition(SigningCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RefusedKeyCreateAppendsNothing(unittest.TestCase):
+    def test_unwritable_secrets_fails_before_migrating(self):
+        import gatesig
+        from eventlog import EventLog, make_event
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d) / ".company"
+            (root / "events").mkdir(parents=True)
+            EventLog(root).append(make_event(event="TASK_CREATED", actor="company-pm",
+                                             project="p", task="T-1",
+                                             data={"title": "t", "gates": ["review"]}))
+            before = len(EventLog(root).read())
+            sec = root / "secrets"
+            sec.mkdir(mode=0o500)
+            try:
+                self.assertIsNone(gatesig.pm_signer(root))
+                self.assertEqual(len(EventLog(root).read()), before)
+            finally:
+                sec.chmod(0o700)
+            self.assertIsNotNone(gatesig.pm_signer(root))  # PM can still sign afterwards

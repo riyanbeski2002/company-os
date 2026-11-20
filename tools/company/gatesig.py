@@ -63,14 +63,18 @@ def _create(company_root: Path) -> bytes:
         if path.exists():
             return load_key(company_root)
         key = secrets.token_bytes(32)
-        migrate(log, key)
+        # Write the key file BEFORE migrating: a process that can't create
+        # it (a worker's sandbox) must fail here, before any signed snapshot
+        # is appended — otherwise it leaves a signed log with no key, which
+        # the PM then refuses forever (security review, sr/denied.py).
         tmp = path.with_name(f".{path.name}.{os.getpid()}")
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w", encoding="ascii") as fh:
-            fh.write(key.hex())
-            fh.flush()
-            os.fsync(fh.fileno())
         try:
+            with os.fdopen(fd, "w", encoding="ascii") as fh:
+                fh.write(key.hex())
+                fh.flush()
+                os.fsync(fh.fileno())
+            migrate(log, key)
             os.link(tmp, path)  # never replaces a key
         finally:
             os.unlink(tmp)
