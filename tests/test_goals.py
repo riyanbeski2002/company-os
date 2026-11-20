@@ -592,13 +592,19 @@ class TestRealLogReplaysUnchanged(unittest.TestCase):
         (self.root / "events").mkdir(parents=True)
         shutil.copy(REAL_COMPANY / "events" / "events.jsonl", self.root / "events")
         shutil.copytree(REAL_COMPANY / "tasks", self.root / "tasks")
+        # Views are written by the keyed fold once the log is signed (ESC-002);
+        # replay the same way, with the key, when the real repo has one.
+        key = REAL_COMPANY / "secrets" / "gate.key"
+        if key.exists():
+            (self.root / "secrets").mkdir(mode=0o700)
+            shutil.copy(key, self.root / "secrets" / "gate.key")
 
     def tearDown(self):
         self.tmp.cleanup()
 
     def test_every_task_view_replays_byte_identical(self):
         events = EventLog(self.root).read()
-        tasks = taskstate.fold(events)
+        tasks = taskstate.load(self.root, events)
         on_disk = sorted(p.stem for p in (self.root / "tasks").glob("*.json"))
         self.assertEqual(sorted(tasks), on_disk)
         predates_goals = not any(e.get("event") in GOAL_EVENTS for e in events)
