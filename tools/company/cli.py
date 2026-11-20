@@ -1133,7 +1133,7 @@ def cmd_status(args):
     stalls = {**render.detect_stale_tasks(tasks),
              **render.detect_stalls(root, tasks, events),
              **render.detect_resting_tasks(tasks),
-             **render.gates_with_no_verdict(trusted, tasks)}
+             **render.gates_with_no_verdict(trusted, tasks, gate_key=gatesig.load_key(root))}
 
     # Tiered early warning (paperclip donation, 2026-10-21): "suspicious"
     # (1-2 days silent) surfaces here even when a task hasn't yet crossed
@@ -1173,7 +1173,7 @@ def cmd_report(args):
 def cmd_integrate(args):
     import integrate as integrate_mod
     import staffing
-    _refuse_inside_worker("", "integrate",
+    _refuse_inside_worker(verb="", group="integrate", why=
                           "merging is the PM's decision, never the work being merged")
     root = company_root(args)
     repo = root.parent
@@ -2068,7 +2068,7 @@ def cmd_waive(args):
     it only at the same SHA as the task's other satisfied gates; integrate
     then merges exactly that SHA. It is not a pass and never shown as one."""
     import worker as worker_mod
-    _refuse_inside_worker("", "waive",
+    _refuse_inside_worker(verb="", group="waive", why=
                           "waiving a gate is Riyan's decision, never the work's own")
     root = company_root(args)
     key = gatesig.load_key(root)
@@ -2086,10 +2086,32 @@ def cmd_waive(args):
     task = tasks.get(args.task) or die(f"no such task {args.task!r} in the event log")
     if args.gate not in (task.get("gates") or []):
         die(f"{args.task} has no {args.gate!r} gate to waive (gates: {task.get('gates')})", 1)
+    import gitutil
+    repo = root.parent
     try:
-        sha = worker_mod.branch_sha(root.parent, task.get("branch"))
+        sha = worker_mod.branch_sha(repo, task.get("branch"))
     except worker_mod.WorkerError as exc:
         die(str(exc), 1)
+    # Waive only a commit that is already the subject of this task: its
+    # latest IMPLEMENTATION_READY, or the SHA its other gates are satisfied
+    # at. Never just whatever the tip happens to be (it may hold commits
+    # nobody announced or looked at).
+    others = taskstate.reviewed_commits(task, key)
+    implemented = (task.get("evidence") or {}).get("diff")
+    if implemented:
+        r = gitutil.git_trusted(repo, "rev-parse", "--verify", "--quiet", "--end-of-options",
+                                f"{implemented}^{{commit}}", capture_output=True, text=True)
+        implemented = r.stdout.strip() if r.returncode == 0 else None
+    if sha not in others | {implemented}:
+        die(f"refusing to waive {args.gate!r} at {task.get('branch')} tip {sha}: it is "
+            f"neither the task's latest IMPLEMENTATION_READY commit "
+            f"({implemented or 'none'}) nor the SHA its other gates are satisfied at "
+            f"({', '.join(sorted(others)) or 'none'}). Waive what was announced and "
+            f"reviewed, not an unannounced tip.", 1)
+    base = task.get("base") or worker_mod._default_base(repo)
+    stat = gitutil.git_trusted(repo, "diff", "--no-ext-diff", "--no-textconv", "--stat",
+                               "--end-of-options", f"{base}...{sha}",
+                               capture_output=True, text=True)
     sign = gatesig.pm_signer(root)
     if not sign:
         die("cannot sign a waiver here (no signing key): an unsigned waiver never counts", 2)
@@ -2100,12 +2122,13 @@ def cmd_waive(args):
         evidence={"commit": sha}), finalize=sign)
     taskstate.rebuild(root)
     emit({"ok": True, "task": args.task, "gate": args.gate, "commit": sha,
-          "approved_by": args.approved_by, "seq": ev["seq"]})
+          "approved_by": args.approved_by, "seq": ev["seq"], "base": base,
+          "diffstat": stat.stdout.rstrip() if stat.returncode == 0 else None})
 
 
 def cmd_resolve(args):
     import escalations
-    _refuse_inside_worker("", "resolve",
+    _refuse_inside_worker(verb="", group="resolve", why=
                           "an escalation is answered by Riyan through the PM, never by a worker")
     root = company_root(args)
     project = load_project(root, args.project)
@@ -2144,7 +2167,8 @@ def _refuse_inside_worker(verb: str, group: str = "goal",
     so its presence is the one actor boundary enforceable today."""
     actor = os.environ.get("COMPANY_ACTOR")
     if actor:
-        die(f"`company {group} {verb}` refuses to run inside a launched worker "
+        command = " ".join(part for part in ("company", group, verb) if part)
+        die(f"`{command}` refuses to run inside a launched worker "
             f"($COMPANY_ACTOR={actor!r}) — {why}.", 2)
 
 

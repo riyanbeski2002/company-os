@@ -202,9 +202,13 @@ class TestGatesWithNoVerdict(unittest.TestCase):
         merged = [{"id": "T-1", "status": "MERGED"}]
         done = [{"id": "T-1", "status": "DONE"}]
 
-        # The later verdict answers the no-verdict: latest per gate wins.
-        self.assertNotIn("T-1", render.gates_with_no_verdict(events))
-        self.assertNotIn("T-1", render.gates_with_no_verdict(events, still_active))
+        # A raw PASSED, which anyone can append, answers nothing...
+        self.assertIn("T-1", render.gates_with_no_verdict(events, still_active))
+        # ...a later FAILED does: latest per gate wins.
+        failed = events + [{"event": "SECURITY_REVIEW_FAILED", "task": "T-1",
+                            "actor": "security-reviewer-3"}]
+        self.assertNotIn("T-1", render.gates_with_no_verdict(failed))
+        self.assertNotIn("T-1", render.gates_with_no_verdict(failed, still_active))
         # Without that verdict, an in-flight task is still surfaced...
         self.assertIn("T-1", render.gates_with_no_verdict(events[:1], still_active))
         # ...and a resolved one isn't.

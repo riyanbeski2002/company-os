@@ -73,7 +73,8 @@ def workers_that_ended_cleanly(events: list[dict]) -> set[str]:
     return {a for a, n in last.items() if n in ("WORKER_EXITED", "TASK_FAILED")}
 
 
-def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None) -> dict[str, str]:
+def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None,
+                          gate_key: bytes | None = None) -> dict[str, str]:
     """Tasks whose gate worker exited without a PASSED/FAILED verdict.
 
     KNOWN_ISSUES #3: this looked identical to success — a gate worker ending
@@ -94,7 +95,24 @@ def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None) -
     # verdict of either polarity after a GATE_NO_VERDICT means the rerun
     # happened (trade-ai TASK-402: no-verdicts at 674/680/686, passes at
     # 692/702/711, still flagged). Anything before a task's migration
-    # snapshot is history (gatesig.migrate).
+    # snapshot is history (gatesig.migrate). What may answer a no-verdict:
+    # any FAILED (the safe direction), a PASSED only if it is the
+    # launcher-signed pass the keyed fold verified for that gate (`tasks`
+    # and `gate_key`), and a GATE_WAIVED only from the trusted log (PM-signed)
+    # — a worker's raw PASSED must not hide a stall.
+    by_id = {t["id"]: t for t in tasks or []}
+
+    def answers(ev, gate):
+        name = ev.get("event")
+        if name in fail_to_gate:
+            return True
+        if name == "GATE_WAIVED":
+            return bool(ev.get("_pm_signed"))
+        task = by_id.get(ev.get("task"))
+        sig = ((task or {}).get("evidence") or {}).get(f"{gate}_sig") or {}
+        return bool(task and taskstate.gate_verified(task, gate, gate_key)
+                    and sig.get("ws_seq") == (ev.get("data") or {}).get("ws_seq")
+                    and ev.get("actor") == task["evidence"].get(f"{gate}_actor"))
     pass_to_gate = {e: g for g, e in GATE_EVENT.items()}
     fail_to_gate = {"REVIEW_FAILED": "review", "QA_FAILED": "qa",
                     "SECURITY_REVIEW_FAILED": "security"}
@@ -118,10 +136,14 @@ def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None) -
                         (ev.get("data") or {}).get("role"))
         elif name == "GATE_WAIVED":
             gate = (ev.get("data") or {}).get("gate")
+            if gate is None:
+                continue
         else:
             gate = pass_to_gate.get(name) or fail_to_gate.get(name)
             if not gate:
                 continue
+        if name != "GATE_NO_VERDICT" and not answers(ev, gate):
+            continue
         last[(tid, gate)] = ev
     out = {}
     for (tid, _gate), ev in last.items():

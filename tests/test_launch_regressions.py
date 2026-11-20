@@ -263,8 +263,13 @@ class TestGateNoVerdictThroughLaunch(FakeHarnessCase):
         self.assertIsNone(worker.gave_no_verdict(events, "T-1", "security-reviewer-201b",
                                                  "security-reviewer"))
 
-        flagged = render.gates_with_no_verdict(events, [{"id": "T-1", "status": "IN_REVIEW"}])
-        self.assertNotIn("T-1", flagged)
+        import gatesig
+        import taskstate
+        key = gatesig.load_key(self.root)
+        tasks = list(taskstate.load(self.root).values())
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events, tasks, gate_key=key))
+        # Without the key, the pass can't be shown to be the launcher's: still flagged.
+        self.assertIn("T-1", render.gates_with_no_verdict(events, tasks))
         self.assertEqual(len(self._events("GATE_NO_VERDICT")), 1)  # still in the log
 
         by_actor = costs.aggregate(events)["by_actor"]

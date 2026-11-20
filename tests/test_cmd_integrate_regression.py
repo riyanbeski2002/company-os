@@ -231,10 +231,48 @@ class TestGateWaiver(unittest.TestCase):
         self.assertFalse(result["merged"], result)
         self.assertEqual(result["reason"], "branch moved after review")
 
+    def _waive_rc(self, gate):
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), \
+                self.assertRaises(SystemExit) as ctx:
+            cli.cmd_waive(Args(root=str(self.root), task="T-1", gate=gate, reason="r",
+                               approved_by="riyan", list=False, project=None))
+        return ctx.exception.code, err.getvalue()
+
+    def test_waive_refuses_a_tip_that_is_not_the_announced_implementation(self):
+        tip = self._commit("api/app.py", "unannounced\n")  # no IMPLEMENTATION_READY
+        code, err = self._waive_rc("qa")
+        self.assertEqual(code, 1)
+        self.assertIn(tip, err)
+        self.assertIn("neither the task's latest IMPLEMENTATION_READY", err)
+        self.assertFalse([e for e in self.log.read() if e["event"] == "GATE_WAIVED"])
+
+    def test_waive_refuses_a_tip_past_the_other_gates_sha(self):
+        self._gate("code-reviewer-1", "code-reviewer")  # at the announced commit
+        self._commit("api/app.py", "changed after review\n")
+        code, err = self._waive_rc("qa")
+        self.assertEqual(code, 1)
+        self.assertIn(self.reviewed, err)  # names the SHA review is satisfied at
+        self.assertFalse([e for e in self.log.read() if e["event"] == "GATE_WAIVED"])
+
+    def test_waive_prints_the_sha_and_its_diffstat(self):
+        w = self._waive("qa")
+        self.assertEqual(w["commit"], self.reviewed)
+        self.assertEqual(w["base"], "main")
+        self.assertIn("api/app.py", w["diffstat"])
+        self.assertIn("1 file changed", w["diffstat"])
+
     def test_a_waiver_at_another_sha_is_refused(self):
+        """Defence in depth past `waive`'s own check: a signed waiver whose
+        SHA differs from the other gates' never satisfies DONE or merge."""
+        import gatesig
         self._gate("code-reviewer-1", "code-reviewer")
-        self._commit("api/app.py", "changed\n")
-        self._waive("qa")  # at the new tip; review judged the old one
+        self.log.append(make_event(event="GATE_WAIVED", actor="company-pm", project="p",
+                                   task="T-1", data={"gate": "qa", "reason": "r",
+                                                     "approved_by": "riyan",
+                                                     "commit": "b" * 40},
+                                   evidence={"commit": "b" * 40}),
+                        finalize=gatesig.pm_signer(self.root))
         self.assertTrue(any("different commits" in r for r in self._reasons()))
         self.assertFalse(self._integrate()["merged"])
         self.assertFalse(self._merged())

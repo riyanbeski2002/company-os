@@ -309,7 +309,7 @@ class TestVerdictHistoryAndLatestWins(SigningCase):
         events = self.log.read()
         self.assertEqual(sum(e["event"] == "GATE_NO_VERDICT" for e in events), 3)
         task = taskstate.load(self.root)["TASK-402"]
-        self.assertEqual(render.gates_with_no_verdict(events, [task]), {})
+        self.assertEqual(render.gates_with_no_verdict(events, [task], gate_key=key), {})
         self.assertEqual(taskstate.check_done(task, gate_roles={v: k for k, v in roles.items()},
                                               gate_key=key), [])
         text = render.status("p", [task], [], gate_key=key)
@@ -338,6 +338,31 @@ class TestVerdictHistoryAndLatestWins(SigningCase):
                                    data={"role": "code-reviewer", "expected_one_of":
                                          ["REVIEW_PASSED", "REVIEW_FAILED"]}))
         self.assertIn("IDENT-7", stalls())
+
+    def test_a_raw_unsigned_pass_does_not_hide_a_no_verdict_stall(self):
+        """Review of 822ce72: a worker appending REVIEW_PASSED after its
+        gate's no-verdict must not clear the stall in `company status`."""
+        self.log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
+                                   task="T-5", data={"title": "t", "owner": "be-1",
+                                                     "gates": ["review"]}))
+        stalled = lambda: json.loads(self._cli("status", "--json", "--project", "p")
+                                     .stdout)["stalled"]
+        stalled()  # migrate
+        self.log.append(make_event(event="GATE_NO_VERDICT", actor="code-reviewer-1",
+                                   project="p", task="T-5",
+                                   data={"role": "code-reviewer", "expected_one_of":
+                                         ["REVIEW_PASSED", "REVIEW_FAILED"]}))
+        with open(self.log.path, "a") as fh:
+            fh.write(json.dumps({"ts": "t", "event": "REVIEW_PASSED", "actor": "code-reviewer-1",
+                                 "project": "p", "task": "T-5",
+                                 "seq": len(self.log.read()) + 1,
+                                 "data": {"role": "code-reviewer", "ws_seq": 1,
+                                          "verdict": "pass", "verdict_mac": "00"},
+                                 "evidence": {"log": "x"}}) + "\n")
+        self.assertIn("T-5", stalled())
+        self.log.append(make_event(event="REVIEW_FAILED", actor="be-1", project="p",
+                                   task="T-5"))
+        self.assertNotIn("T-5", stalled())  # any FAILED answers it
 
     def test_a_later_opposite_verdict_wins_in_the_no_verdict_check(self):
         import render
