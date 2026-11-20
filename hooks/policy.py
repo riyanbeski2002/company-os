@@ -295,8 +295,22 @@ class _PerSegment:
         self.pattern = re.compile(pattern)
 
     def search(self, command: str):
-        return next((m for seg in _segments(command)
-                     if (m := self.pattern.search(seg))), None)
+        # Match the command, not text it carries: a quoted grep pattern or a
+        # commit message naming a DB command is not a database operation
+        # (finos, 2026-11-20). Quoted text only counts where the segment
+        # really invokes a database client: `psql -c 'DROP TABLE x'`.
+        for seg in _segments(command):
+            bare = _QUOTED.sub(" ", seg)
+            m = self.pattern.search(bare)
+            if m is None and _DB_CLIENT_RE.search(bare):
+                m = self.pattern.search(seg)
+            if m:
+                return m
+        return None
+
+
+_QUOTED = re.compile(r"'[^']*'|\"(?:\\.|[^\"\\])*\"")
+_DB_CLIENT_RE = re.compile(_DB_CLIENT, re.I)
 
 
 DB_RULES: list[tuple] = [

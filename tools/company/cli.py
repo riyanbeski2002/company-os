@@ -1342,6 +1342,14 @@ def cmd_doctor(args):
             problems.append(f"{name}: {detail}")
 
     check("git repo", (repo / ".git").exists(), str(repo), fatal=True)
+    # The gate signing key must never be in git: anyone holding it can forge
+    # signed verdicts (ESC-002). `.company/secrets/.gitignore` keeps it out.
+    tracked = subprocess.run(["git", "-C", str(repo), "ls-files", "--", "*.company/secrets/*"],
+                             capture_output=True, text=True).stdout.split()
+    check("signing key not in git", not any(t.endswith("gate.key") for t in tracked),
+          "ok" if not tracked else f"TRACKED: {tracked} — git rm --cached it and rotate "
+          "(delete .company/secrets/gate.key only after the project is re-migrated)",
+          fatal=True)
     check("not $HOME", repo != Path.home(), str(repo), fatal=True)
 
     head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],

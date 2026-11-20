@@ -45,7 +45,12 @@ def load_key(company_root: Path, create: bool = False) -> bytes | None:
     after carrying the log over (migrate). Raises OSError if it can't."""
     path = key_path(company_root)
     try:
-        return bytes.fromhex(path.read_text(encoding="ascii").strip())
+        key = bytes.fromhex(path.read_text(encoding="ascii").strip())
+        try:
+            ignore_secrets_dir(path.parent)  # repos keyed before the ignore existed
+        except OSError:
+            pass
+        return key
     except FileNotFoundError:
         if not create:
             return None
@@ -54,10 +59,19 @@ def load_key(company_root: Path, create: bool = False) -> bytes | None:
     return _create(company_root)
 
 
+def ignore_secrets_dir(secrets_dir: Path) -> None:
+    """A `.gitignore` of `*` inside the secrets dir: git never sees the key,
+    whatever the repo's own ignore rules (some repos track .company/)."""
+    gi = secrets_dir / ".gitignore"
+    if not gi.exists():
+        gi.write_text("*\n", encoding="utf-8")
+
+
 def _create(company_root: Path) -> bytes:
     from eventlog import EventLog
     path = key_path(company_root)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    ignore_secrets_dir(path.parent)
     log = EventLog(company_root)
     with log._locked():  # one creator; no event lands between snapshot and key
         if path.exists():
