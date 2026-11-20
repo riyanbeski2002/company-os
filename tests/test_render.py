@@ -93,10 +93,10 @@ class TestFailedGateIsDistinct(unittest.TestCase):
         ws = self.log.append(make_event(
             event="WORKER_STARTED", actor=actor, project="p", task="T-1",
             data={"role": "security-reviewer"}),
-            finalize=gatesig.sign_started(key, ["T-1"]))
+            finalize=gatesig.sign_started(key, ["T-1"], {"T-1": "a" * 40}))
         worker.record_verdicts(self.log, key, "security-reviewer", actor, "p", ws["seq"],
                                [{"id": "T-1"}], {"structured_output": {"verdict": "pass"}},
-                               0, self.root / "out.json")
+                               0, self.root / "out.json", {"T-1": "a" * 40})
         return key
 
     def test_later_pass_clears_the_failure(self):

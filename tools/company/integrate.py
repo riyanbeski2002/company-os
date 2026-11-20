@@ -101,8 +101,15 @@ def ensure_integration_worktree(repo: Path, company_root: Path, base: str = "mai
 
 
 def integrate(repo: Path, company_root: Path, task: dict, test_command: str,
-              actor: str = "integration", baseline: dict | None = None) -> dict:
-    """Rebase one task branch into integration and merge it if the suite is green."""
+              actor: str = "integration", baseline: dict | None = None,
+              commit: str | None = None) -> dict:
+    """Rebase one task branch into integration and merge it if the suite is green.
+
+    `commit` is the SHA the gates signed (taskstate.reviewed_commit). It is
+    what merges, and the branch must still be exactly there: anything the
+    gate ran (a conftest during QA) can commit to the branch, and a commit
+    no gate saw must never ride along. None (an ungated task, or --force)
+    merges the branch tip as before."""
     log = EventLog(company_root)
     branch = task.get("branch")
     if not branch:
@@ -110,12 +117,26 @@ def integrate(repo: Path, company_root: Path, task: dict, test_command: str,
 
     wt = ensure_integration_worktree(repo, company_root)
     result = {"task": task["id"], "branch": branch, "worktree": str(wt)}
+    target = branch
+    if commit:
+        tip = _git(repo, "rev-parse", "--verify", "--quiet", "--end-of-options",
+                   f"refs/heads/{branch}^{{commit}}").stdout.strip()
+        if tip != commit:
+            detail = f"{branch} is at {tip or '(missing)'}, the gates passed {commit}"
+            log.append(make_event(
+                event="TASK_BLOCKED", actor=actor, project=task["project"], task=task["id"],
+                data={"stage": "integration", "reason": "branch moved after review",
+                      "detail": detail}))
+            return {**result, "merged": False, "reason": "branch moved after review",
+                    "detail": detail}
+        target = commit
+    result["commit_reviewed"] = commit
 
     # Ownership is enforced on what would actually merge, before merging it.
     # Not bypassable with --force: guard_paths.py has no override either, and
     # an out-of-glob change that's genuinely needed is an ownership change to
     # make explicitly, not one to wave through here.
-    outside = paths_outside_ownership(changed_paths(repo, branch, cwd=wt), task)
+    outside = paths_outside_ownership(changed_paths(repo, target, cwd=wt), task)
     if outside:
         log.append(make_event(
             event="TASK_BLOCKED", actor=actor, project=task["project"], task=task["id"],
@@ -126,7 +147,7 @@ def integrate(repo: Path, company_root: Path, task: dict, test_command: str,
 
     merge = _git(repo, "merge", "--no-ff", "--no-edit",
                  "-m", f"Integrate {task['id']}: {task.get('title', '')}",
-                 branch, cwd=wt)
+                 target, cwd=wt)
     if merge.returncode != 0:
         _git(repo, "merge", "--abort", cwd=wt)
         log.append(make_event(

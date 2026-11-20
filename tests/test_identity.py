@@ -130,7 +130,8 @@ class TestLauncherSignedVerdicts(unittest.TestCase):
         self.log.append(make_event(event="TEST_RUN", actor="be-1", project="p", task=tid,
                                    data={"cmd": "t", "exit_code": 0}, evidence={"log": "t"}))
 
-    def _launch(self, actor, role="code-reviewer", tasks=("TASK-1",), verdict="pass"):
+    def _launch(self, actor, role="code-reviewer", tasks=("TASK-1",), verdict="pass",
+                sha="a" * 40):
         """What worker.launch()/launch_group() do around the gate run."""
         import gatesig
         import worker
@@ -141,14 +142,14 @@ class TestLauncherSignedVerdicts(unittest.TestCase):
             event="WORKER_STARTED", actor=actor, project="p",
             task=None if group else tasks[0],
             data={"role": role, **({"tasks": tasks} if group else {})}),
-            finalize=gatesig.sign_started(self.key, tasks))
+            finalize=gatesig.sign_started(self.key, tasks, {t: sha for t in tasks}))
         out = ({"task_verdicts": [{"task": t, "verdict": verdict} for t in tasks]}
                if group else {"verdict": verdict})
         if verdict is None:
             out = {}
         worker.record_verdicts(self.log, self.key, role, actor, "p", ws["seq"],
                                [{"id": t} for t in tasks], {"structured_output": out},
-                               0, self.root / "out.json")
+                               0, self.root / "out.json", {t: sha for t in tasks})
         return ws
 
     def _reasons(self, tid="TASK-1", key="default"):
@@ -227,14 +228,16 @@ class TestLauncherSignedVerdicts(unittest.TestCase):
                    "project": "p", "task": "TASK-1", "seq": seq,
                    "data": {"role": "code-reviewer", "tier": 2, "launch_mac":
                             gatesig.started_mac(mine, "code-reviewer-1", "code-reviewer",
-                                                seq, ["TASK-1"])}})
+                                                seq, ["TASK-1"], {"TASK-1": "a" * 40}),
+                            "commits": {"TASK-1": "a" * 40}}})
         self._raw({"ts": "t", "event": "REVIEW_PASSED", "actor": "code-reviewer-1",
                    "project": "p", "task": "TASK-1", "seq": seq + 1,
                    "evidence": {"log": "x"},
                    "data": {"role": "code-reviewer", "ws_seq": seq, "verdict": "pass",
+                            "commit": "a" * 40,
                             "verdict_mac": gatesig.verdict_mac(
                                 mine, "TASK-1", "REVIEW_PASSED", "code-reviewer-1",
-                                "code-reviewer", seq, "pass")}})
+                                "code-reviewer", seq, "pass", "a" * 40)}})
         reasons = self._reasons()
         self.assertTrue(any("launcher signature" in r for r in reasons), reasons)
 
@@ -255,7 +258,8 @@ class TestLauncherSignedVerdicts(unittest.TestCase):
         self._implemented("TASK-1")
         self._implemented("TASK-2", sha="def5678")
         self._launch("code-reviewer-group-g", tasks=("TASK-1", "TASK-2"), verdict="fail")
-        self._launch("code-reviewer-1", tasks=("TASK-1",))
+        # (a PASS on the very SHA its gate just failed is refused, so: a fix)
+        self._launch("code-reviewer-1", tasks=("TASK-1",), sha="b" * 40)
         self._raw(dict(self._last("REVIEW_PASSED"), task="TASK-2"))
         self.assertEqual(self._reasons("TASK-1"), [])
         self.assertTrue(self._reasons("TASK-2"))

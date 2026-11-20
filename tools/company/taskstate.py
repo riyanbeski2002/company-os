@@ -288,8 +288,11 @@ def _record_launch(launches: dict, ev: dict, tid: str | None) -> None:
             and ev.get("actor")):
         return
     members = [tid] if tid else list(data.get("tasks") or [])
+    commits = data.get("commits")
+    if not isinstance(commits, dict):
+        return
     launches.setdefault(seq, {"actor": ev["actor"], "role": data["role"],
-                              "tasks": members, "mac": mac})
+                              "tasks": members, "commits": commits, "mac": mac})
 
 
 def _pass_signature(launches: dict, floors: dict, tid: str, gate: str,
@@ -301,9 +304,11 @@ def _pass_signature(launches: dict, floors: dict, tid: str, gate: str,
     launch = launches.get(ws_seq) if isinstance(ws_seq, int) else None
     if not (actor and isinstance(mac, str) and launch and launch["actor"] == actor
             and tid in launch["tasks"] and launch["role"] == data.get("role")
-            and ws_seq > floors.get((tid, gate), 0)):
+            and ws_seq > floors.get((tid, gate), 0)
+            and data.get("commit") and launch["commits"].get(tid) == data.get("commit")):
         return None
     return {"role": launch["role"], "ws_seq": ws_seq, "ws_tasks": launch["tasks"],
+            "ws_commits": launch["commits"], "commit": data["commit"],
             "launch_mac": launch["mac"], "verdict": data.get("verdict"),
             "verdict_mac": mac}
 
@@ -318,6 +323,23 @@ def gate_verified(task: dict, gate: str, gate_key: bytes | None) -> bool:
     ev = task.get("evidence") or {}
     return gatesig.verify(gate_key, task.get("id"), GATE_EVENT.get(gate, ""),
                           ev.get(f"{gate}_actor"), ev.get(f"{gate}_sig"))
+
+
+def reviewed_commits(task: dict, gate_key: bytes | None) -> set[str]:
+    """The SHAs this task's verified gate passes judged (launcher-read)."""
+    ev = task.get("evidence") or {}
+    return {ev[f"{g}_sig"]["commit"] for g in task.get("gates") or []
+            if gate_verified(task, g, gate_key)}
+
+
+def reviewed_commit(task: dict, gate_key: bytes | None) -> str | None:
+    """The one SHA every gate passed — what integrate merges — or None if
+    the gates aren't all passed on the same commit."""
+    shas = reviewed_commits(task, gate_key)
+    gates = task.get("gates") or []
+    if len(shas) != 1 or not all(gate_verified(task, g, gate_key) for g in gates):
+        return None
+    return next(iter(shas))
 
 
 def task_path(company_root: Path, tid: str) -> Path:
@@ -466,4 +488,11 @@ def check_done(task: dict, baseline: dict | None = None,
                 f"{event_name} came from a launch the trusted launcher did not start "
                 f"as {required_role!r}."
             )
+    shas = reviewed_commits(task, gate_key)
+    if len(shas) > 1:
+        reasons.append(
+            f"gate passes are on different commits ({', '.join(sorted(shas))}): each gate "
+            f"must judge the same branch SHA, which is what integrate merges. "
+            f"Relaunch the gates on the current commit."
+        )
     return reasons

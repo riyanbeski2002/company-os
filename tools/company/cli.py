@@ -720,7 +720,16 @@ def _resolve_max_turns(explicit: int | None, role: str) -> int:
     return GATE_MAX_TURNS if role in GATE_ROLES else IMPLEMENTER_MAX_TURNS
 
 
-def _diff_summary_for_gate(repo, root, task, role, worker_mod):
+def _gate_review_sha(repo, root, task, role, worker_mod) -> str | None:
+    """The task branch SHA a gate launch judges, read once: the packet's
+    diff, the signed launch and verdict, and integrate all use it."""
+    if role not in GATE_ROLES:
+        return None
+    _wt, branch = worker_mod.ensure_worktree(repo, root, task)
+    return worker_mod.branch_sha(repo, branch)
+
+
+def _diff_summary_for_gate(repo, root, task, role, worker_mod, sha=None):
     """Hand a gate role the actual patch, not just a pointer to go find it
     (CFO audit + Riyan, 2026-08-24). Only computed for gate roles — the
     implementer's own first launch has nothing to diff yet, and calling this
@@ -731,7 +740,7 @@ def _diff_summary_for_gate(repo, root, task, role, worker_mod):
     import gitutil
     _wt, branch = worker_mod.ensure_worktree(repo, root, task)
     base = task.get("base") or worker_mod._default_base(repo)
-    return gitutil.diff_patch_or_stat(repo, base, branch)
+    return gitutil.diff_patch_or_stat(repo, base, sha or branch)
 
 
 def _spawn_detached(argv: list[str], state: Path, project: str):
@@ -796,9 +805,14 @@ def cmd_run(args):
         key=lambda hit: -hit["overlap"])
 
     try:
+        review_sha = _gate_review_sha(repo, root, task, args.role, worker_mod)
+    except worker_mod.WorkerError as exc:
+        die(str(exc), 1)
+    try:
         body = packet_mod.render(
             task, why=args.why or "Requested by the CEO.",
-            diff_summary=_diff_summary_for_gate(repo, root, task, args.role, worker_mod),
+            diff_summary=_diff_summary_for_gate(repo, root, task, args.role, worker_mod,
+                                                sha=review_sha),
             contracts=contracts, handoff_target=args.handoff_to,
             max_turns=_resolve_max_turns(args.max_turns, args.role), timeout_s=args.timeout,
             verify=verify_command(root, args.verify),
@@ -859,7 +873,7 @@ def cmd_run(args):
         result = worker_mod.launch(repo, root, task, body, args.role, actor,
                                    timeout=args.timeout,
                                    model_override=args.model, effort_override=args.effort,
-                                   override_reason=args.why)
+                                   override_reason=args.why, review_sha=review_sha)
     except worker_mod.WorkerError as exc:
         slots.release(slot)
         die(str(exc), 1)
@@ -939,8 +953,13 @@ def cmd_gate_group(args):
         or worker_mod._default_base(repo)
 
     try:
+        review_shas = {t["id"]: worker_mod.branch_sha(repo, t.get("branch"))
+                       for t in group_tasks}
+    except worker_mod.WorkerError as exc:
+        die(str(exc), 1)
+    try:
         wt = gategroup.build_group_review(repo, root, args.group, group_tasks, base,
-                                          role=args.role)
+                                          role=args.role, shas=review_shas)
     except gategroup.GroupMergeConflict as exc:
         EventLog(root).append(make_event(
             event="TASK_BLOCKED", actor=args.actor or "pm", project=project,
@@ -1007,7 +1026,8 @@ def cmd_gate_group(args):
 
     try:
         result = worker_mod.launch_group(repo, root, args.group, group_tasks, wt, body,
-                                         args.role, actor, project, timeout=args.timeout)
+                                         args.role, actor, project, timeout=args.timeout,
+                                         review_shas=review_shas)
     except worker_mod.WorkerError as exc:
         slots.release(slot)
         die(str(exc), 1)
@@ -1156,9 +1176,12 @@ def cmd_integrate(args):
                                       "owned path", "detail": conflicts})
             continue
         try:
+            # The one SHA every gate signed — not the branch tip (ESC-002 b).
+            # None only for an ungated task, or under --force.
             result = integrate_mod.integrate(
                 repo, root, task, verify, actor=args.actor,
-                baseline=_baseline(root, task.get("project")))
+                baseline=_baseline(root, task.get("project")),
+                commit=taskstate.reviewed_commit(task, _gate_key(root)))
         except RuntimeError as exc:
             results.append({"task": tid, "merged": False, "reason": str(exc)})
             continue

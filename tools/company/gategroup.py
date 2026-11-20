@@ -55,7 +55,7 @@ def group_branch(group_id: str, role: str | None = None) -> str:
 
 def build_group_review(repo: Path, company_root: Path, group_id: str,
                        tasks: list[dict], base: str,
-                       role: str | None = None) -> Path:
+                       role: str | None = None, shas: dict[str, str] | None = None) -> Path:
     """Rebuild a throwaway worktree at `base` and merge every task's branch
     into it, in the given order. Raises GroupMergeConflict on the first
     branch that doesn't merge cleanly — a group that doesn't even merge
@@ -65,6 +65,10 @@ def build_group_review(repo: Path, company_root: Path, group_id: str,
     that starts from a previous attempt's merge state risks reviewing stale
     or already-superseded code after a FAILED verdict sent a task back for
     rework. This worktree is scratch, not durable state.
+
+    `shas` (task id -> SHA) pins what is merged to the commits the gate's
+    verdicts will be signed for (worker.branch_sha), not whatever the
+    branch tips are by the time each merge runs.
     """
     wt = group_worktree_path(company_root, group_id, role)
     if wt.exists():
@@ -88,7 +92,7 @@ def build_group_review(repo: Path, company_root: Path, group_id: str,
             raise RuntimeError(f"task {task['id']} has no branch to merge into the group review")
         merge = _git(repo, "merge", "--no-ff", "--no-edit",
                      "-m", f"Group review {group_id}: merge {task['id']}",
-                     branch_to_merge, cwd=wt)
+                     (shas or {}).get(task["id"]) or branch_to_merge, cwd=wt)
         if merge.returncode != 0:
             _git(repo, "merge", "--abort", cwd=wt)
             raise GroupMergeConflict(task["id"], merge.stderr.strip()[:500])

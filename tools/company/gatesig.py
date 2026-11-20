@@ -11,9 +11,12 @@ appends the verdict event itself, HMAC'd with a key under
 (worker.sandbox_settings denyRead, hooks/policy.py SECRET_GLOBS).
 
 WORKER_STARTED is signed over (actor, role, its own seq, the tasks it
-covers); each verdict over (task, gate event, actor, role, that
-WORKER_STARTED's seq, verdict). taskstate.fold places a verdict against the
-launch it names; check_done verifies both MACs.
+covers, and each task's branch SHA as the launcher read it); each verdict
+over (task, gate event, actor, role, that WORKER_STARTED's seq, verdict,
+that SHA). taskstate.fold places a verdict against the launch it names;
+check_done verifies both MACs and that every gate judged the same SHA, and
+integrate merges exactly that SHA — never the branch tip, which anything
+the gate ran (a conftest) could have committed to.
 """
 
 from __future__ import annotations
@@ -59,20 +62,24 @@ def _mac(key: bytes, *fields) -> str:
     return hmac.new(key, msg.encode(), hashlib.sha256).hexdigest()
 
 
-def started_mac(key: bytes, actor: str, role: str, seq: int, tasks: list[str]) -> str:
-    return _mac(key, "WORKER_STARTED", actor, role, seq, sorted(tasks))
+def started_mac(key: bytes, actor: str, role: str, seq: int, tasks: list[str],
+                commits: dict[str, str]) -> str:
+    return _mac(key, "WORKER_STARTED", actor, role, seq, sorted(tasks), commits)
 
 
 def verdict_mac(key: bytes, task: str, event: str, actor: str, role: str,
-                ws_seq: int, verdict: str) -> str:
-    return _mac(key, "VERDICT", task, event, actor, role, ws_seq, verdict)
+                ws_seq: int, verdict: str, commit: str) -> str:
+    return _mac(key, "VERDICT", task, event, actor, role, ws_seq, verdict, commit)
 
 
-def sign_started(key: bytes, tasks: list[str]):
-    """EventLog.append finalizer: the MAC covers the seq the log assigns."""
+def sign_started(key: bytes, tasks: list[str], commits: dict[str, str]):
+    """EventLog.append finalizer: the MAC covers the seq the log assigns.
+    `commits` (task -> reviewed SHA) is also written into the event."""
     def finalize(ev: dict) -> None:
         data = ev.setdefault("data", {})
-        data["launch_mac"] = started_mac(key, ev["actor"], data["role"], ev["seq"], tasks)
+        data["commits"] = dict(commits)
+        data["launch_mac"] = started_mac(key, ev["actor"], data["role"], ev["seq"], tasks,
+                                         commits)
     return finalize
 
 
@@ -82,13 +89,15 @@ def verify(key: bytes | None, task_id: str, event: str, actor: str | None,
     if not key or not actor or not isinstance(sig, dict):
         return False
     try:
-        want_ws = started_mac(key, actor, sig["role"], sig["ws_seq"], sig["ws_tasks"])
+        want_ws = started_mac(key, actor, sig["role"], sig["ws_seq"], sig["ws_tasks"],
+                              sig["ws_commits"])
         want_v = verdict_mac(key, task_id, event, actor, sig["role"], sig["ws_seq"],
-                             sig["verdict"])
-        return (sig["verdict"] == "pass"
+                             sig["verdict"], sig["commit"])
+        return (sig["verdict"] == "pass" and isinstance(sig["commit"], str)
+                and sig["ws_commits"].get(task_id) == sig["commit"]
                 and hmac.compare_digest(want_ws, str(sig["launch_mac"]))
                 and hmac.compare_digest(want_v, str(sig["verdict_mac"])))
-    except (KeyError, TypeError):
+    except (KeyError, TypeError, AttributeError):
         return False
 
 

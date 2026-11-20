@@ -215,13 +215,26 @@ def _gate_key(company_root: Path, role: str) -> bytes | None:
         raise WorkerError(f"cannot create the gate signing key: {exc}") from exc
 
 
+def branch_sha(repo: Path, branch: str | None) -> str:
+    """The SHA a gate judges: the task branch's tip, read through the main
+    checkout before launch. Signed into the launch and the verdict, and what
+    integrate merges — later commits to the branch are never reviewed."""
+    r = _git_trusted(repo, "rev-parse", "--verify", "--quiet", "--end-of-options",
+                     f"refs/heads/{branch}^{{commit}}", capture_output=True, text=True)
+    sha = r.stdout.strip()
+    if not branch or r.returncode != 0 or not sha:
+        raise WorkerError(f"cannot read the tip of branch {branch!r} to review")
+    return sha
+
+
 def record_verdicts(log: EventLog, gate_key: bytes, role: str, actor: str, project: str,
                     ws_seq: int, tasks: list[dict], result: dict, exit_code: int | None,
-                    out_path: Path, group_id: str | None = None) -> list[str]:
+                    out_path: Path, commits: dict[str, str],
+                    group_id: str | None = None) -> list[str]:
     """After a gate worker exits: append the signed verdict event its
     structured output gave for each task (ESC-002), or GATE_NO_VERDICT.
-    A pass from a run that errored is not a verdict. Returns the task ids
-    left without one."""
+    A pass from a run that errored is not a verdict. `commits` is what the
+    launch signed (task -> SHA). Returns the task ids left without one."""
     pass_ev, fail_ev = GATE_VERDICT_EVENTS[role]
     ids = [t["id"] for t in tasks]
     verdicts = gatesig.structured_verdicts(result.get("structured_output"), ids)
@@ -232,13 +245,11 @@ def record_verdicts(log: EventLog, gate_key: bytes, role: str, actor: str, proje
         v = verdicts.get(t["id"])
         if v and (v["verdict"] == "fail" or ran_clean):
             event = pass_ev if v["verdict"] == "pass" else fail_ev
-            evidence = {"log": str(out_path)}
-            commit = (t.get("evidence") or {}).get("diff")
-            if commit:
-                evidence["commit"] = commit
-            data = {"role": role, "ws_seq": ws_seq, "verdict": v["verdict"],
+            commit = commits[t["id"]]
+            evidence = {"log": str(out_path), "commit": commit}
+            data = {"role": role, "ws_seq": ws_seq, "verdict": v["verdict"], "commit": commit,
                     "verdict_mac": gatesig.verdict_mac(gate_key, t["id"], event, actor,
-                                                       role, ws_seq, v["verdict"]),
+                                                       role, ws_seq, v["verdict"], commit),
                     "source": "structured_output", **extra}
             for k in ("findings", "criteria_met"):
                 if v[k]:
@@ -971,8 +982,12 @@ def live_worker_on(company_root: Path, task_id: str) -> str | None:
 def launch(repo: Path, company_root: Path, task: dict, packet: str,
            role: str, actor: str, timeout: int = 1800,
            model_override: str | None = None, effort_override: str | None = None,
-           override_reason: str | None = None, skip_permissions: bool = False) -> dict:
+           override_reason: str | None = None, skip_permissions: bool = False,
+           review_sha: str | None = None) -> dict:
     """Run one Tier-2 worker to completion. Returns a result record.
+
+    For a gate role, `review_sha` is the branch SHA the packet's diff was
+    taken at (cli reads it once, branch_sha); read here if not given.
 
     model_override/effort_override replace staffing.yaml's tier policy for
     this one launch only — never persisted, never changes the policy for any
@@ -1047,10 +1062,11 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                 "skip_permissions": skip_permissions,
             }
         gate_key = _gate_key(company_root, role)
+        commits = {task["id"]: review_sha or branch_sha(repo, branch)} if gate_key else {}
         started_ev = log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
             task=task["id"], data=event_data,
-        ), finalize=gate_key and gatesig.sign_started(gate_key, [task["id"]]))
+        ), finalize=gate_key and gatesig.sign_started(gate_key, [task["id"]], commits))
 
         # A harness without Claude Code's own `--agent` persona loader never
         # sees agents/<role>.md at all, so its body has to travel in the
@@ -1148,7 +1164,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             ))
         elif role in GATE_VERDICT_EVENTS:
             record_verdicts(log, gate_key, role, actor, task.get("project", ""),
-                            started_ev["seq"], [task], result, proc.returncode, out_path)
+                            started_ev["seq"], [task], result, proc.returncode, out_path,
+                            commits)
 
         return {
             "actor": actor, "task": task["id"], "role": role, "branch": branch,
@@ -1167,7 +1184,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
 
 def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict],
                  worktree: Path, packet: str, role: str, actor: str, project: str,
-                 timeout: int = 1800) -> dict:
+                 timeout: int = 1800, review_shas: dict[str, str] | None = None) -> dict:
     """Run one gate launch against a combined worktree covering several
     tasks (efficiency addendum v1, 2026-08-24 — grouped gating). Structurally
     `launch()`, minus per-task worktree creation (the caller already built
@@ -1211,6 +1228,10 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                                        _service_id(f"gg-{group_id}-{role}"))
 
         gate_key = _gate_key(company_root, role)
+        # Each member's own branch SHA — what the group branch merged
+        # (cli passes the ones it built it from).
+        commits = ({t["id"]: (review_shas or {}).get(t["id"]) or branch_sha(repo, t.get("branch"))
+                    for t in tasks} if gate_key else {})
         started_ev = log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
             data={"role": role, "tier": 2, "gate_group": group_id, "tasks": task_ids,
@@ -1218,7 +1239,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                   "model": policy.get("model"), "effort": policy.get("effort"),
                   "harness": harness_spec["_name"], "guards": harness_spec["_guards"],
                   "provider": harness_spec["_provider"]["_name"]},
-        ), finalize=gate_key and gatesig.sign_started(gate_key, task_ids))
+        ), finalize=gate_key and gatesig.sign_started(gate_key, task_ids, commits))
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
                         worktree, thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
@@ -1281,7 +1302,7 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
         if role in GATE_VERDICT_EVENTS:
             missing_verdict = record_verdicts(
                 log, gate_key, role, actor, project, started_ev["seq"], tasks, result,
-                proc.returncode, out_path, group_id=group_id)
+                proc.returncode, out_path, commits, group_id=group_id)
 
         return {
             "actor": actor, "gate_group": group_id, "tasks": task_ids, "role": role,

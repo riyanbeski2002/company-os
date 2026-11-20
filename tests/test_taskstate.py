@@ -256,10 +256,13 @@ class TestCheckDoneActorRoleMismatchReason(unittest.TestCase):
         import gatesig
         key = b"k" * 32
         role = "backend-engineer"  # validly signed, but not a code-reviewer
+        sha = "a" * 40
         sig = {"role": role, "ws_seq": 7, "ws_tasks": ["T-1"], "verdict": "pass",
-               "launch_mac": gatesig.started_mac(key, "wrong-actor", role, 7, ["T-1"]),
+               "ws_commits": {"T-1": sha}, "commit": sha,
+               "launch_mac": gatesig.started_mac(key, "wrong-actor", role, 7, ["T-1"],
+                                                 {"T-1": sha}),
                "verdict_mac": gatesig.verdict_mac(key, "T-1", "REVIEW_PASSED",
-                                                  "wrong-actor", role, 7, "pass")}
+                                                  "wrong-actor", role, 7, "pass", sha)}
         task = {
             "id": "T-1", "owner": "be-1", "gates": ["review"],
             "evidence": {"diff": "abc123", "tests": "exit 0", "review": "ev1",

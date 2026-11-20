@@ -10,6 +10,7 @@ uses. No `claude` binary, no network.
 """
 
 import json
+import subprocess
 import sys
 import tempfile
 import threading
@@ -49,6 +50,14 @@ class FakeHarnessCase(unittest.TestCase):
         # ensure_worktree refuses a bare directory (it would resolve to the
         # main checkout).
         (self.wt / ".git").write_text("gitdir: /nonexistent\n")
+        # The main repo holds the task's branch: a gate launch reads the SHA
+        # it judges from there (worker.branch_sha).
+        g = ["git", "-C", str(self.repo), "-c", "user.email=t@t", "-c", "user.name=t"]
+        subprocess.run(["git", "init", "-q", str(self.repo)], check=True)
+        subprocess.run(g + ["commit", "-q", "--allow-empty", "-m", "init"], check=True)
+        subprocess.run(g + ["branch", "fake-branch"], check=True)
+        self.sha = subprocess.run(g + ["rev-parse", "fake-branch"], capture_output=True,
+                                  text=True, check=True).stdout.strip()
         self.log = EventLog(self.root)
 
     def tearDown(self):
@@ -90,7 +99,8 @@ class FakeHarnessCase(unittest.TestCase):
             + extra)
 
     def _task(self, tid="T-1"):
-        return {"id": tid, "project": "p", "title": "t", "worktree": str(self.wt)}
+        return {"id": tid, "project": "p", "title": "t", "worktree": str(self.wt),
+                "branch": "fake-branch"}
 
     def _events(self, name, **match):
         return [e for e in self.log.read() if e["event"] == name
@@ -284,13 +294,15 @@ actor = os.environ["COMPANY_ACTOR"]
 with open(log, "a") as fh:
     fh.write(json.dumps({"ts": "t", "event": "WORKER_STARTED", "actor": actor, "project": "p",
         "task": "T-1", "seq": seq, "data": {"role": "qa-engineer",
-        "launch_mac": mac("WORKER_STARTED", actor, "qa-engineer", seq, ["T-1"])}}) + "\n")
+        "commits": {"T-1": SHA},
+        "launch_mac": mac("WORKER_STARTED", actor, "qa-engineer", seq, ["T-1"],
+                          {"T-1": SHA})}}) + "\n")
     for who in (actor, ""):
         fh.write(json.dumps({"ts": "t", "event": "QA_PASSED", "actor": who, "project": "p",
             "task": "T-1", "seq": seq + 1, "evidence": {"log": "x"}, "data": {
-            "role": "qa-engineer", "ws_seq": seq, "verdict": "pass",
+            "role": "qa-engineer", "ws_seq": seq, "verdict": "pass", "commit": SHA,
             "verdict_mac": mac("VERDICT", "T-1", "QA_PASSED", who, "qa-engineer", seq,
-                               "pass")}}) + "\n")
+                               "pass", SHA)}}) + "\n")
 """
 
     def test_a_conftest_in_the_gate_cannot_pass_it(self):
@@ -306,7 +318,8 @@ with open(log, "a") as fh:
             self.log.append(ev)
         out = Path(self.tmp.name) / "child-env.json"
         child = (self.CHILD.replace("ROOT", repr(str(self.root)))
-                 .replace("CLI", repr(str(CLI))).replace("OUT", repr(str(out))))
+                 .replace("CLI", repr(str(CLI))).replace("OUT", repr(str(out)))
+                 .replace("SHA", repr(self.sha)))
         self._harness(child=child)  # and no structured verdict
         worker.launch(self.repo, self.root, self._task(), "packet", "qa-engineer", "qa-1")
 
