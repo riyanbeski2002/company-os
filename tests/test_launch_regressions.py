@@ -243,9 +243,11 @@ class TestGateNoVerdictThroughLaunch(FakeHarnessCase):
 
     def test_a_rerun_under_a_new_actor_does_not_erase_the_first_runs_silence(self):
         """The exact incident: 201 says nothing, 201b passes. 201b's verdict
-        must not retroactively cover 201, and the double spend must stay
-        visible in the log, in `company status`'s stalled-gate surfacing
-        while the task is open, and in `company costs`."""
+        must not retroactively cover 201 (gave_no_verdict still names it),
+        and the double spend must stay visible in the log and in `company
+        costs`. `company status` stops flagging the gate once the rerun
+        gave a verdict: per (task, gate) the latest event wins (trade-ai
+        TASK-402 kept showing a no-verdict its own reruns had answered)."""
         self._harness()
         worker.launch(self.repo, self.root, self._task(), "packet",
                       "security-reviewer", "security-reviewer-201")
@@ -262,7 +264,8 @@ class TestGateNoVerdictThroughLaunch(FakeHarnessCase):
                                                  "security-reviewer"))
 
         flagged = render.gates_with_no_verdict(events, [{"id": "T-1", "status": "IN_REVIEW"}])
-        self.assertIn("security-reviewer-201", flagged["T-1"])
+        self.assertNotIn("T-1", flagged)
+        self.assertEqual(len(self._events("GATE_NO_VERDICT")), 1)  # still in the log
 
         by_actor = costs.aggregate(events)["by_actor"]
         self.assertEqual(set(by_actor), {"security-reviewer-201", "security-reviewer-201b"},

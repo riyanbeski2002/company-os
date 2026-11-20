@@ -202,13 +202,14 @@ class TestGatesWithNoVerdict(unittest.TestCase):
         merged = [{"id": "T-1", "status": "MERGED"}]
         done = [{"id": "T-1", "status": "DONE"}]
 
-        # No task list given (back-compat): old, unfiltered behaviour.
-        self.assertIn("T-1", render.gates_with_no_verdict(events))
-        # Task still genuinely in flight: correctly still surfaced.
-        self.assertIn("T-1", render.gates_with_no_verdict(events, still_active))
-        # Task resolved since: no longer flagged.
-        self.assertNotIn("T-1", render.gates_with_no_verdict(events, merged))
-        self.assertNotIn("T-1", render.gates_with_no_verdict(events, done))
+        # The later verdict answers the no-verdict: latest per gate wins.
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events))
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events, still_active))
+        # Without that verdict, an in-flight task is still surfaced...
+        self.assertIn("T-1", render.gates_with_no_verdict(events[:1], still_active))
+        # ...and a resolved one isn't.
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events[:1], merged))
+        self.assertNotIn("T-1", render.gates_with_no_verdict(events[:1], done))
 
 
 class TestDetectStaleTasks(unittest.TestCase):

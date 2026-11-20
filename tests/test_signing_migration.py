@@ -233,6 +233,157 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class TestVerdictHistoryAndLatestWins(SigningCase):
+    """trade-ai, after deploy. TASK-102: FAILED (seq 44) then PASSED (52),
+    merged; migration dropped the unsigned pass but kept the unsigned fail,
+    so the MERGED task rendered "x review FAILED". TASK-402: GATE_NO_VERDICT
+    from the three group gates, then a verdict from each, and status still
+    flagged the no-verdict."""
+
+    def _task_102(self):
+        for ev in (
+            make_event(event="TASK_CREATED", actor="company-pm", project="p", task="TASK-102",
+                       data={"title": "t", "owner": "be-1", "gates": ["review"]}),
+            make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                       task="TASK-102", evidence={"commit": "abc1234"}),
+            make_event(event="REVIEW_FAILED", actor="code-reviewer-group-m1", project="p",
+                       task="TASK-102", data={"findings": ["one"]}),
+            make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                       task="TASK-102", evidence={"commit": "def5678"}),
+            make_event(event="REVIEW_PASSED", actor="code-reviewer-group-m1", project="p",
+                       task="TASK-102", evidence={"log": "r"}),
+            make_event(event="MERGED", actor="integration", project="p", task="TASK-102",
+                       evidence={"commit": "fff0000"}),
+        ):
+            self.log.append(ev)
+
+    def test_task_102_pre_snapshot_verdicts_are_history(self):
+        import render
+        self._task_102()
+        self.assertEqual(self._cli("status").returncode, 0)  # migrates
+        key = gatesig.load_key(self.root)
+        task = taskstate.load(self.root)["TASK-102"]
+        self.assertEqual(task["status"], "MERGED")
+        self.assertNotIn("gates_failed", task)
+        text = render.status("p", [task], [], gate_key=key)
+        self.assertNotIn("FAILED", text)
+        self.assertIn("TASK-102", text)
+
+    def test_a_worker_failed_after_the_snapshot_still_counts(self):
+        self._task_102()
+        self._cli("status")
+        self.log.append(make_event(event="REVIEW_FAILED", actor="be-1", project="p",
+                                   task="TASK-102", data={"findings": ["late"]}))
+        self.assertIn("review", taskstate.load(self.root)["TASK-102"]["gates_failed"])
+
+    def test_task_402_a_later_signed_verdict_supersedes_no_verdict(self):
+        """Post-snapshot: the group's gates give no verdict, are relaunched,
+        and pass, signed. Neither status nor check_done may still see the
+        no-verdict."""
+        import render
+        import worker
+        self.log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
+                                   task="TASK-402", data={"title": "t", "owner": "be-1",
+                                                          "gates": ["review", "qa", "security"]}))
+        self._cli("status")  # migrate: the task now has a signed snapshot
+        key = gatesig.load_key(self.root)
+        for ev in (make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                              task="TASK-402", evidence={"commit": "abc1234"}),
+                   make_event(event="TEST_RUN", actor="be-1", project="p", task="TASK-402",
+                              data={"exit_code": 0}, evidence={"log": "t"})):
+            self.log.append(ev)
+        sha = "a" * 40
+        roles = {"code-reviewer": "review", "qa-engineer": "qa",
+                 "security-reviewer": "security"}
+        for verdict in (None, "pass"):  # a no-verdict round, then the rerun
+            for role in roles:
+                actor = f"{role}-group-m3"
+                ws = self.log.append(
+                    make_event(event="WORKER_STARTED", actor=actor, project="p",
+                               data={"role": role, "tasks": ["TASK-402"]}),
+                    finalize=gatesig.sign_started(key, ["TASK-402"], {"TASK-402": sha}))
+                worker.record_verdicts(
+                    self.log, key, role, actor, "p", ws["seq"], [{"id": "TASK-402"}],
+                    {"structured_output": {"verdict": verdict} if verdict else {}}, 0,
+                    self.root / "out.json", {"TASK-402": sha}, group_id="m3")
+        events = self.log.read()
+        self.assertEqual(sum(e["event"] == "GATE_NO_VERDICT" for e in events), 3)
+        task = taskstate.load(self.root)["TASK-402"]
+        self.assertEqual(render.gates_with_no_verdict(events, [task]), {})
+        self.assertEqual(taskstate.check_done(task, gate_roles={v: k for k, v in roles.items()},
+                                              gate_key=key), [])
+        text = render.status("p", [task], [], gate_key=key)
+        for gate in roles.values():
+            self.assertIn(f"✓ {gate} by", text)
+
+    def test_pre_snapshot_no_verdicts_raise_no_stall(self):
+        """resolve-os: IDENT-7 etc. showed STALLED from pre-update no-verdict
+        runs. Before a task's snapshot a no-verdict is history; after it,
+        one still raises a stall."""
+        for ev in (
+            make_event(event="TASK_CREATED", actor="company-pm", project="p", task="IDENT-7",
+                       data={"title": "t", "owner": "be-1", "gates": ["review"]}),
+            make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                       task="IDENT-7", evidence={"commit": "abc1234"}),
+            make_event(event="GATE_NO_VERDICT", actor="code-reviewer-1", project="p",
+                       task="IDENT-7", data={"role": "code-reviewer", "expected_one_of":
+                                             ["REVIEW_PASSED", "REVIEW_FAILED"]}),
+        ):
+            self.log.append(ev)
+        stalls = lambda: json.loads(self._cli("status", "--json", "--project", "p")
+                                    .stdout)["stalled"]
+        self.assertNotIn("IDENT-7", stalls())  # migrated by this first command
+        self.log.append(make_event(event="GATE_NO_VERDICT", actor="code-reviewer-2",
+                                   project="p", task="IDENT-7",
+                                   data={"role": "code-reviewer", "expected_one_of":
+                                         ["REVIEW_PASSED", "REVIEW_FAILED"]}))
+        self.assertIn("IDENT-7", stalls())
+
+    def test_a_later_opposite_verdict_wins_in_the_no_verdict_check(self):
+        import render
+        events = [
+            {"seq": 1, "event": "REVIEW_PASSED", "task": "T", "actor": "r1"},
+            {"seq": 2, "event": "GATE_NO_VERDICT", "task": "T", "actor": "r2",
+             "data": {"role": "code-reviewer",
+                      "expected_one_of": ["REVIEW_PASSED", "REVIEW_FAILED"]}},
+        ]
+        self.assertIn("T", render.gates_with_no_verdict(events))  # latest is the silence
+        events.append({"seq": 3, "event": "REVIEW_FAILED", "task": "T", "actor": "r3"})
+        self.assertNotIn("T", render.gates_with_no_verdict(events))
+        # Order is by seq, not by position in the list.
+        self.assertNotIn("T", render.gates_with_no_verdict(list(reversed(events))))
+
+
+class TestEscalateProjectResolution(SigningCase):
+    """ht-workspace: `company escalate --project-wide` resolves the project
+    the normal way; when it can't, it says why."""
+
+    def _escalate(self, env_project=None):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("COMPANY_")}
+        if env_project:
+            env["COMPANY_PROJECT"] = env_project
+        return subprocess.run([sys.executable, str(CLI), "--root", str(self.root), "escalate",
+                               "--kind", "decision", "--need", "x", "--project-wide"],
+                              capture_output=True, text=True, env=env)
+
+    def test_sole_project_and_env_resolve_it(self):
+        (self.root / "projects" / "hw.json").write_text("{}")
+        r = self._escalate()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        (self.root / "projects" / "ht.json").write_text("{}")
+        r = self._escalate(env_project="ht")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual([e["project"] for e in self.log.read()
+                          if e["event"] == "ESCALATION_RAISED"], ["hw", "ht"])
+
+    def test_ambiguous_names_the_candidates(self):
+        for name in ("hw", "ht"):
+            (self.root / "projects" / f"{name}.json").write_text("{}")
+        r = self._escalate()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("2 projects are configured (ht, hw)", r.stderr)
+
+
 class RefusedKeyCreateAppendsNothing(unittest.TestCase):
     def test_unwritable_secrets_fails_before_migrating(self):
         import gatesig

@@ -98,6 +98,10 @@ def fold(events: list[dict], gate_key: bytes | None = None) -> dict[str, dict]:
     launches: dict[int, dict] = {}
     floors: dict[tuple[str, str], int] = {}
     high = 0
+    # Per task, the seq of its migration snapshot: gate verdicts from before
+    # it, of either polarity, are history (the snapshot's status is the
+    # truth), not a live FAILED or PASS.
+    snapshot_seq: dict[str, int] = {}
 
     for ev in events:
         seq = ev.get("seq")
@@ -180,6 +184,12 @@ def fold(events: list[dict], gate_key: bytes | None = None) -> dict[str, dict]:
             if data.get("merged"):
                 task["evidence"]["merged"] = data["merged"]
             created.add(tid)
+            snapshot_seq[tid] = max(snapshot_seq.get(tid, 0),
+                                    ev.get("seq") if isinstance(ev.get("seq"), int) else 0)
+            for gate in GATE_EVENT:
+                floors[(tid, gate)] = max(floors.get((tid, gate), 0), snapshot_seq[tid])
+                _drop_pass(task, gate)
+            task.pop("gates_failed", None)
             if ev.get("_pm_signed"):
                 task["created_signed"] = True
 
@@ -217,6 +227,10 @@ def fold(events: list[dict], gate_key: bytes | None = None) -> dict[str, dict]:
                     f"exit {data.get('exit_code')}"
                     + (f", {data['failures']} failures" if data.get("failures") is not None else "")
                 )
+
+        elif (name in GATE_EVENT.values() or name in FAIL_GATE) and tid in snapshot_seq \
+                and not (isinstance(ev.get("seq"), int) and ev["seq"] > snapshot_seq[tid]):
+            pass  # a verdict from before the task's migration snapshot: history
 
         elif name in GATE_EVENT.values():
             # ESC-002: only a PASSED the launcher wrote for a launch it

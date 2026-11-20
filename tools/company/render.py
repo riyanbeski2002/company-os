@@ -90,11 +90,41 @@ def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None) -
     one traced back to exactly this. A task is only genuinely still waiting
     on this verdict if its current status is not yet DONE_ISH.
     """
-    out = {}
+    # Per (task, gate) the latest event by seq is the gate's state: a
+    # verdict of either polarity after a GATE_NO_VERDICT means the rerun
+    # happened (trade-ai TASK-402: no-verdicts at 674/680/686, passes at
+    # 692/702/711, still flagged). Anything before a task's migration
+    # snapshot is history (gatesig.migrate).
+    pass_to_gate = {e: g for g, e in GATE_EVENT.items()}
+    fail_to_gate = {"REVIEW_FAILED": "review", "QA_FAILED": "qa",
+                    "SECURITY_REVIEW_FAILED": "security"}
+    snapshot = {}
     for ev in events:
+        if ev.get("event") == "TASK_SNAPSHOT" and isinstance(ev.get("seq"), int):
+            snapshot[ev.get("task")] = max(snapshot.get(ev.get("task"), 0), ev["seq"])
+    ordered = sorted(enumerate(events),
+                     key=lambda ie: (ie[1]["seq"] if isinstance(ie[1].get("seq"), int)
+                                     else -1, ie[0]))
+    last = {}
+    for _, ev in ordered:
+        name, tid = ev.get("event"), ev.get("task")
+        seq = ev.get("seq")
+        if tid in snapshot and not (isinstance(seq, int) and seq > snapshot[tid]):
+            continue
+        if name == "GATE_NO_VERDICT":
+            expected = (ev.get("data") or {}).get("expected_one_of") or []
+            gate = next((pass_to_gate.get(e) or fail_to_gate.get(e) for e in expected
+                         if e in pass_to_gate or e in fail_to_gate),
+                        (ev.get("data") or {}).get("role"))
+        else:
+            gate = pass_to_gate.get(name) or fail_to_gate.get(name)
+            if not gate:
+                continue
+        last[(tid, gate)] = ev
+    out = {}
+    for (tid, _gate), ev in last.items():
         if ev.get("event") != "GATE_NO_VERDICT":
             continue
-        tid = ev.get("task")
         data = ev.get("data") or {}
         out[tid] = (
             f"{ev.get('actor')} ({data.get('role')}) exited cleanly but emitted "

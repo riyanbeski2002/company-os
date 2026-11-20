@@ -125,7 +125,13 @@ def load_project(root: Path, project: str | None) -> str:
     sole = _sole_project(root)
     if sole:
         return sole
-    die("--project is required (or set COMPANY_PROJECT)")
+    # Resolvable only from --project, $COMPANY_PROJECT, or a sole project:
+    # say which projects made it ambiguous (ht-workspace has two, and
+    # `escalate --project-wide` read as if it always demanded --project).
+    known = sorted(p.stem for p in (root / "projects").glob("*.json"))
+    die("--project is required (or set COMPANY_PROJECT)"
+        + (f": {len(known)} projects are configured ({', '.join(known)}), so none "
+           f"is implied" if known else ": no project is configured yet"))
 
 
 # --- verbs ------------------------------------------------------------------
@@ -1120,17 +1126,19 @@ def cmd_status(args):
     project = args.project or os.environ.get("COMPANY_PROJECT")
     tasks = _project_tasks(root, project)
     events = EventLog(root).read()
+    import gatesig
+    trusted = gatesig.trusted_events(events, gatesig.load_key(root))
+    # Gate state from the trusted log: a no-verdict before the task's signed
+    # migration snapshot is history, and only a PM-signed snapshot says so.
     stalls = {**render.detect_stale_tasks(tasks),
              **render.detect_stalls(root, tasks, events),
              **render.detect_resting_tasks(tasks),
-             **render.gates_with_no_verdict(events, tasks)}
+             **render.gates_with_no_verdict(trusted, tasks)}
 
     # Tiered early warning (paperclip donation, 2026-10-21): "suspicious"
     # (1-2 days silent) surfaces here even when a task hasn't yet crossed
     # detect_stale_tasks's 48h "critical" cutoff into `stalls` above -- the
     # whole point is catching it before it needs the stronger label.
-    import gatesig
-    trusted = gatesig.trusted_events(events, gatesig.load_key(root))
     blockers = {t["id"]: esc_mod.blocking_escalation_for_task(trusted, t["id"]) for t in tasks}
     early_warning = {k: v for k, v in render.detect_early_warning_tasks(tasks, blockers).items()
                       if k not in stalls}
