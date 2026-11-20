@@ -191,11 +191,12 @@ def integrate(repo: Path, company_root: Path, task: dict, test_command: str,
         return {**result, "merged": False, "reason": why, "test_log": str(out_file)}
 
     sha = _git(repo, "rev-parse", "HEAD", cwd=wt).stdout.strip()
+    import gatesig
     log.append(make_event(
         event="MERGED", actor=actor, project=task["project"], task=task["id"],
         data={"into": INTEGRATION_BRANCH, "test_exit_code": measured["exit_code"],
               "failures": failures, "accepted_because": why},
-        evidence={"commit": sha}))
+        evidence={"commit": sha}), finalize=gatesig.pm_signer(company_root))
 
     return {**result, "merged": True, "commit": sha,
             "test_exit_code": measured["exit_code"], "accepted_because": why,

@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from eventlog import (GATE_EVENT, GOAL_EVENTS, ROUTINE_EVENTS, EventLog,  # noqa: E402
                       EvidenceError, canonical, make_event)
 import board  # noqa: E402
+import gatesig  # noqa: E402
 import taskstate  # noqa: E402
 
 SCAFFOLD = [
@@ -261,8 +262,13 @@ def cmd_event(args):
         data=data,
         evidence=evidence,
     )
+    # The PM at its own terminal signs task-state events (ESC-002 c). A
+    # launched worker has $COMPANY_ACTOR and, sandboxed, no key: its
+    # TASK_CREATED/STATUS_CHANGED/... is recorded but the fold ignores it.
+    finalize = (gatesig.pm_signer(root)
+                if args.type in gatesig.PM_EVENTS and not assigned else None)
     try:
-        written = EventLog(root).append(ev)
+        written = EventLog(root).append(ev, finalize=finalize)
     except EvidenceError as exc:
         die(str(exc), 2)
     except ValueError as exc:
@@ -363,7 +369,7 @@ def cmd_task_show(args):
 def cmd_task_advance(args):
     """The only mover of task state, and the enforcer of the Evidence Rule."""
     root = company_root(args)
-    tasks = taskstate.fold(EventLog(root).read())
+    tasks = taskstate.load(root)
     task = tasks.get(args.id)
     if not task:
         die(f"no such task {args.id!r} in the event log")
@@ -375,7 +381,7 @@ def cmd_task_advance(args):
     if target == "DONE":
         import baseline as baseline_mod
         import staffing
-        base = baseline_mod.latest(EventLog(root).read(), task.get("project"))
+        base = _baseline(root, task.get("project"))
         gate_roles = {g: spec["actor_role"]
                      for g, spec in staffing.load_config(root, "quality-gates.yaml")["gates"].items()}
         reasons = taskstate.check_done(task, base, gate_roles, _gate_key(root))
@@ -393,7 +399,7 @@ def cmd_task_advance(args):
         event="TASK_COMPLETED" if target == "DONE" else "STATUS_CHANGED",
         actor=args.actor or "company-cli", project=task["project"], task=args.id,
         data={"from": task["status"], "to": target},
-    ))
+    ), finalize=gatesig.pm_signer(root))
     taskstate.rebuild(root)
     out = {"ok": True, "task": args.id, "from": task["status"], "to": target}
     import worktrees
@@ -420,7 +426,7 @@ def _cleanup_after(repo: Path, root: Path, *, trigger: str, task: str | None = N
 def cmd_handoff(args):
     """The second and last worker-facing verb."""
     root = company_root(args)
-    tasks = taskstate.fold(EventLog(root).read())
+    tasks = taskstate.load(root)
     task = tasks.get(args.task) or die(f"no such task {args.task!r}")
     path = root / "handoffs" / f"{args.task}-{args.frm}-to-{args.to}.md"
     body = sys.stdin.read() if args.stdin else (args.body or "")
@@ -583,7 +589,7 @@ def plan_spec(root: Path, spec: dict, *, allow_overlap: bool = False,
     # missed real incidents (finos-5a: same fix staffed 3x across 3 waves;
     # resolve-os: 18 tasks across 6 waves in ~29h, each wave its own PR).
     events = EventLog(root).read()
-    existing = [t for t in taskstate.fold(events).values()
+    existing = [t for t in taskstate.load(root, events).values()
                if t.get("project") == project]
 
     cross_plan_joins = staffing.join_existing_gate_groups(planned, existing)
@@ -668,7 +674,7 @@ def cmd_staff(args):
     plan = json.loads(plan_file.read_text(encoding="utf-8"))
 
     log = EventLog(root)
-    existing = taskstate.fold(log.read())
+    existing = taskstate.load(root, log.read())
     staffed = []
 
     for task in plan["tasks"]:
@@ -679,15 +685,17 @@ def cmd_staff(args):
 
         data = _task_created_data(task)
         log.append(make_event(event="TASK_CREATED", actor="company-pm",
-                              project=project, task=tid, data=data))
+                              project=project, task=tid, data=data),
+                   finalize=gatesig.pm_signer(root))
 
         entry = {"task": tid, "tier": task.get("tier"), "gates": task.get("gates")}
         if task.get("tier") == 2:
             owner = task.get("owner") or f"{task.get('role', 'backend-engineer')}-{tid.split('-')[-1]}"
             log.append(make_event(event="TASK_ASSIGNED", actor="company-pm",
                                   project=project, task=tid,
-                                  data={"owner": owner, "branch": data["branch"]}))
-            view = taskstate.fold(log.read())[tid]
+                                  data={"owner": owner, "branch": data["branch"]}),
+                       finalize=gatesig.pm_signer(root))
+            view = taskstate.load(root, log.read())[tid]
             try:
                 wt, branch = worker_mod.ensure_worktree(repo, root, view)
                 entry.update({"owner": owner, "branch": branch, "worktree": str(wt)})
@@ -763,7 +771,7 @@ def cmd_run(args):
     root = company_root(args)
     repo = root.parent
     events = EventLog(root).read()
-    tasks = taskstate.fold(events)
+    tasks = taskstate.load(root, events)
     task = tasks.get(args.task) or die(f"no such task {args.task!r} in the event log")
 
     contracts = _contracts_for(tasks, task)
@@ -914,7 +922,7 @@ def cmd_gate_group(args):
 
     root = company_root(args)
     repo = root.parent
-    all_tasks = taskstate.fold(EventLog(root).read())
+    all_tasks = taskstate.load(root)
 
     group_tasks = [t for t in all_tasks.values() if t.get("gate_group") == args.group]
     if args.tasks:
@@ -1053,7 +1061,7 @@ def _contracts_for(tasks: dict, task: dict) -> list[dict]:
 
 
 def _project_tasks(root: Path, project: str | None):
-    tasks = list(taskstate.fold(EventLog(root).read()).values())
+    tasks = list(taskstate.load(root).values())
     if project:
         tasks = [t for t in tasks if t.get("project") == project]
     return tasks
@@ -1061,7 +1069,9 @@ def _project_tasks(root: Path, project: str | None):
 
 def _baseline(root: Path, project: str | None = None) -> dict | None:
     import baseline as baseline_mod
-    return baseline_mod.latest(EventLog(root).read(), project)
+    # Only a baseline the PM signed (`company baseline`) can excuse a red run.
+    return baseline_mod.latest(
+        gatesig.trusted_events(EventLog(root).read(), gatesig.load_key(root)), project)
 
 
 def _escalations(root: Path, project: str | None = None) -> list[dict]:
@@ -1124,9 +1134,11 @@ def cmd_report(args):
 def cmd_integrate(args):
     import integrate as integrate_mod
     import staffing
+    _refuse_inside_worker("", "integrate",
+                          "merging is the PM's decision, never the work being merged")
     root = company_root(args)
     repo = root.parent
-    tasks = taskstate.fold(EventLog(root).read())
+    tasks = taskstate.load(root)
     gate_roles = {g: spec["actor_role"]
                  for g, spec in staffing.load_config(root, "quality-gates.yaml")["gates"].items()}
 
@@ -1163,6 +1175,16 @@ def cmd_integrate(args):
         if reasons and not args.force:
             results.append({"task": tid, "merged": False,
                             "reason": "gates not satisfied", "detail": reasons})
+            continue
+        # With no gate to have reviewed it (an ungated task, or --force past
+        # them), the only thing standing behind the merge is the task's own
+        # definition — so it must be one the PM signed (ESC-002 c), not one
+        # a worker appended to the log with `gates: []`.
+        if (args.force or not task.get("gates")) and not task.get("created_signed"):
+            results.append({"task": tid, "merged": False,
+                            "reason": "task definition not signed by the PM",
+                            "detail": ["an ungated or --force merge needs the task's "
+                                       "TASK_CREATED from `company staff`/`routine fire`"]})
             continue
 
         conflicts = integrate_mod.detect_concurrent_glob_conflicts(tasks, tid)
@@ -2060,7 +2082,7 @@ def _goal_policy(root: Path) -> dict:
 def _goal_views(root: Path) -> tuple[dict, dict]:
     import goals as goals_mod
     events = EventLog(root).read()
-    tasks = taskstate.fold(events)
+    tasks = taskstate.load(root, events)
     return goals_mod.fold(events, tasks), tasks
 
 
@@ -2111,7 +2133,7 @@ def cmd_goal_link(args):
     data = {"goal": None if args.unlink else args.goal, "tasks": args.tasks}
     if args.reason:
         data["reason"] = args.reason
-    known = taskstate.fold(EventLog(root).read())
+    known = taskstate.load(root)
     for tid in args.tasks:
         if tid not in known:
             print(f"warning: {tid!r} is not a task in this log — it will show as "
@@ -2291,12 +2313,13 @@ def cmd_routine_fire(args):
         except DuplicateFireError:
             result["skipped"] = "already fired for this slot"
             continue
-        existing = taskstate.fold(log.read())
+        existing = taskstate.load(root, log.read())
         for task in tasks:
             if task["id"] not in existing:
                 log.append(make_event(event="TASK_CREATED", actor=args.actor or "company-pm",
                                       project=task["project"], task=task["id"],
-                                      data=_task_created_data(task)))
+                                      data=_task_created_data(task)),
+                           finalize=gatesig.pm_signer(root))
         result.update({"ok": True, "tasks": [t["id"] for t in tasks],
                        "gates": {t["id"]: t["gates"] for t in tasks}})
 

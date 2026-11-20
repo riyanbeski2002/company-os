@@ -375,7 +375,7 @@ def cleanup(repo: Path, company_root: Path, *, task: str | None = None,
     managed = _real(company_root / MANAGED_DIR)
     log = EventLog(company_root)
     events = log.read()
-    tasks = taskstate.fold(events)
+    tasks = taskstate.load(company_root, events)
     created = {_real(e["data"]["path"]): e for e in events
                if e.get("event") == "WORKTREE_CREATED" and (e.get("data") or {}).get("path")}
     includes = _include_paths(repo)

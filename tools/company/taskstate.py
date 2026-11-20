@@ -80,9 +80,15 @@ FIELDS_FROM_DATA = (
 )
 
 
-def fold(events: list[dict]) -> dict[str, dict]:
-    """Replay events into task views. Pure — no I/O, no clock, no randomness."""
+def fold(events: list[dict], gate_key: bytes | None = None) -> dict[str, dict]:
+    """Replay events into task views. Pure — no I/O, no clock, no randomness.
+
+    With `gate_key` (the PM's process: `load`), state events the PM did not
+    sign are dropped first (gatesig.trusted_events); every caller that
+    decides DONE, a merge or a cleanup must pass it."""
+    events = gatesig.trusted_events(events, gate_key)
     tasks: dict[str, dict] = {}
+    created: set[str] = set()
     # ESC-002. Signed gate launches by seq, and per (task, gate) the seq a
     # PASSED's launch must exceed. `high` is the highest seq seen so far: an
     # IMPLEMENTATION_READY or FAILED voids every launch at or below it, so
@@ -146,10 +152,23 @@ def fold(events: list[dict]) -> dict[str, dict]:
         task["updated_at"] = ev["ts"]
 
         if name == "TASK_CREATED":
-            for field in FIELDS_FROM_DATA:
-                if field in data:
-                    task[field] = data[field]
-            task["status"] = "PLANNED"
+            if tid not in created or ev.get("_pm_signed"):
+                for field in FIELDS_FROM_DATA:
+                    if field in data:
+                        task[field] = data[field]
+                if tid not in created:
+                    task["status"] = "PLANNED"
+                created.add(tid)
+                if ev.get("_pm_signed"):
+                    task["created_signed"] = True
+                else:
+                    task.pop("created_signed", None)
+            else:
+                # A repeated, unsigned TASK_CREATED (ESC-002 c: a worker
+                # re-declaring its own task with `gates: []`) changes
+                # nothing — except that gates may only ever grow.
+                task["gates"] = list(dict.fromkeys(
+                    [*(task.get("gates") or []), *(data.get("gates") or [])]))
 
         elif name == "TASK_ASSIGNED":
             task["owner"] = data.get("owner", task.get("owner"))
@@ -342,6 +361,13 @@ def reviewed_commit(task: dict, gate_key: bytes | None) -> str | None:
     return next(iter(shas))
 
 
+def load(company_root: Path, events: list[dict] | None = None) -> dict[str, dict]:
+    """fold() with the PM's key, when this process can read it."""
+    if events is None:
+        events = EventLog(company_root).read()
+    return fold(events, gatesig.load_key(company_root))
+
+
 def task_path(company_root: Path, tid: str) -> Path:
     return Path(company_root) / "tasks" / f"{tid}.json"
 
@@ -366,7 +392,7 @@ def rebuild(company_root: Path, verify: bool = False) -> tuple[int, list[str]]:
     """
     import goals
     events = EventLog(company_root).read()
-    tasks = fold(events)
+    tasks = fold(events, gatesig.load_key(company_root))
     # Goal views are a second projection over the same log, taking this
     # fold's links as input, and get the same byte-identical-replay rules.
     goal_views = goals.fold(events, tasks)

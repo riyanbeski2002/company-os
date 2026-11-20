@@ -131,9 +131,11 @@ def record(company_root: Path, repo: Path, *, project: str, verify: str,
     log_path = log_dir / "baseline.log"
     log_path.write_text(result["output_tail"], encoding="utf-8")
 
+    import gatesig
     EventLog(company_root).append(make_event(
         event="BASELINE_RECORDED", actor=actor, project=project,
-        data=data, evidence={"commit": sha, "log": str(log_path)}))
+        data=data, evidence={"commit": sha, "log": str(log_path)}),
+        finalize=gatesig.pm_signer(company_root))
     return {**data, "log": str(log_path), "output_tail": result["output_tail"]}
 
 
@@ -151,7 +153,7 @@ def latest(events: list[dict], project: str | None = None) -> dict | None:
             continue
         if project and ev.get("project") != project:
             continue
-        found = ev.get("data")
+        found = {k: v for k, v in (ev.get("data") or {}).items() if k != "pm_mac"}
     return found
 
 
