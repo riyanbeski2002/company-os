@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import shutil
 import signal
 import subprocess
@@ -19,7 +20,7 @@ import threading
 import time
 from pathlib import Path
 
-from eventlog import EventLog, make_event
+from eventlog import EventLog, gate_proof, make_event, proof_sha256
 import harness
 import providers
 import staffing
@@ -165,6 +166,20 @@ GATE_VERDICT_EVENTS = {
     "qa-engineer": ("QA_PASSED", "QA_FAILED"),
     "security-reviewer": ("SECURITY_REVIEW_PASSED", "SECURITY_REVIEW_FAILED"),
 }
+
+
+def _gate_secret(role: str, task_ids: list[str]) -> tuple[str | None, dict]:
+    """ESC-002: (secret for the gate worker's env, WORKER_STARTED data).
+    $COMPANY_ACTOR names a worker but proves nothing — any worker can set
+    it. Only this launch's env holds the secret; the log gets sha256 of the
+    per-task PASSED proof, which taskstate.fold() checks the verdict against.
+    """
+    verdicts = GATE_VERDICT_EVENTS.get(role)
+    if not verdicts:
+        return None, {}
+    secret = secrets.token_hex(32)
+    return secret, {"pass_event": verdicts[0], "pass_proof_sha256": {
+        t: proof_sha256(gate_proof(secret, t, verdicts[0])) for t in task_ids}}
 
 
 class WorkerError(RuntimeError):
@@ -399,6 +414,8 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
     before a role/harness was known keep working unchanged.
     """
     env = dict(os.environ)
+    # Never inherited: only the launch that minted a gate secret passes one on.
+    env.pop("COMPANY_GATE_SECRET", None)
     spec = harness_spec or harness.resolve(harness.load_config(company_root), None)
     env = harness.apply_env(spec, env)
     if spec.get("_provider"):
@@ -564,12 +581,9 @@ def _run_service_cmd(cmd: str, repo: Path, env: dict, timeout: int, log_path: Pa
 
 
 def _git_trusted(repo: Path, *args, **kw) -> subprocess.CompletedProcess:
-    """git against the MAIN checkout's gitdir only. Never `-C <worktree>`:
-    a worktree's `.git` file is writable by the implementer, who could point
-    it at a gitdir whose config runs commands (smudge filters, fsmonitor)
-    the moment git touches it — unsandboxed, here."""
-    env = {**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0"}
-    return subprocess.run(["git", "-C", str(repo), *args], env=env, **kw)
+    """See gitutil.git_trusted: main checkout only, never `-C <worktree>`."""
+    import gitutil
+    return gitutil.git_trusted(repo, *args, **kw)
 
 
 def _snapshot_tree(repo: Path, ref: str, dest: Path) -> Path:
@@ -967,6 +981,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                 "model_override": model_override, "effort_override": effort_override,
                 "skip_permissions": skip_permissions,
             }
+        gate_secret, proof_data = _gate_secret(role, [task["id"]])
+        event_data.update(proof_data)
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
             task=task["id"], data=event_data,
@@ -979,7 +995,14 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
         # inline).
         worker_input = packet + _services_note(services)
         if not harness_spec.get("native_agent_loading"):
-            worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + packet
+            worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + worker_input
+
+        env = build_env(repo, company_root, task, actor, wt,
+                        thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
+                        allowed_tools=role_tools(role), plugin_root=plugin_root,
+                        extra_env=services and services["inject"])
+        if gate_secret:
+            env["COMPANY_GATE_SECRET"] = gate_secret
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
@@ -988,10 +1011,7 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                               skip_permissions=skip_permissions, harness_spec=harness_spec,
                               sandbox=sandbox, plugin_root=plugin_root),
                 cwd=str(wt),
-                env=build_env(repo, company_root, task, actor, wt,
-                              thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
-                              allowed_tools=role_tools(role), plugin_root=plugin_root,
-                              extra_env=services and services["inject"]),
+                env=env,
                 stdin=subprocess.PIPE, stdout=out, stderr=err, text=True,
             )
             (state / "pid").write_text(str(proc.pid))
@@ -1135,13 +1155,14 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                                        f"_gate-group-{group_id}-{role}",
                                        _service_id(f"gg-{group_id}-{role}"))
 
+        gate_secret, proof_data = _gate_secret(role, task_ids)
         log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
             data={"role": role, "tier": 2, "gate_group": group_id, "tasks": task_ids,
                   "worktree": str(worktree), "timeout_s": timeout,
                   "model": policy.get("model"), "effort": policy.get("effort"),
                   "harness": harness_spec["_name"], "guards": harness_spec["_guards"],
-                  "provider": harness_spec["_provider"]["_name"]},
+                  "provider": harness_spec["_provider"]["_name"], **proof_data},
         ))
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
@@ -1149,10 +1170,12 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                         allowed_tools=role_tools(role), plugin_root=plugin_root,
                         extra_env=services and services["inject"])
         env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
+        if gate_secret:
+            env["COMPANY_GATE_SECRET"] = gate_secret
 
         worker_input = packet + _services_note(services)
         if not harness_spec.get("native_agent_loading"):
-            worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + packet
+            worker_input = harness.load_persona(plugin_root, role) + "\n\n---\n\n" + worker_input
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:

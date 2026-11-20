@@ -8,6 +8,7 @@ drift between the two call sites.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -18,30 +19,48 @@ from pathlib import Path
 DIFF_PATCH_CHAR_CAP = 4000
 
 
-def diff_patch_or_stat(worktree: Path, base: str, ref: str = "HEAD",
+# Inherited from a git hook (the pre-commit suite runs under one), these
+# would redirect `git -C <repo>` at some other repository.
+_GIT_SCRUB = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+              "GIT_PREFIX", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES")
+
+
+def git_trusted(repo: Path, *args, **kw) -> subprocess.CompletedProcess:
+    """git in the PM's own process against the MAIN checkout only (ESC-014).
+    Never `-C <worktree>`: a worker can rewrite its worktree's `.git` file to
+    point at a gitdir whose config runs commands (core.fsmonitor, a diff or
+    filter driver, core.pager) the moment git reads it, unsandboxed, here.
+    Worktrees share the main repo's refs and objects, so any branch or SHA a
+    worker produced is readable from the main checkout."""
+    env = {k: v for k, v in os.environ.items() if k not in _GIT_SCRUB}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0")
+    return subprocess.run(["git", "-C", str(repo), *args], env=env, **kw)
+
+
+def diff_patch_or_stat(repo: Path, base: str, ref: str,
                        cap: int = DIFF_PATCH_CHAR_CAP) -> str | None:
     """The real `git diff` patch if it fits under `cap`, else `--stat` plus a
     pointer to run the diff directly. None if there's nothing to diff (no
     commits ahead of base) or on any git error — never raises, this is a cost
     optimization, not something a gate's correctness depends on.
+
+    `repo` is the main checkout and `ref` the task's branch (never a
+    worktree's HEAD): see git_trusted.
     """
+    def git(*args):
+        return git_trusted(repo, *args, capture_output=True, text=True, timeout=10)
     try:
-        count = subprocess.run(
-            ["git", "-C", str(worktree), "rev-list", "--count", f"{base}..{ref}"],
-            capture_output=True, text=True, timeout=10)
+        count = git("rev-list", "--count", f"{base}..{ref}")
         if count.returncode != 0 or int(count.stdout.strip() or 0) == 0:
             return None
-        sha = subprocess.run(["git", "-C", str(worktree), "rev-parse", ref],
-                             capture_output=True, text=True, timeout=10)
+        sha = git("rev-parse", "--verify", "--end-of-options", ref)
         header = f"{ref} {sha.stdout.strip()}"
 
-        patch = subprocess.run(["git", "-C", str(worktree), "diff", f"{base}..{ref}"],
-                               capture_output=True, text=True, timeout=10)
+        patch = git("diff", "--no-ext-diff", "--no-textconv", f"{base}..{ref}")
         if patch.returncode == 0 and 0 < len(patch.stdout) <= cap:
             return f"{header}\n{patch.stdout.rstrip()}"
 
-        stat = subprocess.run(["git", "-C", str(worktree), "diff", "--stat", f"{base}..{ref}"],
-                              capture_output=True, text=True, timeout=10)
+        stat = git("diff", "--no-ext-diff", "--no-textconv", "--stat", f"{base}..{ref}")
         if stat.returncode != 0:
             return None
         return (f"{header}\n{stat.stdout.rstrip()}\n"

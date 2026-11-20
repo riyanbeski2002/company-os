@@ -63,6 +63,80 @@ class TestDangerousCommands(unittest.TestCase):
             self.assertIsNone(blocked_by_rule(cmd), cmd)
 
 
+class TestDestructiveDatabaseCommands(unittest.TestCase):
+    """D-9: destroying a database is always refused, in every session."""
+
+    def test_blocks(self):
+        for cmd in ("supabase db reset",
+                    "npx supabase db reset --linked",
+                    "supabase stop --no-backup",
+                    "dropdb myapp_dev",
+                    "PGPASSWORD=x dropdb -h localhost app",
+                    'psql "$DATABASE_URL" -c "DROP TABLE users;"',
+                    "psql -c 'drop schema public cascade'",
+                    'psql -d app -c "DROP DATABASE app"',
+                    "psql app -c 'TRUNCATE users'",
+                    "echo 'TRUNCATE TABLE orders' | psql app",
+                    "psql app <<'SQL'\nBEGIN;\nDROP TABLE accounts;\nSQL",
+                    'docker exec db psql -U postgres -c "drop database app"',
+                    'mysql -e "DROP DATABASE shop"',
+                    "npx prisma migrate reset --force",
+                    "bin/rails db:drop",
+                    "bundle exec rake db:reset",
+                    "docker volume rm myapp_postgres_data"):
+            label = blocked_by_rule(cmd)
+            self.assertIsNotNone(label, cmd)
+            self.assertIn("destructive database", label, cmd)
+
+    def test_allows(self):
+        for cmd in ("supabase start", "supabase stop", "supabase db push",
+                    "psql app -c 'select count(*) from users'",
+                    "grep -rn 'DROP TABLE' migrations/",
+                    "truncate -s 0 app.log",
+                    "npx prisma migrate dev", "bin/rails db:migrate",
+                    "docker volume rm scratch_cache"):
+            self.assertIsNone(blocked_by_rule(cmd), cmd)
+
+    def test_no_project_config_or_env_can_relax_them(self):
+        """Nothing in the policy reads config, so a repo's own .company/
+        cannot opt out; this plants the overrides a repo might try and runs
+        both shims for real."""
+        import json
+        import os
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".company"
+            (root / "config").mkdir(parents=True)
+            (root / "projects").mkdir()
+            override = ("autonomy: full\nallow_destructive_db: true\n"
+                        "allow_commands: ['supabase db reset', 'dropdb']\n"
+                        "rules: []\nask: []\n")
+            for name in ("policy.yaml", "guards.yaml", "autonomy.yaml",
+                         "quality-gates.yaml", "harness.yaml"):
+                (root / "config" / name).write_text(override)
+            (root / "projects" / "p.json").write_text(json.dumps(
+                {"id": "p", "autonomy": "full", "allow_destructive_db": True}))
+            env = {**os.environ, "COMPANY_ROOT": str(root), "COMPANY_PROJECT": "p",
+                   "COMPANY_AUTONOMY": "full", "COMPANY_ALLOW_DESTRUCTIVE_DB": "1"}
+            env.pop("COMPANY_TASK", None)
+            for cmd in ("supabase db reset", "dropdb app",
+                        'psql -c "DROP TABLE users"', "npx prisma migrate reset"):
+                claude = subprocess.run(
+                    [sys.executable, str(HERE.parent / "hooks" / "protect_branches.py")],
+                    input=json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}}),
+                    capture_output=True, text=True, cwd=tmp, env=env)
+                out = json.loads(claude.stdout)
+                self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny", cmd)
+                codex = subprocess.run(
+                    [sys.executable, str(HERE.parent / "hooks" / "guard.py"), "codex"],
+                    input=json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd},
+                                      "cwd": tmp}),
+                    capture_output=True, text=True, cwd=tmp, env=env)
+                out = json.loads(codex.stdout)
+                self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "deny", cmd)
+
+
 class TestRmRule(unittest.TestCase):
     """Regression: `rm -rf /tmp/rev101` is ordinary scratch work, not a root wipe."""
 

@@ -100,6 +100,29 @@ class TestNoopDiffRejected(unittest.TestCase):
         task = taskstate.fold(EventLog(self.root).read())["TASK-1"]
         self.assertEqual(task["evidence"]["diff"], real_sha)
 
+    def test_a_worker_poisoned_worktree_git_is_never_read(self):
+        """ESC-014: the check runs in the PM's process, so it must not read
+        the worktree's `.git`, which the worker can repoint at a gitdir whose
+        config runs commands. Verified through the main checkout instead."""
+        self._create_task()
+        (self.worktree / "f.txt").write_text("one\ntwo\n")
+        _git("add", ".", cwd=self.worktree)
+        _git("commit", "-q", "-m", "actual work", cwd=self.worktree)
+        real_sha = _git("rev-parse", "HEAD", cwd=self.worktree)
+
+        evil = Path(self.tmp.name) / "evil-gitdir"
+        _git("init", "-q", "--bare", str(evil), cwd=self.tmp.name)
+        marker = Path(self.tmp.name) / "pwned"
+        with open(evil / "config", "a") as f:
+            f.write(f'[core]\n\tfsmonitor = "touch {marker}"\n'
+                    f'[diff]\n\texternal = "touch {marker}"\n')
+        (self.worktree / ".git").write_text(f"gitdir: {evil}\n")
+
+        r = self._run("event", "TASK-1", "IMPLEMENTATION_READY",
+                      "--evidence", real_sha, actor_env="backend-engineer-1")
+        self.assertEqual(r.returncode, 0, r.stderr)  # -C worktree: "could not be verified"
+        self.assertFalse(marker.exists())
+
     def test_unresolvable_sha_is_also_rejected(self):
         """A garbage SHA must not slip through just because it isn't 0-ahead —
         `git rev-list` failing outright is exactly as untrustworthy."""

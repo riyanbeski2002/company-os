@@ -49,6 +49,10 @@ def group_worktree_path(company_root: Path, group_id: str,
     return Path(company_root) / "worktrees" / f"_gate-group-{group_id}{suffix}"
 
 
+def group_branch(group_id: str, role: str | None = None) -> str:
+    return f"_gate-group-{group_id}{f'-{role}' if role else ''}"
+
+
 def build_group_review(repo: Path, company_root: Path, group_id: str,
                        tasks: list[dict], base: str,
                        role: str | None = None) -> Path:
@@ -70,7 +74,7 @@ def build_group_review(repo: Path, company_root: Path, group_id: str,
         import worktrees
         worktrees.remove_scratch(repo, company_root, wt)
 
-    branch = f"_gate-group-{group_id}{f'-{role}' if role else ''}"
+    branch = group_branch(group_id, role)
     _git(repo, "branch", "-D", branch)  # ignore failure if it doesn't exist
 
     wt.parent.mkdir(parents=True, exist_ok=True)

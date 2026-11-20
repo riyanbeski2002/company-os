@@ -102,27 +102,51 @@ class TestBuildGroupReview(GitRepoCase):
 class TestDiffPatchOrStat(GitRepoCase):
     def test_small_diff_embeds_the_real_patch(self):
         self._branch("task/1", "x.py", "def x(): pass\n")
-        wt = gategroup.build_group_review(
+        gategroup.build_group_review(
             self.repo, self.company_root, "g", [self._task("TASK-1", "task/1")], "main")
-        summary = gitutil.diff_patch_or_stat(wt, "main")
+        summary = gitutil.diff_patch_or_stat(self.repo, "main", gategroup.group_branch("g"))
         self.assertIn("def x(): pass", summary)
-        self.assertIn("HEAD ", summary)
+        self.assertIn("_gate-group-g ", summary)
 
     def test_large_diff_falls_back_to_stat(self):
         self._branch("task/1", "big.py", "x = 1\n" * 2000)
-        wt = gategroup.build_group_review(
+        gategroup.build_group_review(
             self.repo, self.company_root, "g", [self._task("TASK-1", "task/1")], "main")
-        summary = gitutil.diff_patch_or_stat(wt, "main", cap=200)
+        summary = gitutil.diff_patch_or_stat(self.repo, "main", gategroup.group_branch("g"),
+                                             cap=200)
         self.assertNotIn("x = 1", summary)
         self.assertIn("too large to embed", summary)
 
     def test_no_commits_ahead_returns_none(self):
-        wt = Path(self.tmp.name) / "plain"
-        _git(self.repo, "worktree", "add", "--detach", str(wt), "main")
-        self.assertIsNone(gitutil.diff_patch_or_stat(wt, "main"))
+        self.assertIsNone(gitutil.diff_patch_or_stat(self.repo, "main", "main"))
 
-    def test_nonexistent_worktree_degrades_to_none_not_a_crash(self):
-        self.assertIsNone(gitutil.diff_patch_or_stat(Path("/nonexistent/nowhere"), "main"))
+    def test_nonexistent_repo_degrades_to_none_not_a_crash(self):
+        self.assertIsNone(gitutil.diff_patch_or_stat(Path("/nonexistent/nowhere"), "main", "x"))
+
+    def test_a_poisoned_worktree_does_not_change_or_run_anything(self):
+        """ESC-014: the gate packet's diff reads the branch through the main
+        checkout; the worktree's `.git` (worker-writable) is never consulted."""
+        self._branch("task/1", "x.py", "def x(): pass\n")
+        wt = Path(self.tmp.name) / "task-wt"
+        _git(self.repo, "worktree", "add", str(wt), "task/1")
+        evil = Path(self.tmp.name) / "evil"
+        _git(self.repo, "init", "-q", "--bare", str(evil))
+        marker = Path(self.tmp.name) / "pwned"
+        with open(evil / "config", "a") as f:
+            f.write(f'[diff]\n\texternal = "touch {marker}"\n')
+        (wt / ".git").write_text(f"gitdir: {evil}\n")
+
+        summary = gitutil.diff_patch_or_stat(self.repo, "main", "task/1")
+        self.assertIn("def x(): pass", summary)
+        self.assertFalse(marker.exists())
+
+    def test_trusted_git_ignores_system_config_and_inherited_git_dir(self):
+        import os
+        import unittest.mock
+        with unittest.mock.patch.dict(os.environ, {"GIT_DIR": "/nonexistent"}):
+            r = gitutil.git_trusted(self.repo, "rev-parse", "--git-dir",
+                                    capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
 
 
 class TestVerifyGroupVerdicts(unittest.TestCase):

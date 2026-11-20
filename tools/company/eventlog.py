@@ -10,6 +10,7 @@ from __future__ import annotations
 import errno
 import fcntl
 import filecmp
+import hashlib
 import json
 import os
 import re
@@ -179,6 +180,20 @@ GATE_FAIL_EVENT = {
     "QA_PASSED": "QA_FAILED",
     "SECURITY_REVIEW_PASSED": "SECURITY_REVIEW_FAILED",
 }
+
+
+# ESC-002: a PASSED verdict counts only with a proof derived from the secret
+# the launcher put in that gate worker's env ($COMPANY_GATE_SECRET). The
+# launcher records sha256(proof) in WORKER_STARTED; the verdict carries the
+# proof; the fold compares. The proof is bound to one task and one verdict,
+# so the copy that lands in the log once used can't pass a sibling task in a
+# group or flip a FAILED, and the secret itself never touches the log.
+def gate_proof(secret: str, task_id: str, event: str) -> str:
+    return hashlib.sha256(f"{secret}:{task_id}:{event}".encode()).hexdigest()
+
+
+def proof_sha256(proof: str) -> str:
+    return hashlib.sha256(proof.encode()).hexdigest()
 
 
 class EvidenceError(ValueError):

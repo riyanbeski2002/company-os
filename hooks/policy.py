@@ -213,6 +213,35 @@ RULES: list[tuple[re.Pattern[str], str]] = [
      "worktrees, checkpoints uncommitted work first, and preserves failed ones"),
 ]
 
+# D-9: destroying a database is never routine work. There is no "ask"
+# outcome in this policy (every rule denies) and, deliberately, no project
+# or autonomy setting that can relax these: nothing here reads config, so a
+# repo cannot opt itself out. A reset that is genuinely needed is an
+# escalation for a human to run.
+_DB_CLIENT = (r"\b(?:psql|pgcli|mysql|mariadb|mycli|sqlite3|sqlcmd|clickhouse-client|"
+              r"cockroach\s+sql|prisma\s+db\s+execute|supabase\s+db\s+(?:query|execute))\b")
+_DB_DESTROY_SQL = (r"\b(?:drop\s+(?:database|schema|table)|"
+                   r"truncate\s+(?:table\s+)?[\w\"`])")
+DB_RULES: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\bsupabase\s+db\s+reset\b"), "destructive database operation (supabase db reset)"),
+    (re.compile(r"\bsupabase\s+stop\b[^;|&\n]*--no-backup\b"),
+     "destructive database operation (supabase stop --no-backup)"),
+    (re.compile(r"\bdropdb\b"), "destructive database operation (dropdb)"),
+    # Client and statement anywhere in the command, either order, across
+    # lines: `psql -c "DROP TABLE x"`, `echo 'truncate t' | psql`, heredocs.
+    (re.compile(r"(?is)^(?=.*%s)(?=.*%s)" % (_DB_CLIENT, _DB_DESTROY_SQL)),
+     "destructive database operation (DROP DATABASE/SCHEMA/TABLE or TRUNCATE "
+     "sent to a database client)"),
+    (re.compile(r"\bprisma\s+migrate\s+reset\b"),
+     "destructive database operation (prisma migrate reset)"),
+    (re.compile(r"\b(?:rails|rake)\b[^;|&\n]*\bdb:(?:drop|reset|purge)\b"),
+     "destructive database operation (rails db:drop/db:reset)"),
+    (re.compile(r"(?i)\bdocker\s+volume\s+rm\b[^;|&\n]*(?:postgres|\bpg|mysql|mariadb|mongo|"
+                r"supabase|[-_]db\b|\bdb[-_])"),
+     "destructive database operation (removing a database's docker volume)"),
+]
+RULES += DB_RULES
+
 
 # Absolute-path write targets. The ownership hook only sees Write/Edit/
 # NotebookEdit, so without this a worker could write anywhere via a shell

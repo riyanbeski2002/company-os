@@ -22,8 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from eventlog import (GOAL_EVENTS, ROUTINE_EVENTS, EventLog, EvidenceError,  # noqa: E402
-                      canonical, make_event)
+from eventlog import (GATE_EVENT, GOAL_EVENTS, ROUTINE_EVENTS, EventLog,  # noqa: E402
+                      EvidenceError, canonical, gate_proof, make_event)
 import board  # noqa: E402
 import taskstate  # noqa: E402
 
@@ -244,6 +244,11 @@ def cmd_event(args):
     if assigned and args.actor and args.actor != assigned:
         print(f"note: ignoring --actor {args.actor!r}; this worker is {assigned!r}",
               file=sys.stderr)
+    # ...which is also why the actor alone can't carry a PASSED verdict
+    # (ESC-002): the launcher's per-launch secret signs it (see eventlog.gate_proof).
+    secret = os.environ.get("COMPANY_GATE_SECRET")
+    if secret and args.type in GATE_EVENT.values() and args.task:
+        data = {**(data or {}), "gate_proof": gate_proof(secret, args.task, args.type)}
 
     ev = make_event(
         event=args.type,
@@ -306,14 +311,14 @@ def _reject_noop_diff(root: Path, task_id: str, sha: str) -> str | None:
     if not (worktree / ".git").exists():
         return None  # not a real checkout — nothing to verify
 
-    import subprocess
+    import gitutil
     import worker as worker_mod
     base = task.get("base") or worker_mod._default_base(root.parent)
 
-    r = subprocess.run(
-        ["git", "-C", str(worktree), "rev-list", "--count", f"{base}..{sha}"],
-        capture_output=True, text=True,
-    )
+    # The main checkout, not `-C worktree`: the worker writes that worktree's
+    # `.git`, and this runs in the PM's process (ESC-014, gitutil.git_trusted).
+    r = gitutil.git_trusted(root.parent, "rev-list", "--count", "--end-of-options",
+                            f"{base}..{sha}", capture_output=True, text=True)
     if r.returncode != 0:
         return (
             f"IMPLEMENTATION_READY refused: {sha!r} could not be verified against "
@@ -714,9 +719,9 @@ def _diff_summary_for_gate(repo, root, task, role, worker_mod):
     if role not in GATE_ROLES:
         return None
     import gitutil
-    wt, _branch = worker_mod.ensure_worktree(repo, root, task)
+    _wt, branch = worker_mod.ensure_worktree(repo, root, task)
     base = task.get("base") or worker_mod._default_base(repo)
-    return gitutil.diff_patch_or_stat(wt, base)
+    return gitutil.diff_patch_or_stat(repo, base, branch)
 
 
 def _spawn_detached(argv: list[str], state: Path, project: str):
@@ -934,7 +939,8 @@ def cmd_gate_group(args):
         die(str(exc), 1)
 
     import gitutil
-    diff_summary = gitutil.diff_patch_or_stat(wt, base)
+    diff_summary = gitutil.diff_patch_or_stat(
+        repo, base, gategroup.group_branch(args.group, args.role))
 
     body = packet_mod.render_group(
         group_tasks, group_id=args.group,
