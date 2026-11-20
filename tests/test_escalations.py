@@ -33,6 +33,8 @@ class TestEscalationLifecycle(unittest.TestCase):
         kw.setdefault("actor", "company-pm")
         kw.setdefault("kind", "human_action")
         kw.setdefault("need", "open 2 tmux panes")
+        if not kw.get("task") and kw.get("blocking", True):
+            kw.setdefault("project_wide", True)  # a blocking escalation must name what it blocks
         return escalations.raise_escalation(self.root, **kw)
 
     def test_ids_increment(self):
@@ -100,6 +102,8 @@ class TestBlockingEscalationForTask(unittest.TestCase):
         kw.setdefault("actor", "company-pm")
         kw.setdefault("kind", "human_action")
         kw.setdefault("need", "fix the environment")
+        if not kw.get("task") and kw.get("blocking", True):
+            kw.setdefault("project_wide", True)  # a blocking escalation must name what it blocks
         return escalations.raise_escalation(self.root, **kw)
 
     def test_a_blocking_escalation_on_this_task_is_found(self):

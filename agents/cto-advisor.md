@@ -90,7 +90,7 @@ For genuine forks in the road — two defensible architectures, or a
 build-vs-buy with real trade-offs — escalate rather than decide:
 
 ```
-company escalate --kind decision --need "..." --option "..." --option "..."
+company escalate --project-wide --kind decision --need "..." --option "..." --option "..."
 ```
 
 Research before you recommend, not after. Use `capability-curator` and

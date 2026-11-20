@@ -116,6 +116,7 @@ class Client:
             s.verify = self.verify_tls
             s.headers.update(self._cfg_headers)
             s.cookies.update(self._cfg_cookies)
+            s.hooks["response"].append(_authorize_redirect)
             self._local.session = s
         return s
 
@@ -146,6 +147,7 @@ class Client:
         files: Any = None,
         allow_redirects: bool = False,
     ) -> Result:
+        check_authorized(url)  # every request, not only the probe's first target
         last_err = ""
         for attempt in range(self.retries + 1):
             self._limiter.wait()
@@ -321,6 +323,116 @@ def client_from_args(args: argparse.Namespace) -> Client:
 def require_scheme(url: str) -> None:
     if "://" not in url:
         raise SystemExit("URL must include a scheme (http:// or https://)")
+    require_authorized(url)
+
+
+# ============================================================================
+# Authorization gate, enforced in code (verification batch-2, T-040).
+# ----------------------------------------------------------------------------
+# Until 2026-11-20 the only thing between a probe and an unlisted target was
+# prose in agents/pen_test.md. Now every probe's target is checked against
+# config/authorized-targets.yaml before any traffic, and Client.request checks
+# every request (redirect hops are not followed by default). Fails CLOSED: a
+# missing or unreadable file authorizes nothing. Loopback is always allowed;
+# it is the operator's own machine (and the offline test target).
+# Override the file location with $PEN_TEST_AUTHORIZED_TARGETS.
+# ============================================================================
+
+class UnauthorizedTarget(PermissionError):
+    pass
+
+
+def _targets_file():
+    from pathlib import Path
+    env = _os.environ.get("PEN_TEST_AUTHORIZED_TARGETS")
+    if env and _os.environ.get("PEN_TEST_UNDER_UNITTEST") == "1":
+        return Path(env)
+    # skills/pen_test/native/_httpcore.py -> repo root
+    return Path(__file__).resolve().parents[3] / "config" / "authorized-targets.yaml"
+
+
+def authorized_patterns() -> list[str]:
+    try:
+        import yaml
+    except ImportError:
+        raise UnauthorizedTarget("REFUSED: PyYAML is not installed, so the authorized-targets "
+                                 "list can't be read (pip install -r requirements.txt)") from None
+    try:
+        entries = yaml.safe_load(_targets_file().read_text(encoding="utf-8")) or []
+    except Exception:  # noqa: BLE001 - fail closed
+        return []
+    pats = []
+    for e in entries if isinstance(entries, list) else []:
+        if not isinstance(e, dict):
+            continue
+        for h in e.get("hosts") or []:
+            pats.append(str(h).split("#")[0].strip().lower())
+        t = str(e.get("target") or "").strip().lower()
+        if t and " " not in t and "." in t:  # a hostname or *.wildcard, not a label
+            pats.append(t)
+    return [p for p in pats if p]
+
+
+def _host_of(target: str) -> str:
+    if "://" in target:
+        host = urlparse(target).hostname or ""
+    else:
+        host = target.strip().split("/")[0]
+        if host.startswith("["):
+            host = host[1:].split("]")[0]
+        elif host.count(":") == 1:
+            host = host.split(":")[0]
+    return host.strip("[]").lower().rstrip(".")
+
+
+def _is_loopback(host: str) -> bool:
+    import ipaddress
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def is_authorized(target: str) -> bool:
+    host = _host_of(target)
+    if not host:
+        return False
+    if _is_loopback(host):
+        return True
+    for p in authorized_patterns():
+        if p.startswith("*."):
+            if host == p[2:] or host.endswith(p[1:]):
+                return True
+        elif host == p:
+            return True
+    return False
+
+
+def check_authorized(target: str) -> None:
+    """Raise UnauthorizedTarget unless the target is listed (or loopback)."""
+    if not is_authorized(target):
+        raise UnauthorizedTarget(
+            f"REFUSED: {_host_of(target) or target!r} is not in {_targets_file()}. "
+            "Active testing needs an approved entry there first (see "
+            "agents/pen_test.md's authorization gate); this is enforced in code.")
+
+
+def _authorize_redirect(resp, *args, **kwargs):
+    """Response hook: refuse to follow a redirect to an unlisted host."""
+    if resp.is_redirect:
+        from urllib.parse import urljoin
+        check_authorized(urljoin(resp.url, resp.headers["location"]))
+    return resp
+
+
+def require_authorized(target: str) -> None:
+    """Probe entry-point form: exits cleanly instead of raising."""
+    try:
+        check_authorized(target)
+    except UnauthorizedTarget as exc:
+        raise SystemExit(str(exc)) from None
 
 
 # ============================================================================

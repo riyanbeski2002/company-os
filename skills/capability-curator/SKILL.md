@@ -109,7 +109,7 @@ Classify trust tier
         │
         ▼
 Propose, never adopt:
-  company escalate --kind approval \
+  company escalate --kind approval --project-wide \
     --need "adopt <name> for <purpose>, trust tier <T2>: <one line why>"
         │
         ▼
@@ -128,7 +128,7 @@ proposal that could silently become an adoption is not a proposal.
 Give Riyan what he needs to decide in one line, not a research dump:
 
 ```
-company escalate --kind approval \
+company escalate --kind approval --project-wide \
   --need "adopt <name> (T2, MIT) for <specific purpose> — <the one fact that matters>"
 ```
 

@@ -21,7 +21,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import socket
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 COMMON_PORTS = "21,22,23,25,53,80,110,111,135,139,143,443,445,993,995,1723,3000,3306,3389,5000,5432,5900,6379,8000,8080,8443,9200,27017"
@@ -81,6 +83,9 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=1.5)
     parser.add_argument("--workers", type=int, default=100)
     args = parser.parse_args()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import _httpcore as core  # noqa: E402
+    core.require_authorized(args.host)  # enforced in code, not only in the prompt
 
     ports = parse_ports(args.ports)
     print(f"Scanning {args.host} — {len(ports)} port(s), {args.workers} concurrent workers")

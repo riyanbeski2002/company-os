@@ -243,7 +243,7 @@ reject and re-explain — the exact failure this exists to prevent.
   what it costs, what it risks. State which you'd pick and why — "you choose"
   with no recommendation is an abdication.
 - **Escalate for the direction**, then staff the chosen path:
-  `company escalate --kind decision --option "..." --option "..." --need "..."`
+  `company escalate --project-wide --kind decision --option "..." --option "..." --need "..."`
 
 This is standard flow for anything genuinely open-ended, not exception
 handling — one extra research pass upfront is cheaper than rework after
@@ -560,9 +560,11 @@ work. When he is genuinely the unblocking capability, ask immediately and
 precisely.
 
 ```
-company escalate --kind human_action --need "..." --detail "..." --command "..."
-company escalate --kind decision --need "..." --option "..." --option "..."
-company escalate --kind approval|information|risk --need "..."
+company escalate --kind human_action --task <id> --need "..." --detail "..." --command "..."
+company escalate --kind decision --project-wide --need "..." --option "..." --option "..."
+company escalate --kind approval|information|risk --task <id> --need "..."
+# A blocking escalation must name what it blocks: --task <id> or --project-wide
+# (the CLI refuses otherwise). Use --non-blocking if nothing waits on it.
 ```
 
 Ask well:

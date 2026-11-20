@@ -112,7 +112,8 @@ class ContractCase(unittest.TestCase):
         escalations.raise_escalation(self.root, project="p", actor="company-pm",
                                      kind="human_action", need="unblock T-2", task="T-2")
         resolved = escalations.raise_escalation(self.root, project="q", actor="company-pm",
-                                                kind="information", need="which API?")
+                                                kind="information", need="which API?",
+                                                project_wide=True)
         log.append(make_event(event="ESCALATION_RESOLVED", actor="riyan", project="q",
                               data={"id": resolved["id"], "resolution": "the v2 one"}))
 

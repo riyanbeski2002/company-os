@@ -81,7 +81,7 @@ def main():
     print(f"Staged at {dest}")
     print()
     print("File the proposal (never write capability-registry.yaml or skills/ yourself):")
-    print(f'  company escalate --kind approval --need "{need}"')
+    print(f'  company escalate --kind approval --project-wide --need "{need}"')
     print()
     print("Once approved (company resolve), promotion is a separate, PM-only step:")
     print(f"  tools/promote_skill.py {slug} --approved-by <name>")

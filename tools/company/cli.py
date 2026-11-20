@@ -1942,7 +1942,8 @@ def cmd_escalate(args):
         esc = escalations.raise_escalation(
             root, project=project, actor=args.actor or "company-pm", kind=args.kind,
             need=args.need, detail=args.detail or "", blocking=not args.non_blocking,
-            task=args.task, options=args.option, commands=args.command)
+            task=args.task, options=args.option, commands=args.command,
+            project_wide=args.project_wide)
     except ValueError as exc:
         die(str(exc), 1)
     escalations.write_views(root, EventLog(root).read())
@@ -2734,7 +2735,10 @@ def build_parser():
     es.add_argument("--option", action="append", help="repeatable; for --kind decision")
     es.add_argument("--command", action="append",
                     help="repeatable; an exact command the CEO can run")
-    es.add_argument("--task")
+    es.add_argument("--task", help="the task this blocks (a blocking escalation needs "
+                                   "--task or --project-wide)")
+    es.add_argument("--project-wide", action="store_true",
+                    help="this blocks the whole project, not one task")
     es.add_argument("--project")
     es.add_argument("--actor")
     es.add_argument("--non-blocking", action="store_true")

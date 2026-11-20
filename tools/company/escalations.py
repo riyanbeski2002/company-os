@@ -41,15 +41,27 @@ def next_id(events: list[dict]) -> str:
 def raise_escalation(company_root: Path, *, project: str, actor: str, kind: str,
                      need: str, detail: str = "", blocking: bool = True,
                      task: str | None = None, options: list[str] | None = None,
-                     commands: list[str] | None = None) -> dict:
+                     commands: list[str] | None = None, project_wide: bool = False) -> dict:
     if kind not in KINDS:
         raise ValueError(f"unknown escalation kind {kind!r}; expected one of {sorted(KINDS)}")
     if not need.strip():
         raise ValueError("an escalation needs a 'need' — say plainly what you want")
+    # A blocking escalation must say WHAT it blocks. Without it nothing can
+    # tell "waiting on Riyan" from "waiting on nobody": in finos only 68 of
+    # 243 escalations named a task, which left lead-time attribution between
+    # 3% and 97% (FIRST-PRINCIPLES-REVIEW Part 4, tools/lead_time.py).
+    if blocking and not task and not project_wide:
+        raise ValueError("a blocking escalation must name the task it blocks (--task <id>) "
+                         "or declare that it blocks the whole project (--project-wide); "
+                         "use --non-blocking if nothing waits on it")
+    if task and project_wide:
+        raise ValueError("--task and --project-wide are mutually exclusive")
 
     log = EventLog(company_root)
     esc_id = next_id(log.read())
     data = {"id": esc_id, "kind": kind, "need": need, "blocking": blocking}
+    if project_wide:
+        data["project_wide"] = True
     if detail:
         data["detail"] = detail
     if options:

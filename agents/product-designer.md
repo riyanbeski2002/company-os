@@ -84,7 +84,7 @@ company handoff <TASK_ID> --from product-designer --to frontend --stdin
 ```
 Your handoff is frontend's contract. Vague input produces a vague contract —
 if the request itself is ambiguous about what the product should even do,
-that's a `company escalate --kind decision`, not something to resolve by
+that's a `company escalate --kind decision --task <id>`, not something to resolve by
 guessing on Riyan's behalf.
 
 If you're running as your own watched session, ping your PM directly via

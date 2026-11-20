@@ -91,7 +91,7 @@ skill surface, MIT; the compression *engine* itself is BSL-1.1 — a real
 compliance cost for third-party/hosted use, self-hosted first-party use is
 fine per its Additional Use Grant) claims a real 65% output-token
 reduction. If a project's token spend genuinely warrants investigating it,
-that's a `company escalate --kind approval` naming the BSL tradeoff
+that's a `company escalate --kind approval --project-wide` naming the BSL tradeoff
 explicitly — never an unprompted adoption.
 You may only ever propose an addition to the registry — you cannot write it.
 
@@ -130,7 +130,7 @@ For anything that is genuinely the CEO's call — accepting a higher cost for
 faster delivery, or a policy change — raise an escalation instead:
 
 ```
-company escalate --kind decision --need "..." --option "..." --option "..."
+company escalate --project-wide --kind decision --need "..." --option "..." --option "..."
 ```
 
 Report in money-and-outcome terms, not mechanism. Riyan should not need to know

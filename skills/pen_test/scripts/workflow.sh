@@ -38,6 +38,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Authorization gate, enforced in code: katana/ffuf/nmap/nuclei below don't go
+# through _httpcore, so the whole workflow refuses up front.
+"$PY" -c 'import sys; sys.path.insert(0, sys.argv[1]); import _httpcore as c; c.require_authorized(sys.argv[2])' "$N" "$TARGET" || exit 2
+
 OUT="$(mktemp -d)/wf"; mkdir -p "$OUT"
 EV="$OUT/evidence"; mkdir -p "$EV"   # structured findings sink -> report.py (mandatory deliverable)
 echo "=== workflow: $PRESET  depth=$DEPTH  target=$TARGET ==="

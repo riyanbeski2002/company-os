@@ -1271,6 +1271,7 @@ def _guarded_spec(company_root: Path, role: str, *, project: str = "", actor: st
         import escalations
         escalations.raise_escalation(
             company_root, project=project, actor=actor, kind="decision", task=task,
+            project_wide=not task,  # a provider/classification mismatch is project config
             need=f"{role} is routed to a model provider this project's data "
                  f"classification forbids: reroute the role or reclassify the project",
             detail=str(exc))

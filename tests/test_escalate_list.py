@@ -27,7 +27,7 @@ class TestEscalateList(unittest.TestCase):
                               capture_output=True, text=True)
 
     def _raise(self, need, kind="decision", non_blocking=False):
-        args = ["escalate", "--kind", kind, "--need", need, "--project", "p"]
+        args = ["escalate", "--kind", kind, "--need", need, "--project", "p", "--project-wide"]
         if non_blocking:
             args.append("--non-blocking")
         r = self._run(*args)
@@ -67,7 +67,8 @@ class TestEscalateList(unittest.TestCase):
 
     def test_list_filters_by_project(self):
         self._raise("need A")
-        r = self._run("escalate", "--kind", "decision", "--need", "need B", "--project", "other")
+        r = self._run("escalate", "--kind", "decision", "--need", "need B", "--project", "other",
+                      "--project-wide")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         out = json.loads(self._run("escalate", "--list", "open", "--project", "p").stdout)
         needs = [e.get("need") for e in out["escalations"]]

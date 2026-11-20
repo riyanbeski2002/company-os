@@ -400,6 +400,7 @@ def main() -> None:
     p.add_argument("--timeout", type=float, default=3.0)
     core.add_evidence_args(p)
     args = p.parse_args()
+    core.require_authorized(args.host)  # enforced in code, not only in the prompt
 
     ports = [int(x) for x in args.ports.split(",")] if args.ports else DEFAULT_PORTS
     ev = core.evidence_from_args(args)

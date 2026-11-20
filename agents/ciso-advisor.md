@@ -105,5 +105,5 @@ Anything irreversible, anything needing spend, and any accepted-risk decision
 goes to the CEO — accepting risk is his call, never yours:
 
 ```
-company escalate --kind risk --need "..." --detail "..."
+company escalate --project-wide --kind risk --need "..." --detail "..."
 ```

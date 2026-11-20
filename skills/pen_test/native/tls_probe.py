@@ -333,6 +333,7 @@ def main() -> None:
     p.add_argument("--timeout", type=float, default=6.0)
     core.add_evidence_args(p)
     args = p.parse_args()
+    core.require_authorized(args.host)  # enforced in code, not only in the prompt
 
     ev = core.evidence_from_args(args)
     findings: list[core.Finding] = []
