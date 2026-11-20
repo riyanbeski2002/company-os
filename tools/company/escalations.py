@@ -76,14 +76,24 @@ def raise_escalation(company_root: Path, *, project: str, actor: str, kind: str,
 
 def resolve(company_root: Path, esc_id: str, *, actor: str, project: str,
             resolution: str) -> dict:
+    import gatesig
     log = EventLog(company_root)
-    open_now = fold(log.read())
+    open_now = open_escalations(company_root)
     if esc_id not in open_now:
         raise KeyError(f"no open escalation {esc_id!r}")
     log.append(make_event(event="ESCALATION_RESOLVED", actor=actor, project=project,
                           task=open_now[esc_id].get("task"),
-                          data={"id": esc_id, "resolution": resolution}))
+                          data={"id": esc_id, "resolution": resolution}),
+               finalize=gatesig.pm_signer(company_root))
     return {"id": esc_id, "resolution": resolution}
+
+
+def open_escalations(company_root: Path) -> dict[str, dict]:
+    """fold() over the trusted log: a resolution only counts when the PM
+    signed it (gatesig.PM_EVENTS), so a worker can't close its own ask."""
+    import gatesig
+    events = EventLog(company_root).read()
+    return fold(gatesig.trusted_events(events, gatesig.load_key(company_root)))
 
 
 def fold(events: list[dict]) -> dict[str, dict]:

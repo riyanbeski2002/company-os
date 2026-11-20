@@ -1010,7 +1010,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
             "model/effort/skip-permissions override requires --why (the reason is "
             "recorded in WORKER_STARTED, per D11's escalation-needs-a-reason discipline)")
     import escalations
-    blocker = escalations.blocking_escalation_for_task(EventLog(company_root).read(), task["id"])
+    blocker = escalations.blocking_escalation_for_task(
+        gatesig.trusted_events(EventLog(company_root).read(), gatesig.load_key(company_root)), task["id"])
     if blocker and not override_reason:
         raise WorkerError(
             f"{blocker['id']} is an open, blocking escalation on {task['id']!r} "

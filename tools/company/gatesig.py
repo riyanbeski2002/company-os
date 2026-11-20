@@ -142,7 +142,9 @@ def structured_verdicts(output, task_ids: list[str]) -> dict[str, dict]:
 # writable from a worker's sandbox, so these count only when the PM's own
 # process signed them (it can read the key; a worker cannot).
 PM_EVENTS = frozenset({"TASK_CREATED", "TASK_ASSIGNED", "STATUS_CHANGED", "TASK_COMPLETED",
-                       "MERGED", "BASELINE_RECORDED"})
+                       "MERGED", "BASELINE_RECORDED",
+                       # a worker "resolving" an escalation would read as Riyan's answer
+                       "ESCALATION_RESOLVED"})
 
 
 def pm_mac(key: bytes, ev: dict) -> str:

@@ -1077,7 +1077,7 @@ def _baseline(root: Path, project: str | None = None) -> dict | None:
 def _escalations(root: Path, project: str | None = None) -> list[dict]:
     """Open escalations, derived from the log — not from whatever files exist."""
     import escalations as esc_mod
-    items = list(esc_mod.fold(EventLog(root).read()).values())
+    items = list(esc_mod.open_escalations(root).values())
     if project:
         items = [e for e in items if e.get("project") == project]
     return sorted(items, key=lambda e: (not e.get("blocking"), e["id"]))
@@ -1100,7 +1100,9 @@ def cmd_status(args):
     # (1-2 days silent) surfaces here even when a task hasn't yet crossed
     # detect_stale_tasks's 48h "critical" cutoff into `stalls` above -- the
     # whole point is catching it before it needs the stronger label.
-    blockers = {t["id"]: esc_mod.blocking_escalation_for_task(events, t["id"]) for t in tasks}
+    import gatesig
+    trusted = gatesig.trusted_events(events, gatesig.load_key(root))
+    blockers = {t["id"]: esc_mod.blocking_escalation_for_task(trusted, t["id"]) for t in tasks}
     early_warning = {k: v for k, v in render.detect_early_warning_tasks(tasks, blockers).items()
                       if k not in stalls}
 
@@ -2017,6 +2019,8 @@ def cmd_escalate(args):
 
 def cmd_resolve(args):
     import escalations
+    _refuse_inside_worker("", "resolve",
+                          "an escalation is answered by Riyan through the PM, never by a worker")
     root = company_root(args)
     project = load_project(root, args.project)
     try:
