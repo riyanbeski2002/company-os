@@ -47,7 +47,7 @@ class TestAssignedIdentityWins(unittest.TestCase):
             capture_output=True, text=True, env=env)
 
     def test_worker_cannot_rename_itself(self):
-        r = self._run("event", "TASK-1", "REVIEW_PASSED",
+        r = self._run("event", "TASK-1", "REVIEW_FAILED",
                       "--actor", "code-reviewer",     # the lie
                       "--evidence", "notes.md",
                       actor_env="backend-engineer-1")  # the truth
@@ -57,7 +57,7 @@ class TestAssignedIdentityWins(unittest.TestCase):
         self.assertIn("ignoring --actor", r.stderr)
 
     def test_actor_flag_used_when_unassigned(self):
-        r = self._run("event", "TASK-1", "REVIEW_PASSED",
+        r = self._run("event", "TASK-1", "REVIEW_FAILED",
                       "--actor", "code-reviewer-1", "--evidence", "notes.md")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(EventLog(self.root).read()[0]["actor"], "code-reviewer-1")
@@ -74,322 +74,236 @@ class TestAssignedIdentityWins(unittest.TestCase):
                   "--data", json.dumps({"cmd": "t", "exit_code": 0}),
                   "--evidence", "t.log", actor_env="backend-engineer-1")
         # The implementer tries to pass its own review under a reviewer's name.
-        self._run("event", "TASK-1", "REVIEW_PASSED", "--actor", "code-reviewer-1",
-                  "--evidence", "self.md", actor_env="backend-engineer-1")
+        r = self._run("event", "TASK-1", "REVIEW_PASSED", "--actor", "code-reviewer-1",
+                      "--evidence", "self.md", actor_env="backend-engineer-1")
+        self.assertEqual(r.returncode, 2, r.stderr)
 
         task = taskstate.fold(EventLog(self.root).read())["TASK-1"]
         reasons = taskstate.check_done(task)
-        self.assertTrue(any("self-certified" in r for r in reasons), reasons)
+        self.assertTrue(any("gate 'review' not satisfied" in r for r in reasons), reasons)
 
 
-class TestGateActorRoleBinding(unittest.TestCase):
-    """CISO live-reproduced this: a worker sets $COMPANY_ACTOR to ANY string
-    that isn't its own owner id and satisfies a gate with zero real review,
-    because `actor != owner` was the entire check. Fixed by requiring the
-    actor to have a WORKER_STARTED record on this task, written by the
-    trusted launcher, whose role matches what the gate requires — and by
-    blocking WORKER_STARTED itself from the worker-facing `company event`
-    verb, since without that a worker could just forge its own launch record.
-    """
+class TestLauncherSignedVerdicts(unittest.TestCase):
+    """ESC-002. A gate verdict counts only when the launcher wrote it, from
+    the gate worker's structured output, signed with the key under
+    .company/secrets/ (which no worker sandbox can read), for a launch it
+    signed of the right role on this task after the latest implementation.
+    History: a self-chosen actor name (CISO repro), then a guessed reviewer
+    name, then a per-launch env secret that the implementer bypassed by
+    appending its own WORKER_STARTED to the sandbox-writable log, and that
+    leaked to every child of the gate (security review, forge.py)."""
 
     GATE_ROLES = {"review": "code-reviewer", "qa": "qa-engineer", "security": "security-reviewer"}
 
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self.tmp.name) / ".company"
-        for d in ("events", "tasks", "projects"):
-            (self.root / d).mkdir(parents=True)
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def _run(self, *args, actor_env=None):
-        env = dict(os.environ)
-        env["COMPANY_PROJECT"] = "p"
-        env.pop("COMPANY_ACTOR", None)
-        if actor_env:
-            env["COMPANY_ACTOR"] = actor_env
-        return subprocess.run(
-            [sys.executable, str(CLI), "--root", str(self.root), *args],
-            capture_output=True, text=True, env=env)
-
-    def test_the_live_reproduced_bypass_is_now_refused(self):
-        """The exact CISO repro: an actor with no real launch record at all."""
-        self._run("event", "TASK-1", "TASK_CREATED",
-                  "--data", json.dumps({"title": "t", "owner": "backend-engineer-1",
-                                        "gates": ["review"]}), actor_env="company-pm")
-        self._run("event", "TASK-1", "REVIEW_PASSED", "--evidence", "exit 0",
-                  actor_env="totally-not-a-reviewer")
-
-        task = taskstate.fold(EventLog(self.root).read())["TASK-1"]
-        reasons = taskstate.check_done(task, gate_roles=self.GATE_ROLES)
-        self.assertTrue(any("no verified" in r and "code-reviewer" in r for r in reasons), reasons)
-
-    def test_a_reviewer_launched_for_a_different_task_does_not_count(self):
-        """Scoped per-task: a real code-reviewer id is not a blank check for
-        every task it didn't actually review."""
-        from eventlog import make_event
-        log = EventLog(self.root)
-        log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
-                              task="TASK-1", data={"title": "t", "owner": "be-1", "gates": ["review"]}))
-        log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
-                              task="TASK-2", data={"title": "t2", "owner": "be-2", "gates": ["review"]}))
-        # code-reviewer-1 was genuinely launched, but for TASK-2, not TASK-1.
-        log.append(make_event(event="WORKER_STARTED", actor="code-reviewer-1", project="p",
-                              task="TASK-2", data={"role": "code-reviewer", "tier": 2}))
-        self._run("event", "TASK-1", "REVIEW_PASSED", "--evidence", "exit 0",
-                  actor_env="code-reviewer-1")
-
-        tasks = taskstate.fold(EventLog(self.root).read())
-        reasons = taskstate.check_done(tasks["TASK-1"], gate_roles=self.GATE_ROLES)
-        self.assertTrue(any("no verified" in r for r in reasons), reasons)
-
-    def test_a_genuinely_launched_reviewer_satisfies_the_gate(self):
-        import worker
-        from eventlog import make_event
-        log = EventLog(self.root)
-        log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
-                              task="TASK-1", data={"title": "t", "owner": "be-1", "gates": ["review"]}))
-        self._run("event", "TASK-1", "IMPLEMENTATION_READY", "--evidence", "abc1234",
-                  actor_env="be-1")
-        self._run("event", "TASK-1", "TEST_RUN",
-                  "--data", json.dumps({"cmd": "t", "exit_code": 0}),
-                  "--evidence", "t.log", actor_env="be-1")
-        # Launched after the implementation, as worker.launch() does it.
-        secret, proof_data = worker._gate_secret("code-reviewer", ["TASK-1"])
-        log.append(make_event(event="WORKER_STARTED", actor="code-reviewer-1", project="p",
-                              task="TASK-1", data={"role": "code-reviewer", "tier": 2,
-                                                   **proof_data}))
-        with unittest.mock.patch.dict(os.environ, {"COMPANY_GATE_SECRET": secret}):
-            self._run("event", "TASK-1", "REVIEW_PASSED", "--evidence", "exit 0",
-                      actor_env="code-reviewer-1")
-
-        tasks = taskstate.fold(EventLog(self.root).read())
-        reasons = taskstate.check_done(tasks["TASK-1"], gate_roles=self.GATE_ROLES)
-        self.assertEqual(reasons, [])
-
-    def test_launched_as_the_wrong_role_does_not_satisfy_the_gate(self):
-        """A real launch record exists, but as a backend-engineer, not a
-        code-reviewer — the role must match, not just 'was launched at all'."""
-        from eventlog import make_event
-        log = EventLog(self.root)
-        log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
-                              task="TASK-1", data={"title": "t", "owner": "be-1", "gates": ["review"]}))
-        log.append(make_event(event="WORKER_STARTED", actor="be-2", project="p",
-                              task="TASK-1", data={"role": "backend-engineer", "tier": 2}))
-        self._run("event", "TASK-1", "REVIEW_PASSED", "--evidence", "exit 0", actor_env="be-2")
-
-        tasks = taskstate.fold(EventLog(self.root).read())
-        reasons = taskstate.check_done(tasks["TASK-1"], gate_roles=self.GATE_ROLES)
-        self.assertTrue(any("was launched as 'backend-engineer'" in r for r in reasons), reasons)
-
-    def test_without_gate_roles_the_old_self_cert_check_still_runs(self):
-        """Backward compatible: callers that don't pass gate_roles still get
-        the original actor != owner check, not a silent no-op."""
-        task = {"id": "T-1", "owner": "be-1", "gates": ["review"],
-               "evidence": {"diff": "abc", "tests": "exit 0", "review": "x",
-                            "review_actor": "be-1"}}
-        reasons = taskstate.check_done(task)
-        self.assertTrue(any("self-certified" in r for r in reasons), reasons)
-
-    def test_worker_started_cannot_be_forged_through_company_event(self):
-        """The actual trust boundary: without this, a worker could forge its
-        own launch record and defeat the role-binding check entirely."""
-        result = self._run("event", "TASK-1", "WORKER_STARTED",
-                           "--data", json.dumps({"role": "code-reviewer"}),
-                           actor_env="backend-engineer-1")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(EventLog(self.root).read(), [])
-
-    def test_worker_exited_and_heartbeat_also_blocked(self):
-        for event_type in ("WORKER_EXITED", "WORKER_HEARTBEAT"):
-            result = self._run("event", "TASK-1", event_type, actor_env="backend-engineer-1")
-            self.assertNotEqual(result.returncode, 0, event_type)
-
-
-class TestForgedVerdictUnderARealReviewersName(unittest.TestCase):
-    """ESC-002. The role binding above checks that the verdict's actor has a
-    code-reviewer launch record on the task, but actor names are predictable
-    (`code-reviewer-<n>`) and $COMPANY_ACTOR is just an env var: the
-    implementer could sign a verdict as the reviewer that really was
-    launched, and it counted toward DONE and merge. A verdict now has to
-    present the secret the launcher put in that reviewer's env."""
-
-    GATE_ROLES = TestGateActorRoleBinding.GATE_ROLES
-
-    def setUp(self):
+        import gatesig
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name) / ".company"
         for d in ("events", "tasks", "projects"):
             (self.root / d).mkdir(parents=True)
         self.log = EventLog(self.root)
+        self.key = gatesig.load_key(self.root, create=True)
+        self._created("TASK-1")
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _run(self, *args, actor_env=None, token=None):
-        env = dict(os.environ)
+    def _run(self, *args, actor_env=None):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("COMPANY_")}
         env["COMPANY_PROJECT"] = "p"
-        env.pop("COMPANY_ACTOR", None)
-        env.pop("COMPANY_GATE_SECRET", None)
         if actor_env:
             env["COMPANY_ACTOR"] = actor_env
-        if token:
-            env["COMPANY_GATE_SECRET"] = token
         return subprocess.run(
             [sys.executable, str(CLI), "--root", str(self.root), *args],
             capture_output=True, text=True, env=env)
 
-    def _start(self, actor, role, token, tasks=None):
-        """What worker.launch()/launch_group() record via _gate_secret: the
-        hash of each task's PASSED proof, never the secret."""
-        from eventlog import gate_proof, make_event, proof_sha256
-        members = tasks or ["TASK-1"]
-        data = {"role": role, "tier": 2, "pass_event": "REVIEW_PASSED",
-                "pass_proof_sha256": {
-                    t: proof_sha256(gate_proof(token, t, "REVIEW_PASSED")) for t in members}}
-        if tasks:
-            data["tasks"] = tasks
-        self.log.append(make_event(event="WORKER_STARTED", actor=actor, project="p",
-                                   task=None if tasks else "TASK-1", data=data))
-
-    def _created(self):
+    def _created(self, tid):
         from eventlog import make_event
         self.log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
-                                   task="TASK-1", data={"title": "t", "owner": "be-1",
-                                                        "gates": ["review"]}))
+                                   task=tid, data={"title": "t", "owner": "be-1",
+                                                   "gates": ["review"]}))
 
-    def _implemented(self, sha="abc1234"):
-        self._run("event", "TASK-1", "IMPLEMENTATION_READY", "--evidence", sha,
-                  actor_env="be-1")
-        self._run("event", "TASK-1", "TEST_RUN",
-                  "--data", json.dumps({"cmd": "t", "exit_code": 0}),
-                  "--evidence", "t.log", actor_env="be-1")
-
-    def _verdict(self, event, actor, token=None):
-        return self._run("event", "TASK-1", event, "--evidence", "exit 0",
-                         actor_env=actor, token=token)
-
-    def _reasons(self):
-        task = taskstate.fold(self.log.read())["TASK-1"]
-        return taskstate.check_done(task, gate_roles=self.GATE_ROLES)
-
-    def _refused(self):
-        reasons = self._reasons()
-        self.assertTrue(any("launch token" in r for r in reasons), reasons)
-
-    def test_implementer_forging_the_launched_reviewers_name_is_refused(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-1", "code-reviewer", "reviewers-secret")
-        # The implementer guesses the reviewer's name; it never saw the token.
-        self._verdict("REVIEW_PASSED", "code-reviewer-1")
-        self._refused()
-
-    def test_a_guessed_token_is_refused(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-1", "code-reviewer", "reviewers-secret")
-        self._verdict("REVIEW_PASSED", "code-reviewer-1", token="guess")
-        self._refused()
-
-    def test_the_real_reviewer_presenting_its_token_passes(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-1", "code-reviewer", "reviewers-secret")
-        r = self._verdict("REVIEW_PASSED", "code-reviewer-1", token="reviewers-secret")
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(self._reasons(), [])
-        # The log carries a proof the fold can check, never the raw secret
-        # of a launch that has not voted yet.
-        self.assertNotIn("reviewers-secret", json.dumps(self.log.read()[:-1]))
-
-    def test_a_group_launch_token_counts_for_its_members(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-group-g", "code-reviewer", "grp", tasks=["TASK-1"])
-        self._verdict("REVIEW_PASSED", "code-reviewer-group-g", token="grp")
-        self.assertEqual(self._reasons(), [])
-
-    def test_another_actors_token_does_not_transfer(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-1", "code-reviewer", "tok")
-        self._verdict("REVIEW_PASSED", "code-reviewer-2", token="tok")
-        self.assertTrue(self._reasons())
-
-    def test_a_reviewer_started_before_the_latest_implementation_does_not_count(self):
-        """Its token was minted for an older commit."""
-        self._created()
-        self._start("code-reviewer-1", "code-reviewer", "old")
-        self._implemented()
-        self._verdict("REVIEW_PASSED", "code-reviewer-1", token="old")
-        self._refused()
-
-    def test_a_new_implementation_after_the_pass_voids_it(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-1", "code-reviewer", "tok")
-        self._verdict("REVIEW_PASSED", "code-reviewer-1", token="tok")
-        self._implemented(sha="def5678")
-        self._refused()
-
-    def _replay(self, event, actor, proof, task="TASK-1"):
-        """A forger copying a proof it read from the log (no secret)."""
-        return self._run("event", task, event, "--evidence", "exit 0",
-                         "--data", json.dumps({"gate_proof": proof}), actor_env=actor)
-
-    def _proof_of(self, event, task="TASK-1"):
-        return next(e["data"]["gate_proof"] for e in self.log.read()
-                    if e["event"] == event and e.get("task") == task)
-
-    def test_a_failed_verdict_leaks_nothing_that_could_pass(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-1", "code-reviewer", "tok")
-        self._verdict("REVIEW_FAILED", "code-reviewer-1", token="tok")
-        self.assertNotIn("gate_proof", json.dumps(self.log.read()))
-        self._verdict("REVIEW_PASSED", "code-reviewer-1")  # forged over the failure
-        self._refused()
-
-    def test_a_group_members_proof_cannot_pass_a_sibling(self):
+    def _implemented(self, tid="TASK-1", sha="abc1234"):
         from eventlog import make_event
-        self._created()
-        self.log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
-                                   task="TASK-2", data={"title": "t2", "owner": "be-2",
-                                                        "gates": ["review"]}))
-        self._implemented()
-        self._start("code-reviewer-group-g", "code-reviewer", "grp", tasks=["TASK-1", "TASK-2"])
-        self._verdict("REVIEW_PASSED", "code-reviewer-group-g", token="grp")
-        self._replay("REVIEW_PASSED", "code-reviewer-group-g",
-                     self._proof_of("REVIEW_PASSED"), task="TASK-2")
-        task2 = taskstate.fold(self.log.read())["TASK-2"]
-        reasons = taskstate.check_done(task2, gate_roles=self.GATE_ROLES)
-        self.assertTrue(any("launch token" in r for r in reasons), reasons)
+        self.log.append(make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                                   task=tid, evidence={"commit": sha}))
+        self.log.append(make_event(event="TEST_RUN", actor="be-1", project="p", task=tid,
+                                   data={"cmd": "t", "exit_code": 0}, evidence={"log": "t"}))
 
-    def test_an_earlier_pass_cannot_be_replayed_over_a_later_fail(self):
-        self._created()
-        self._implemented()
-        self._start("code-reviewer-1", "code-reviewer", "first")
-        self._verdict("REVIEW_PASSED", "code-reviewer-1", token="first")
-        self._start("code-reviewer-2", "code-reviewer", "second")
-        self._verdict("REVIEW_FAILED", "code-reviewer-2", token="second")
-        self._replay("REVIEW_PASSED", "code-reviewer-1", self._proof_of("REVIEW_PASSED"))
-        self.assertTrue(self._reasons())
-
-    def test_launcher_mints_a_fresh_secret_only_for_gate_roles(self):
+    def _launch(self, actor, role="code-reviewer", tasks=("TASK-1",), verdict="pass"):
+        """What worker.launch()/launch_group() do around the gate run."""
+        import gatesig
         import worker
-        s1, d1 = worker._gate_secret("code-reviewer", ["TASK-1"])
-        s2, _ = worker._gate_secret("code-reviewer", ["TASK-1"])
-        self.assertNotEqual(s1, s2)
-        self.assertNotIn(s1, json.dumps(d1))
-        self.assertEqual(worker._gate_secret("backend-engineer", ["TASK-1"]), (None, {}))
+        from eventlog import make_event
+        tasks = list(tasks)
+        group = len(tasks) > 1
+        ws = self.log.append(make_event(
+            event="WORKER_STARTED", actor=actor, project="p",
+            task=None if group else tasks[0],
+            data={"role": role, **({"tasks": tasks} if group else {})}),
+            finalize=gatesig.sign_started(self.key, tasks))
+        out = ({"task_verdicts": [{"task": t, "verdict": verdict} for t in tasks]}
+               if group else {"verdict": verdict})
+        if verdict is None:
+            out = {}
+        worker.record_verdicts(self.log, self.key, role, actor, "p", ws["seq"],
+                               [{"id": t} for t in tasks], {"structured_output": out},
+                               0, self.root / "out.json")
+        return ws
 
-    def test_build_env_never_inherits_a_gate_secret(self):
+    def _reasons(self, tid="TASK-1", key="default"):
+        task = taskstate.fold(self.log.read())[tid]
+        return taskstate.check_done(task, gate_roles=self.GATE_ROLES,
+                                    gate_key=self.key if key == "default" else key)
+
+    def _raw(self, ev):
+        """An implementer's raw append to events.jsonl (its sandbox allows it)."""
+        with open(self.log.path, "a") as fh:
+            fh.write(json.dumps(ev) + "\n")
+
+    def _last(self, name):
+        return [e for e in self.log.read() if e["event"] == name][-1]
+
+    # --- the real path ------------------------------------------------------
+
+    def test_a_launched_reviewer_passing_in_structured_output_satisfies_the_gate(self):
+        self._implemented()
+        self._launch("code-reviewer-1")
+        self.assertEqual(self._reasons(), [])
+        self.assertEqual(oct(os.stat(self.root / "secrets" / "gate.key").st_mode & 0o777),
+                         "0o600")
+
+    def test_a_group_launch_counts_for_each_member(self):
+        self._created("TASK-2")
+        self._implemented("TASK-1")
+        self._implemented("TASK-2", sha="def5678")
+        self._launch("code-reviewer-group-g", tasks=("TASK-1", "TASK-2"))
+        self.assertEqual(self._reasons("TASK-1"), [])
+        self.assertEqual(self._reasons("TASK-2"), [])
+
+    def test_without_the_key_nothing_verifies(self):
+        self._implemented()
+        self._launch("code-reviewer-1")
+        self.assertTrue(self._reasons(key=None))
+        self.assertTrue(self._reasons(key=b"wrong"))
+
+    def test_launched_as_the_wrong_role_does_not_satisfy_the_gate(self):
+        self._implemented()
+        self._launch("qa-1", role="qa-engineer")  # a QA pass is not a review
+        self.assertTrue(self._reasons())
+
+    def test_no_structured_verdict_is_no_verdict(self):
+        self._implemented()
+        self._launch("code-reviewer-1", verdict=None)
+        self.assertTrue(self._reasons())
+        self.assertEqual(self._last("GATE_NO_VERDICT")["actor"], "code-reviewer-1")
+
+    # --- forgeries ----------------------------------------------------------
+
+    def test_company_event_refuses_a_pass(self):
+        self._implemented()
+        for actor in ("be-1", "code-reviewer-1", "totally-not-a-reviewer"):
+            r = self._run("event", "TASK-1", "REVIEW_PASSED", "--evidence", "exit 0",
+                          actor_env=actor)
+            self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertTrue(self._reasons())
+        # A FAILED is still accepted from anyone: failing is the safe direction.
+        r = self._run("event", "TASK-1", "REVIEW_FAILED", actor_env="be-1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_worker_started_cannot_be_forged_through_company_event(self):
+        r = self._run("event", "TASK-1", "WORKER_STARTED",
+                      "--data", json.dumps({"role": "code-reviewer"}), actor_env="be-1")
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_forge_py_raw_launch_and_pass_with_an_attacker_key(self):
+        """The security review's forge.py: the implementer appends its own
+        WORKER_STARTED and a pass MAC'd under a key it chose."""
+        import gatesig
+        self._implemented()
+        mine = b"attacker-chosen"
+        seq = len(self.log.read()) + 1
+        self._raw({"ts": "t", "event": "WORKER_STARTED", "actor": "code-reviewer-1",
+                   "project": "p", "task": "TASK-1", "seq": seq,
+                   "data": {"role": "code-reviewer", "tier": 2, "launch_mac":
+                            gatesig.started_mac(mine, "code-reviewer-1", "code-reviewer",
+                                                seq, ["TASK-1"])}})
+        self._raw({"ts": "t", "event": "REVIEW_PASSED", "actor": "code-reviewer-1",
+                   "project": "p", "task": "TASK-1", "seq": seq + 1,
+                   "evidence": {"log": "x"},
+                   "data": {"role": "code-reviewer", "ws_seq": seq, "verdict": "pass",
+                            "verdict_mac": gatesig.verdict_mac(
+                                mine, "TASK-1", "REVIEW_PASSED", "code-reviewer-1",
+                                "code-reviewer", seq, "pass")}})
+        reasons = self._reasons()
+        self.assertTrue(any("launcher signature" in r for r in reasons), reasons)
+
+    def test_a_pass_with_an_empty_actor_never_counts(self):
+        self._implemented()
+        self._launch("code-reviewer-1")
+        events = self.log.read()
+        assert events[-1]["event"] == "REVIEW_PASSED"
+        self.assertEqual(self._reasons(), [])  # control: the genuine event counts
+        # The same signed event with its actor blanked, in place of the original.
+        events[-1] = dict(events[-1], actor="")
+        task = taskstate.fold(events)["TASK-1"]
+        self.assertTrue(taskstate.check_done(task, gate_roles=self.GATE_ROLES,
+                                             gate_key=self.key))
+
+    def test_a_members_signed_pass_cannot_pass_a_sibling(self):
+        self._created("TASK-2")
+        self._implemented("TASK-1")
+        self._implemented("TASK-2", sha="def5678")
+        self._launch("code-reviewer-group-g", tasks=("TASK-1", "TASK-2"), verdict="fail")
+        self._launch("code-reviewer-1", tasks=("TASK-1",))
+        self._raw(dict(self._last("REVIEW_PASSED"), task="TASK-2"))
+        self.assertEqual(self._reasons("TASK-1"), [])
+        self.assertTrue(self._reasons("TASK-2"))
+
+    def test_a_signed_pass_replayed_after_a_new_implementation_does_not_count(self):
+        self._implemented()
+        ws = self._launch("code-reviewer-1")
+        old_pass = self._last("REVIEW_PASSED")
+        self._implemented(sha="def5678")
+        self.assertTrue(self._reasons())
+        # Re-append the signed launch and pass after the new implementation.
+        self._raw(ws)
+        self._raw(old_pass)
+        self.assertTrue(self._reasons())
+
+    def test_a_signed_pass_replayed_over_a_later_fail_does_not_count(self):
+        self._implemented()
+        ws = self._launch("code-reviewer-1")
+        old_pass = self._last("REVIEW_PASSED")
+        self._launch("code-reviewer-2", verdict="fail")
+        self._raw(ws)
+        self._raw(old_pass)
+        self.assertTrue(self._reasons())
+
+    def test_a_reviewer_launched_before_the_latest_implementation_does_not_count(self):
+        self._implemented()
+        self._launch("code-reviewer-1")
+        self._implemented(sha="def5678")
+        self.assertTrue(any("not satisfied" in r for r in self._reasons()))
+
+    def test_pre_esc002_unsigned_passes_no_longer_count(self):
+        from eventlog import make_event
+        self._implemented()
+        self.log.append(make_event(event="WORKER_STARTED", actor="code-reviewer-1",
+                                   project="p", task="TASK-1",
+                                   data={"role": "code-reviewer", "tier": 2}))
+        self.log.append(make_event(event="REVIEW_PASSED", actor="code-reviewer-1",
+                                   project="p", task="TASK-1", evidence={"log": "n"}))
+        self.assertTrue(self._reasons())
+
+    def test_no_gate_secret_reaches_any_worker(self):
         import worker
         with unittest.mock.patch.dict(os.environ, {"COMPANY_GATE_SECRET": "leak"}):
-            env = worker.build_env(Path("/r"), self.root, {"id": "TASK-1"}, "be-1", Path("/w"))
-        self.assertNotIn("COMPANY_GATE_SECRET", env)
+            env = worker.build_env(Path("/r"), self.root, {"id": "TASK-1"}, "qa-1", Path("/w"))
+        self.assertFalse([k for k, v in env.items() if self.key.hex() in v])
+        tools = (HERE.parent / "tools" / "company")
+        self.assertFalse([f.name for f in tools.glob("*.py")
+                          if "COMPANY_GATE_SECRET" in f.read_text()])
 
 
 if __name__ == "__main__":

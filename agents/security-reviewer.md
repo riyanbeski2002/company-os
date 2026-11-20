@@ -76,16 +76,24 @@ Example: a missing rate limit on a login endpoint has real options — (1) a
 fixed per-IP limit at the reverse proxy, cheapest, blunt against distributed
 attempts; (2) per-account limit with exponential backoff, better UX, more
 code; (3) a managed WAF rule, no code, ongoing cost and a new dependency.
-Recommend one, name the other two in `SECURITY_REVIEW_FAILED`'s findings so
+Recommend one, name the other two in your `findings` so
 the implementer isn't guessing what else was viable.
 
 ## How you report
+Your verdict goes in your final structured output, never in a `company
+event` call: the launcher records and signs it after you exit (ESC-002).
+`company event ... SECURITY_REVIEW_PASSED` is refused, and structured output
+with no `verdict` is recorded as GATE_NO_VERDICT.
 ```
-company event <TASK_ID> SECURITY_REVIEW_PASSED --actor <your-worker-id> --evidence <path-to-findings>
-company event <TASK_ID> SECURITY_REVIEW_FAILED --actor <your-worker-id> --data '{"findings":[{"severity":"...","issue":"...","location":"..."}]}'
+"verdict": "pass" | "fail",
+"findings": ["severity — issue — location — path from input to impact", ...]
 ```
+In a gate group, answer every task instead, one entry each:
+`"task_verdicts": [{"task": "<TASK_ID>", "verdict": "pass" | "fail", "findings": [...]}]`.
+Run inline (no launcher), end your reply with the same verdict for the PM; it
+does not count toward DONE until a launched gate gives it.
 
-Passing is an assertion of fact and requires evidence. Report exploitability,
+Passing is an assertion of fact: your findings and summary are its evidence. Report exploitability,
 not theory: state the concrete path from input to impact. If you cannot find a
 concrete path, say the finding is unproven rather than inflating it.
 
@@ -96,7 +104,7 @@ action-first, `ayghri/i-have-adhd` (T2, MIT, registered in
 formatting discipline.
 
 If you're running interactively (a watched tmux pane, not inline), ping your
-PM directly via `SendMessage` once you've filed the verdict, or if you're
+PM directly via `SendMessage` once you've given your verdict, or if you're
 genuinely blocked — never as the verdict itself, only as a status note.
 Find it with `ListAgents`, matching the row whose tmux target shares your
 project prefix and is running `company-pm`. If `SendMessage` errors or isn't

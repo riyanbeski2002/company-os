@@ -10,7 +10,6 @@ from __future__ import annotations
 import errno
 import fcntl
 import filecmp
-import hashlib
 import json
 import os
 import re
@@ -180,20 +179,6 @@ GATE_FAIL_EVENT = {
     "QA_PASSED": "QA_FAILED",
     "SECURITY_REVIEW_PASSED": "SECURITY_REVIEW_FAILED",
 }
-
-
-# ESC-002: a PASSED verdict counts only with a proof derived from the secret
-# the launcher put in that gate worker's env ($COMPANY_GATE_SECRET). The
-# launcher records sha256(proof) in WORKER_STARTED; the verdict carries the
-# proof; the fold compares. The proof is bound to one task and one verdict,
-# so the copy that lands in the log once used can't pass a sibling task in a
-# group or flip a FAILED, and the secret itself never touches the log.
-def gate_proof(secret: str, task_id: str, event: str) -> str:
-    return hashlib.sha256(f"{secret}:{task_id}:{event}".encode()).hexdigest()
-
-
-def proof_sha256(proof: str) -> str:
-    return hashlib.sha256(proof.encode()).hexdigest()
 
 
 class EvidenceError(ValueError):
@@ -461,12 +446,16 @@ class EventLog:
         self.lockpath = self.root / "events" / ".lock"
 
     # --- writing ------------------------------------------------------------
-    def append(self, event: dict) -> dict:
+    def append(self, event: dict, finalize=None) -> dict:
         """Append one event under an exclusive lock.
 
         The lock does double duty: it serializes writes across concurrent
         worker processes, and it makes `seq` assignment atomic. Without it two
         workers finishing at once would race for the same sequence number.
+
+        `finalize(event)`, if given, runs after `seq` is assigned and before
+        the line is written — the launcher signs WORKER_STARTED over its own
+        seq this way (gatesig.sign_started).
         """
         validate(event)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -493,6 +482,9 @@ class EventLog:
                     _rejects_duplicate_fire(event, self.read())
                 event = dict(event)
                 event["seq"] = self._next_seq()
+                if finalize:
+                    event["data"] = dict(event.get("data") or {})
+                    finalize(event)
                 line = compact(event)
                 if "\n" in line:
                     raise ValueError("event serialized to more than one line")

@@ -23,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from eventlog import (GATE_EVENT, GOAL_EVENTS, ROUTINE_EVENTS, EventLog,  # noqa: E402
-                      EvidenceError, canonical, gate_proof, make_event)
+                      EvidenceError, canonical, make_event)
 import board  # noqa: E402
 import taskstate  # noqa: E402
 
@@ -220,6 +220,14 @@ def cmd_event(args):
         # to run inside a launched worker.
         die(f"{args.type!r} may only be recorded through `company goal`, never "
            f"through raw `company event` — that command owns its validation.", 2)
+    if args.type in GATE_EVENT.values():
+        # ESC-002: a pass is recorded only by the launcher, signed, from the
+        # gate worker's structured output. Refused here rather than accepted
+        # and ignored, so an old prompt or a forger finds out immediately.
+        # *_FAILED stays open to anyone: failing is the safe direction.
+        die(f"{args.type!r} may only be recorded by the launcher from the gate "
+           f"worker's structured output (`verdict`/`task_verdicts`), never by "
+           f"`company event` — a pass anyone can write is not evidence.", 2)
     if args.type in ROUTINE_EVENTS:
         # Same shape as goal events: `company routine` owns the cron check and
         # the one-fire-per-slot rule, and refuses to run inside a worker — a
@@ -244,11 +252,6 @@ def cmd_event(args):
     if assigned and args.actor and args.actor != assigned:
         print(f"note: ignoring --actor {args.actor!r}; this worker is {assigned!r}",
               file=sys.stderr)
-    # ...which is also why the actor alone can't carry a PASSED verdict
-    # (ESC-002): the launcher's per-launch secret signs it (see eventlog.gate_proof).
-    secret = os.environ.get("COMPANY_GATE_SECRET")
-    if secret and args.type in GATE_EVENT.values() and args.task:
-        data = {**(data or {}), "gate_proof": gate_proof(secret, args.task, args.type)}
 
     ev = make_event(
         event=args.type,
@@ -269,6 +272,13 @@ def cmd_event(args):
         taskstate.rebuild(root)
     emit({"ok": True, "seq": written["seq"], "event": written["event"],
           "task": written.get("task")})
+
+
+def _gate_key(root: Path) -> bytes | None:
+    """The verdict-signing key, if this process may read it (a sandboxed
+    worker may not — then no pass verifies, by design)."""
+    import gatesig
+    return gatesig.load_key(root)
 
 
 def _parse_evidence(raw: str) -> dict:
@@ -368,7 +378,7 @@ def cmd_task_advance(args):
         base = baseline_mod.latest(EventLog(root).read(), task.get("project"))
         gate_roles = {g: spec["actor_role"]
                      for g, spec in staffing.load_config(root, "quality-gates.yaml")["gates"].items()}
-        reasons = taskstate.check_done(task, base, gate_roles)
+        reasons = taskstate.check_done(task, base, gate_roles, _gate_key(root))
         if reasons:
             EventLog(root).append(make_event(
                 event="TASK_BLOCKED", actor=args.actor or "company-cli",
@@ -1069,7 +1079,8 @@ def cmd_status(args):
               "progress_pct": render.project_progress_pct(tasks),
               "tasks": tasks, "escalations": _escalations(root, project),
               "stalled": stalls, "early_warning": early_warning})
-    print(render.status(project or "all projects", tasks, _escalations(root, project), stalls))
+    print(render.status(project or "all projects", tasks, _escalations(root, project), stalls,
+                        gate_key=_gate_key(root)))
     if early_warning:
         print("\nEarly warning (not yet critical):")
         for task_id, reason in early_warning.items():
@@ -1114,7 +1125,8 @@ def cmd_integrate(args):
     results = []
     for tid in sorted(targets):
         task = tasks.get(tid) or die(f"no such task {tid!r}")
-        reasons = taskstate.check_done(task, _baseline(root, task.get("project")), gate_roles)
+        reasons = taskstate.check_done(task, _baseline(root, task.get("project")), gate_roles,
+                                       _gate_key(root))
         # Fail-closed on ANY check_done reason, not a substring allowlist
         # (2026-10-21, ECC donation -- `orch-review.workflow.js`'s pattern:
         # a review dimension that errors/returns nothing forces

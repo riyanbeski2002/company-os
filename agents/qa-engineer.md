@@ -84,9 +84,20 @@ before concluding nothing already covers a gap you found:
 ## How you report
 ```
 company event <TASK_ID> TEST_RUN --actor <your-worker-id> --data '{"cmd":"...","exit_code":N,"passed":N,"failed":N}' --evidence <log-path>
-company event <TASK_ID> QA_PASSED --actor <your-worker-id> --data '{"criteria_met":[...]}' --evidence <log-path>
-company event <TASK_ID> QA_FAILED --actor <your-worker-id> --data '{"reasons":[...],"criteria_unmet":[...]}'
 ```
+Your verdict goes in your final structured output, never in a `company
+event` call: the launcher records and signs it after you exit (ESC-002).
+`company event ... QA_PASSED` is refused, and structured output with no
+`verdict` is recorded as GATE_NO_VERDICT.
+```
+"verdict": "pass" | "fail",
+"findings": ["criterion — unmet / could not verify, and why", ...],
+"criteria_met": ["<acceptance criterion, verbatim>", ...]
+```
+In a gate group, answer every task instead, one entry each:
+`"task_verdicts": [{"task": "<TASK_ID>", "verdict": "pass" | "fail", "findings": [...]}]`.
+Run inline (no launcher), end your reply with the same verdict for the PM; it
+does not count toward DONE until a launched gate gives it.
 
 Always report the exit code you actually observed. A red run recorded honestly
 is useful; a red run reported as green corrupts every decision downstream.
@@ -95,7 +106,7 @@ Pass only criteria you verified. List anything you could not verify and why —
 "unknown" is a legitimate finding, a guess is not.
 
 If you're running interactively (a watched tmux pane, not inline), ping your
-PM directly via `SendMessage` once you've filed the verdict, or if you're
+PM directly via `SendMessage` once you've given your verdict, or if you're
 genuinely blocked — never as the verdict itself, only as a status note.
 Find it with `ListAgents`, matching the row whose tmux target shares your
 project prefix and is running `company-pm`. If `SendMessage` errors or isn't

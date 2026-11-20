@@ -83,7 +83,18 @@ class TestDestructiveDatabaseCommands(unittest.TestCase):
                     "npx prisma migrate reset --force",
                     "bin/rails db:drop",
                     "bundle exec rake db:reset",
-                    "docker volume rm myapp_postgres_data"):
+                    "docker volume rm myapp_postgres_data",
+                    "psql app -f schema.sql", "psql --file=reset.sql app",
+                    "psql app < dump.sql", "mysql shop < reset.sql",
+                    "npx prisma db push --force-reset", "prisma db push --accept-data-loss",
+                    "docker compose down -v", "docker-compose down --volumes",
+                    "docker volume prune -f",
+                    "bin/rails db:schema:load", "bundle exec rake db:truncate_all",
+                    "python manage.py flush --noinput",
+                    "mongosh app --eval 'db.dropDatabase()'",
+                    "redis-cli FLUSHALL", "redis-cli -n 2 flushdb", "echo FLUSHALL | redis-cli",
+                    "cd app && psql -c 'drop table t'",
+                    "true; psql <<EOF\nDROP TABLE x;\nEOF"):
             label = blocked_by_rule(cmd)
             self.assertIsNotNone(label, cmd)
             self.assertIn("destructive database", label, cmd)
@@ -94,7 +105,14 @@ class TestDestructiveDatabaseCommands(unittest.TestCase):
                     "grep -rn 'DROP TABLE' migrations/",
                     "truncate -s 0 app.log",
                     "npx prisma migrate dev", "bin/rails db:migrate",
-                    "docker volume rm scratch_cache"):
+                    "docker volume rm scratch_cache",
+                    # client and statement in different commands (D-9 scoping)
+                    "rg 'drop schema' && psql -l",
+                    "mysql -e 'select 1' && grep TRUNCATE log",
+                    "psql -l; echo 'drop table'",
+                    "cat <<EOF > notes.md\nDROP TABLE x\nEOF\npsql -l",
+                    "docker volume rm pgadmin_cache", "docker compose down",
+                    "grep -rn dropDatabase src/", "prisma db push"):
             self.assertIsNone(blocked_by_rule(cmd), cmd)
 
     def test_no_project_config_or_env_can_relax_them(self):

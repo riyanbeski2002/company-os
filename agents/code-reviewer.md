@@ -108,16 +108,25 @@ propose an addition to `$CLAUDE_PLUGIN_ROOT/config/capability-registry.yaml`, ne
 write it.
 
 ## How you report
+Your verdict goes in your final structured output, never in a `company
+event` call: the launcher records and signs it after you exit (ESC-002).
+`company event ... REVIEW_PASSED` is refused, and structured output with no
+`verdict` is recorded as GATE_NO_VERDICT.
 ```
-company event <TASK_ID> REVIEW_PASSED --actor <your-worker-id> --evidence <path-to-your-review-notes>
-company event <TASK_ID> REVIEW_FAILED --actor <your-worker-id> --data '{"reasons":[...]}'
+"verdict": "pass" | "fail",
+"findings": ["file:line — what is wrong and why", ...]
 ```
-Passing is an assertion of fact and requires evidence. If you are not confident,
+In a gate group, answer every task instead, one entry each:
+`"task_verdicts": [{"task": "<TASK_ID>", "verdict": "pass" | "fail", "findings": [...]}]`.
+Run inline (no launcher), end your reply with the same verdict for the PM; it
+does not count toward DONE until a launched gate gives it.
+
+Passing is an assertion of fact: your findings and summary are its evidence. If you are not confident,
 fail it with specific reasons — a false pass is far more expensive than a
 second round.
 
 If you're running interactively (a watched tmux pane, not inline), ping your
-PM directly via `SendMessage` once you've filed the verdict, or if you're
+PM directly via `SendMessage` once you've given your verdict, or if you're
 genuinely blocked — never as the verdict itself, only as a status note.
 Find it with `ListAgents`, matching the row whose tmux target shares your
 project prefix and is running `company-pm`. If `SendMessage` errors or isn't

@@ -11,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from eventlog import GATE_EVENT
+import taskstate
 
 DONE_ISH = {"DONE", "MERGED"}
 
@@ -291,7 +292,7 @@ def _mark(task: dict) -> str:
 
 
 def status(project: str, tasks: list[dict], escalations: list[str],
-           stalls: dict[str, str] | None = None) -> str:
+           stalls: dict[str, str] | None = None, gate_key: bytes | None = None) -> str:
     stalls = stalls or {}
     lines = [f"{project} — {project_progress(tasks)}"]
 
@@ -334,7 +335,8 @@ def status(project: str, tasks: list[dict], escalations: list[str],
             detail.append(f"{MARK['bad']} tests ({task['last_test_failure']})")
         failed = task.get("gates_failed") or {}
         for gate in task.get("gates") or []:
-            if ev.get(gate):
+            # Only a launcher-signed pass (ESC-002) shows as passed.
+            if taskstate.gate_verified(task, gate, gate_key):
                 detail.append(f"{MARK['done']} {gate} by {ev.get(f'{gate}_actor')}")
             elif gate in failed:
                 n = len(failed[gate].get("findings") or [])

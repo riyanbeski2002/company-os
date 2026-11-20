@@ -34,6 +34,34 @@ def _no_holders():
     return set()
 
 
+
+def poison_worktree_gitdir(repo: Path, wt: Path, branch: str, marker: Path) -> None:
+    """ESC-014 / security review p2: the worker repoints its worktree's `.git`
+    at a NON-bare gitdir it controls — core.worktree set, the real objects
+    via alternates, the branch and index copied — so `git -C <worktree>`
+    in the PM's process works normally while running core.fsmonitor (any
+    index read) and diff.external (any diff) as the PM."""
+    evil = Path(repo).parent / f"evil-{wt.name}"
+    subprocess.run(["git", "init", "-q", "--bare", str(evil)], check=True, capture_output=True)
+    common = subprocess.run(["git", "-C", str(repo), "rev-parse", "--path-format=absolute",
+                             "--git-common-dir"], capture_output=True, text=True,
+                            check=True).stdout.strip()
+    (evil / "objects" / "info" / "alternates").write_text(f"{common}/objects\n")
+    for ref in ("main", branch):
+        sha = subprocess.run(["git", "-C", str(repo), "rev-parse", ref], capture_output=True,
+                             text=True, check=True).stdout.strip()
+        (evil / "refs" / "heads" / ref).parent.mkdir(parents=True, exist_ok=True)
+        (evil / "refs" / "heads" / ref).write_text(sha + "\n")
+    (evil / "HEAD").write_text(f"ref: refs/heads/{branch}\n")
+    admin_index = Path(common) / "worktrees" / wt.name / "index"
+    if admin_index.exists():
+        (evil / "index").write_bytes(admin_index.read_bytes())
+    for key, val in (("core.bare", "false"), ("core.worktree", str(wt)),
+                     ("core.fsmonitor", f"touch {marker}; false"),
+                     ("diff.external", f"touch {marker}")):
+        subprocess.run(["git", "config", "-f", str(evil / "config"), key, val], check=True)
+    (wt / ".git").write_text(f"gitdir: {evil}\n")
+
 class WorktreeCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -382,6 +410,45 @@ class TestCli(WorktreeCase):
         self.assertEqual(code, 0, out)
         self.assertFalse(wt.exists())
         self.assertEqual(len(out["removed"]), 1)
+
+
+class TestPoisonedWorktreeGitdirIsNeverRead(WorktreeCase):
+    """ESC-014: cleanup's status and checkpoint run in the PM's process, so
+    they use the main repo's admin dir for the worktree, never its `.git`."""
+
+    def test_cleanup_of_a_dirty_worktree_runs_nothing_from_its_gitdir(self):
+        wt, branch = self._staffed("TASK-1")
+        self._commit_in(wt)
+        (wt / "uncommitted.py").write_text("y = 2\n")
+        marker = Path(self.tmp.name) / "pwned"
+        poison_worktree_gitdir(self.repo, wt, branch, marker)
+        _git(wt, "status", check=False)
+        self.assertTrue(marker.exists(), "fixture: the attack must work on `git -C`")
+        marker.unlink()
+        self._status("TASK-1", "MERGED")
+
+        report = self._cleanup()
+
+        self.assertFalse(marker.exists())
+        # Status and the checkpoint went through the main repo's admin dir:
+        # the dirty work is saved...
+        refs = _git(self.repo, "for-each-ref", "--format=%(refname)",
+                    "refs/company/checkpoints").stdout.split()
+        self.assertEqual(len(refs), 1, report)
+        tree = _git(self.repo, "ls-tree", "-r", "--name-only", refs[0]).stdout
+        self.assertIn("uncommitted.py", tree)
+        # ...and git itself then refuses to remove a worktree whose `.git`
+        # doesn't point back: blocked for a human, never force-deleted.
+        self.assertTrue(wt.exists())
+        self.assertEqual([b["path"] for b in report["blocked"]], [str(wt)])
+
+    def test_a_worktree_with_no_matching_admin_dir_is_blocked_not_guessed(self):
+        wt, _ = self._staffed("TASK-1")
+        (self.repo / ".git" / "worktrees" / wt.name / "gitdir").write_text("/elsewhere/.git\n")
+        self._status("TASK-1", "MERGED")
+        report = self._cleanup()
+        self.assertTrue(wt.exists())
+        self.assertEqual(report["removed"], [])
 
 
 if __name__ == "__main__":

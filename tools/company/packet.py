@@ -310,8 +310,8 @@ def render_group(tasks: list[dict], *, group_id: str, why: str,
     that touch the same core get ONE gate launch instead of one each — this
     is that launch's packet. It does not change what a gate must verify or
     the Evidence Rule's per-task bookkeeping: the worker is instructed to
-    emit its own verdict event for EVERY task listed below, individually,
-    with the same evidence. `cli.py`'s `cmd_gate_group` then checks each task
+    give a verdict for EVERY task listed below, individually, in its
+    structured output's `task_verdicts`, which the launcher records. `cli.py`'s `cmd_gate_group` then checks each task
     actually got one — a task that doesn't is unreviewed, exactly like a
     solo gate that exits with no verdict, never silently passed through
     because a sibling in the group was reviewed.
@@ -336,7 +336,7 @@ def render_group(tasks: list[dict], *, group_id: str, why: str,
         )
     tasks_text = "\n".join(task_lines)
     verdict_lines = "\n".join(
-        f"    company event {t['id']} <PASS_OR_FAIL_EVENT> --evidence <sha-or-log-path>"
+        f'    {{"task": "{t["id"]}", "verdict": "pass"|"fail", "findings": [...]}}'
         for t in tasks)
 
     diff_section = ""
@@ -362,9 +362,10 @@ BUDGET
   max turns: {max_turns}   wall clock: {timeout_s}s
 
 HOW TO REPORT
-  You MUST emit one verdict event for EVERY task above, individually — not
-  one combined event, not just the last task. A task with no verdict event
-  from you is treated as unreviewed, the same as a solo gate exiting silently:
+  You MUST give a verdict for EVERY task above, individually, in your
+  structured output's `task_verdicts` (the launcher records and signs it;
+  `company event` cannot pass a task). A task with no entry is treated as
+  unreviewed, the same as a solo gate exiting silently:
 {verdict_lines}
 
   Do not certify a task you did not actually examine. If the group's diff

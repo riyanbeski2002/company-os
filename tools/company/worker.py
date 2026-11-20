@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import secrets
 import shutil
 import signal
 import subprocess
@@ -20,7 +19,8 @@ import threading
 import time
 from pathlib import Path
 
-from eventlog import EventLog, gate_proof, make_event, proof_sha256
+from eventlog import EventLog, EvidenceError, make_event
+import gatesig
 import harness
 import providers
 import staffing
@@ -132,6 +132,22 @@ RESULT_SCHEMA = {
         "contract_published": {"type": "boolean"},
         "blocked": {"type": "boolean"},
         "blocked_reason": {"type": "string"},
+        # Gate roles only (ESC-002): the verdict itself. The launcher, not
+        # the worker, turns it into the signed *_PASSED/*_FAILED event. A
+        # solo gate may use `verdict`; a gate group answers per task.
+        "verdict": {"type": "string", "enum": ["pass", "fail"]},
+        "findings": {"type": "array", "items": {"type": "string"}},
+        "criteria_met": {"type": "array", "items": {"type": "string"}},
+        "task_verdicts": {"type": "array", "items": {
+            "type": "object",
+            "properties": {
+                "task": {"type": "string"},
+                "verdict": {"type": "string", "enum": ["pass", "fail"]},
+                "findings": {"type": "array", "items": {"type": "string"}},
+                "criteria_met": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["task", "verdict"],
+        }},
     },
     "required": ["summary", "blocked"],
 }
@@ -168,20 +184,6 @@ GATE_VERDICT_EVENTS = {
 }
 
 
-def _gate_secret(role: str, task_ids: list[str]) -> tuple[str | None, dict]:
-    """ESC-002: (secret for the gate worker's env, WORKER_STARTED data).
-    $COMPANY_ACTOR names a worker but proves nothing — any worker can set
-    it. Only this launch's env holds the secret; the log gets sha256 of the
-    per-task PASSED proof, which taskstate.fold() checks the verdict against.
-    """
-    verdicts = GATE_VERDICT_EVENTS.get(role)
-    if not verdicts:
-        return None, {}
-    secret = secrets.token_hex(32)
-    return secret, {"pass_event": verdicts[0], "pass_proof_sha256": {
-        t: proof_sha256(gate_proof(secret, t, verdicts[0])) for t in task_ids}}
-
-
 class WorkerError(RuntimeError):
     pass
 
@@ -200,6 +202,68 @@ def gave_no_verdict(events: list[dict], task_id: str, actor: str, role: str) -> 
                 and ev.get("event") in (pass_ev, fail_ev):
             return None
     return pair
+
+
+def _gate_key(company_root: Path, role: str) -> bytes | None:
+    """The launcher's verdict-signing key for a gate role, created on first
+    use (ESC-002). Never put in a worker's env or argv."""
+    if role not in GATE_VERDICT_EVENTS:
+        return None
+    try:
+        return gatesig.load_key(company_root, create=True)
+    except OSError as exc:
+        raise WorkerError(f"cannot create the gate signing key: {exc}") from exc
+
+
+def record_verdicts(log: EventLog, gate_key: bytes, role: str, actor: str, project: str,
+                    ws_seq: int, tasks: list[dict], result: dict, exit_code: int | None,
+                    out_path: Path, group_id: str | None = None) -> list[str]:
+    """After a gate worker exits: append the signed verdict event its
+    structured output gave for each task (ESC-002), or GATE_NO_VERDICT.
+    A pass from a run that errored is not a verdict. Returns the task ids
+    left without one."""
+    pass_ev, fail_ev = GATE_VERDICT_EVENTS[role]
+    ids = [t["id"] for t in tasks]
+    verdicts = gatesig.structured_verdicts(result.get("structured_output"), ids)
+    ran_clean = exit_code == 0 and not result.get("is_error")
+    extra = {"gate_group": group_id} if group_id else {}
+    missing = []
+    for t in tasks:
+        v = verdicts.get(t["id"])
+        if v and (v["verdict"] == "fail" or ran_clean):
+            event = pass_ev if v["verdict"] == "pass" else fail_ev
+            evidence = {"log": str(out_path)}
+            commit = (t.get("evidence") or {}).get("diff")
+            if commit:
+                evidence["commit"] = commit
+            data = {"role": role, "ws_seq": ws_seq, "verdict": v["verdict"],
+                    "verdict_mac": gatesig.verdict_mac(gate_key, t["id"], event, actor,
+                                                       role, ws_seq, v["verdict"]),
+                    "source": "structured_output", **extra}
+            for k in ("findings", "criteria_met"):
+                if v[k]:
+                    data[k] = v[k]
+            try:
+                log.append(make_event(event=event, actor=actor, project=project,
+                                      task=t["id"], data=data, evidence=evidence))
+                continue
+            except EvidenceError as exc:  # e.g. a PASS on the commit it already failed
+                reason = str(exc)
+        else:
+            reason = None
+        if v is None and any(e.get("event") == fail_ev and e.get("task") == t["id"]
+                             and e.get("actor") == actor for e in log.read()):
+            continue  # the worker recorded its own FAILED: still a verdict. Its
+            # own PASSED never is — anything in its process tree can write one.
+        missing.append(t["id"])
+        log.append(make_event(
+            event="GATE_NO_VERDICT", actor=actor, project=project, task=t["id"],
+            data={"role": role, "expected_one_of": [pass_ev, fail_ev],
+                  "exit_code": exit_code, "is_error": result.get("is_error"),
+                  "terminal_reason": result.get("terminal_reason"),
+                  **({"reason": reason} if reason else {}), **extra},
+        ))
+    return missing
 
 
 def slug(text: str, limit: int = 32) -> str:
@@ -391,7 +455,10 @@ def sandbox_settings(company_root: Path, workdir: Path,
         # Accepted residual risk: a gate worker can reach other local
         # services, so the failure mode is misleading evidence, not damage.
         policy["network"] = {"allowLocalBinding": True}
-    return {"sandbox": policy}
+    # --setting-sources loads the worktree's own .claude/settings*.json, which
+    # the implementer can commit; `disableAllHooks: true` there would switch
+    # off every guard. --settings outranks project and local settings.
+    return {"sandbox": policy, "disableAllHooks": False}
 
 
 def build_env(repo: Path, company_root: Path, task: dict, actor: str,
@@ -414,8 +481,6 @@ def build_env(repo: Path, company_root: Path, task: dict, actor: str,
     before a role/harness was known keep working unchanged.
     """
     env = dict(os.environ)
-    # Never inherited: only the launch that minted a gate secret passes one on.
-    env.pop("COMPANY_GATE_SECRET", None)
     spec = harness_spec or harness.resolve(harness.load_config(company_root), None)
     env = harness.apply_env(spec, env)
     if spec.get("_provider"):
@@ -981,12 +1046,11 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                 "model_override": model_override, "effort_override": effort_override,
                 "skip_permissions": skip_permissions,
             }
-        gate_secret, proof_data = _gate_secret(role, [task["id"]])
-        event_data.update(proof_data)
-        log.append(make_event(
+        gate_key = _gate_key(company_root, role)
+        started_ev = log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=task.get("project", ""),
             task=task["id"], data=event_data,
-        ))
+        ), finalize=gate_key and gatesig.sign_started(gate_key, [task["id"]]))
 
         # A harness without Claude Code's own `--agent` persona loader never
         # sees agents/<role>.md at all, so its body has to travel in the
@@ -1001,8 +1065,6 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                         thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
                         allowed_tools=role_tools(role), plugin_root=plugin_root,
                         extra_env=services and services["inject"])
-        if gate_secret:
-            env["COMPANY_GATE_SECRET"] = gate_secret
 
         started = time.monotonic()
         with open(out_path, "w") as out, open(err_path, "w") as err:
@@ -1085,15 +1147,8 @@ def launch(repo: Path, company_root: Path, task: dict, packet: str,
                       "worktree_preserved": str(wt)},
             ))
         elif role in GATE_VERDICT_EVENTS:
-            expected = gave_no_verdict(log.read(), task["id"], actor, role)
-            if expected:
-                log.append(make_event(
-                    event="GATE_NO_VERDICT", actor=actor, project=task.get("project", ""),
-                    task=task["id"],
-                    data={"role": role, "expected_one_of": list(expected),
-                          "exit_code": proc.returncode, "is_error": result.get("is_error"),
-                          "terminal_reason": result.get("terminal_reason")},
-                ))
+            record_verdicts(log, gate_key, role, actor, task.get("project", ""),
+                            started_ev["seq"], [task], result, proc.returncode, out_path)
 
         return {
             "actor": actor, "task": task["id"], "role": role, "branch": branch,
@@ -1155,23 +1210,21 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
                                        f"_gate-group-{group_id}-{role}",
                                        _service_id(f"gg-{group_id}-{role}"))
 
-        gate_secret, proof_data = _gate_secret(role, task_ids)
-        log.append(make_event(
+        gate_key = _gate_key(company_root, role)
+        started_ev = log.append(make_event(
             event="WORKER_STARTED", actor=actor, project=project,
             data={"role": role, "tier": 2, "gate_group": group_id, "tasks": task_ids,
                   "worktree": str(worktree), "timeout_s": timeout,
                   "model": policy.get("model"), "effort": policy.get("effort"),
                   "harness": harness_spec["_name"], "guards": harness_spec["_guards"],
-                  "provider": harness_spec["_provider"]["_name"], **proof_data},
-        ))
+                  "provider": harness_spec["_provider"]["_name"]},
+        ), finalize=gate_key and gatesig.sign_started(gate_key, task_ids))
 
         env = build_env(repo, company_root, {"id": "", "project": project}, actor,
                         worktree, thinking=bool(policy.get("thinking", True)), harness_spec=harness_spec,
                         allowed_tools=role_tools(role), plugin_root=plugin_root,
                         extra_env=services and services["inject"])
         env.pop("COMPANY_TASK", None)  # no single task — the worker cites task ids itself
-        if gate_secret:
-            env["COMPANY_GATE_SECRET"] = gate_secret
 
         worker_input = packet + _services_note(services)
         if not harness_spec.get("native_agent_loading"):
@@ -1226,19 +1279,9 @@ def launch_group(repo: Path, company_root: Path, group_id: str, tasks: list[dict
 
         missing_verdict = []
         if role in GATE_VERDICT_EVENTS:
-            current = log.read()
-            for t in tasks:
-                expected = gave_no_verdict(current, t["id"], actor, role)
-                if expected:
-                    missing_verdict.append(t["id"])
-                    log.append(make_event(
-                        event="GATE_NO_VERDICT", actor=actor, project=project,
-                        task=t["id"],
-                        data={"role": role, "expected_one_of": list(expected),
-                              "gate_group": group_id, "exit_code": proc.returncode,
-                              "is_error": result.get("is_error"),
-                              "terminal_reason": result.get("terminal_reason")},
-                    ))
+            missing_verdict = record_verdicts(
+                log, gate_key, role, actor, project, started_ev["seq"], tasks, result,
+                proc.returncode, out_path, group_id=group_id)
 
         return {
             "actor": actor, "gate_group": group_id, "tasks": task_ids, "role": role,

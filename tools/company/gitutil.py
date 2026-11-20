@@ -37,6 +37,35 @@ def git_trusted(repo: Path, *args, **kw) -> subprocess.CompletedProcess:
     return subprocess.run(["git", "-C", str(repo), *args], env=env, **kw)
 
 
+def git_worktree_trusted(repo: Path, wt: Path, *args, env: dict | None = None,
+                         **kw) -> subprocess.CompletedProcess:
+    """git on a linked worktree's index and files, in the PM's process
+    (ESC-014). Some operations (status, a checkpoint commit) need the
+    worktree itself, not just the branch. Both the gitdir and the common
+    dir come from the MAIN checkout — `<common>/worktrees/<name>`, confirmed
+    by its `gitdir` back-pointer — never from the worktree's `.git` file or
+    the admin dir's `commondir` (GIT_COMMON_DIR overrides it). fsmonitor
+    and hooks are off. Returns returncode 128 if no admin dir matches."""
+    wt = Path(os.path.realpath(wt))
+    common = git_trusted(repo, "rev-parse", "--path-format=absolute", "--git-common-dir",
+                         capture_output=True, text=True)
+    admin = Path(common.stdout.strip()) / "worktrees" / Path(wt).name
+    try:
+        back = (admin / "gitdir").read_text(encoding="utf-8").strip()
+    except OSError:
+        back = None
+    if common.returncode != 0 or not back or \
+            os.path.realpath(back) != str(wt / ".git"):
+        return subprocess.CompletedProcess(args, 128, "", f"{wt} is not a worktree of {repo}")
+    full_env = {k: v for k, v in os.environ.items() if k not in _GIT_SCRUB}
+    full_env.update(GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0",
+                    GIT_COMMON_DIR=common.stdout.strip(), **(env or {}))
+    return subprocess.run(
+        ["git", f"--git-dir={admin}", f"--work-tree={wt}",
+         "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", *args],
+        cwd=str(wt), env=full_env, **kw)
+
+
 def diff_patch_or_stat(repo: Path, base: str, ref: str,
                        cap: int = DIFF_PATCH_CHAR_CAP) -> str | None:
     """The real `git diff` patch if it fits under `cap`, else `--stat` plus a

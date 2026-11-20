@@ -253,13 +253,20 @@ class TestCheckDoneActorRoleMismatchReason(unittest.TestCase):
     reintroduce an allowlist without noticing why that's unsafe."""
 
     def test_actor_role_mismatch_reason_does_not_contain_any_old_filter_substring(self):
+        import gatesig
+        key = b"k" * 32
+        role = "backend-engineer"  # validly signed, but not a code-reviewer
+        sig = {"role": role, "ws_seq": 7, "ws_tasks": ["T-1"], "verdict": "pass",
+               "launch_mac": gatesig.started_mac(key, "wrong-actor", role, 7, ["T-1"]),
+               "verdict_mac": gatesig.verdict_mac(key, "T-1", "REVIEW_PASSED",
+                                                  "wrong-actor", role, 7, "pass")}
         task = {
             "id": "T-1", "owner": "be-1", "gates": ["review"],
             "evidence": {"diff": "abc123", "tests": "exit 0", "review": "ev1",
-                         "review_actor": "wrong-actor"},
-            "worker_roles": {"wrong-actor": "backend-engineer"},  # not code-reviewer
+                         "review_actor": "wrong-actor", "review_sig": sig},
         }
-        reasons = taskstate.check_done(task, gate_roles={"review": "code-reviewer"})
+        reasons = taskstate.check_done(task, gate_roles={"review": "code-reviewer"},
+                                       gate_key=key)
         self.assertTrue(reasons, "expected the actor-role mismatch to be flagged at all")
         mismatch_reasons = [r for r in reasons if "has no verified" in r]
         self.assertTrue(mismatch_reasons, "check_done should still detect the forged actor")

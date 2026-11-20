@@ -219,26 +219,117 @@ RULES: list[tuple[re.Pattern[str], str]] = [
 # repo cannot opt itself out. A reset that is genuinely needed is an
 # escalation for a human to run.
 _DB_CLIENT = (r"\b(?:psql|pgcli|mysql|mariadb|mycli|sqlite3|sqlcmd|clickhouse-client|"
-              r"cockroach\s+sql|prisma\s+db\s+execute|supabase\s+db\s+(?:query|execute))\b")
-_DB_DESTROY_SQL = (r"\b(?:drop\s+(?:database|schema|table)|"
-                   r"truncate\s+(?:table\s+)?[\w\"`])")
-DB_RULES: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\bsupabase\s+db\s+reset\b"), "destructive database operation (supabase db reset)"),
-    (re.compile(r"\bsupabase\s+stop\b[^;|&\n]*--no-backup\b"),
+              r"cockroach\s+sql|prisma\s+db\s+execute|supabase\s+db\s+(?:query|execute)|"
+              r"mongosh?|redis-cli)\b")
+_DB_DESTROY_SQL = (r"\b(?:drop\s+(?:database|schema|table)\b|"
+                   r"truncate\s+(?:table\s+)?[\w\"`]|(?:dropDatabase|flush(?:all|db))\b)")
+# A volume name with a database word as one of its -/_/. separated parts:
+# `myapp_postgres_data`, `db-data`; not `pgadmin_cache`.
+_DB_VOLUME = (r"(?:^|[\s_.-])(?:postgres(?:ql)?|pg(?:data)?|mysql|mariadb|mongo(?:db)?|"
+              r"supabase|db|database)(?=[\s_.-]|$)")
+
+
+def _segments(command: str) -> list[str]:
+    """The command split into the parts the shell runs separately — on
+    unquoted `;`, `&&`, `||`, `&` and newlines — so a client in one part and
+    a DROP in another (`rg 'drop schema' && psql -l`) is not one statement.
+    A pipeline stays whole: `echo 'TRUNCATE t' | psql` feeds the client. A
+    heredoc's body stays with the command that reads it."""
+    segs, cur, quote, i, heredocs = [], [], None, 0, []
+    n = len(command)
+    while i < n:
+        ch = command[i]
+        if quote:
+            cur.append(ch)
+            if ch == quote:
+                quote = None
+            elif ch == "\\" and quote == '"' and i + 1 < n:
+                cur.append(command[i + 1])
+                i += 1
+        elif ch in "'\"":
+            quote = ch
+            cur.append(ch)
+        elif ch == "\\" and i + 1 < n:
+            cur.append(command[i:i + 2])
+            i += 1
+        elif command.startswith("<<", i) and not command.startswith("<<<", i):
+            m = re.match(r"<<-?\s*(['\"]?)([\w.-]+)\1", command[i:])
+            if m:
+                heredocs.append(m.group(2))
+                cur.append(m.group(0))
+                i += len(m.group(0))
+                continue
+            cur.append(ch)
+        elif ch == "\n" and heredocs:
+            # The body runs to each delimiter line in turn, all one segment.
+            rest = command[i + 1:].split("\n")
+            used = 0
+            for line in rest:
+                used += 1
+                cur.append("\n" + line)
+                if heredocs and line.strip() == heredocs[0]:
+                    heredocs.pop(0)
+                    if not heredocs:
+                        break
+            i += 1 + sum(len(x) + 1 for x in rest[:used]) - 1
+            heredocs = []
+            continue
+        elif ch in ";\n" or command.startswith(("&&", "||"), i) or \
+                (ch == "&" and not command.startswith("&>", i)
+                 and (i == 0 or command[i - 1] not in "<>&")):
+            segs.append("".join(cur))
+            cur = []
+            if command.startswith(("&&", "||"), i):
+                i += 1
+        else:
+            cur.append(ch)
+        i += 1
+    segs.append("".join(cur))
+    return [x for x in segs if x.strip()]
+
+
+class _PerSegment:
+    """A RULES pattern that must match within one segment (_segments)."""
+
+    def __init__(self, pattern: str):
+        self.pattern = re.compile(pattern)
+
+    def search(self, command: str):
+        return next((m for seg in _segments(command)
+                     if (m := self.pattern.search(seg))), None)
+
+
+DB_RULES: list[tuple] = [
+    (_PerSegment(r"\bsupabase\s+db\s+reset\b"),
+     "destructive database operation (supabase db reset)"),
+    (_PerSegment(r"\bsupabase\s+stop\b.*--no-backup\b"),
      "destructive database operation (supabase stop --no-backup)"),
-    (re.compile(r"\bdropdb\b"), "destructive database operation (dropdb)"),
-    # Client and statement anywhere in the command, either order, across
-    # lines: `psql -c "DROP TABLE x"`, `echo 'truncate t' | psql`, heredocs.
-    (re.compile(r"(?is)^(?=.*%s)(?=.*%s)" % (_DB_CLIENT, _DB_DESTROY_SQL)),
-     "destructive database operation (DROP DATABASE/SCHEMA/TABLE or TRUNCATE "
+    (_PerSegment(r"\bdropdb\b"), "destructive database operation (dropdb)"),
+    # Client and statement in the same segment, either order, across a
+    # pipe or a heredoc: `psql -c "DROP TABLE x"`, `echo 'truncate t' | psql`.
+    (_PerSegment(r"(?is)^(?=.*%s)(?=.*%s)" % (_DB_CLIENT, _DB_DESTROY_SQL)),
+     "destructive database operation (DROP/TRUNCATE/dropDatabase/FLUSHALL "
      "sent to a database client)"),
-    (re.compile(r"\bprisma\s+migrate\s+reset\b"),
+    # A script's statements are invisible to this guard, so running one is
+    # refused outright: `psql -f x.sql`, `mysql app < dump.sql`.
+    (_PerSegment(r"\bpsql\b.*\s(?:-f\s*\S|--file[=\s])"),
+     "destructive database operation (psql -f runs a script this guard can't see)"),
+    (_PerSegment(r"(?s)%s.*(?<!<)<(?!<)\s*\S+\.sql\b" % _DB_CLIENT),
+     "destructive database operation (a .sql file redirected into a database client)"),
+    (_PerSegment(r"\bprisma\s+migrate\s+reset\b"),
      "destructive database operation (prisma migrate reset)"),
-    (re.compile(r"\b(?:rails|rake)\b[^;|&\n]*\bdb:(?:drop|reset|purge)\b"),
-     "destructive database operation (rails db:drop/db:reset)"),
-    (re.compile(r"(?i)\bdocker\s+volume\s+rm\b[^;|&\n]*(?:postgres|\bpg|mysql|mariadb|mongo|"
-                r"supabase|[-_]db\b|\bdb[-_])"),
+    (_PerSegment(r"\bprisma\s+db\s+push\b.*\s--(?:force-reset|accept-data-loss)\b"),
+     "destructive database operation (prisma db push --force-reset/--accept-data-loss)"),
+    (_PerSegment(r"\b(?:rails|rake)\b.*\bdb:(?:drop|reset|purge|schema:load|truncate_all)\b"),
+     "destructive database operation (rails db:drop/reset/schema:load/truncate_all)"),
+    (_PerSegment(r"\b(?:manage\.py|django-admin)\s+(?:\S+\s+)*?flush\b"),
+     "destructive database operation (django manage.py flush)"),
+    (_PerSegment(r"(?i)\bdocker\s+volume\s+rm\b.*%s" % _DB_VOLUME),
      "destructive database operation (removing a database's docker volume)"),
+    (_PerSegment(r"\bdocker\s+volume\s+prune\b"),
+     "destructive database operation (docker volume prune deletes database volumes)"),
+    (_PerSegment(r"\bdocker(?:\s+|-)compose\b.*\sdown\b.*\s(?:-v|--volumes)\b"),
+     "destructive database operation (docker compose down -v deletes database volumes)"),
 ]
 RULES += DB_RULES
 

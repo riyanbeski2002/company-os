@@ -26,6 +26,34 @@ def _git(repo, *args, cwd=None):
     return r
 
 
+
+def poison_worktree_gitdir(repo: Path, wt: Path, branch: str, marker: Path) -> None:
+    """ESC-014 / security review p2: the worker repoints its worktree's `.git`
+    at a NON-bare gitdir it controls — core.worktree set, the real objects
+    via alternates, the branch and index copied — so `git -C <worktree>`
+    in the PM's process works normally while running core.fsmonitor (any
+    index read) and diff.external (any diff) as the PM."""
+    evil = Path(repo).parent / f"evil-{wt.name}"
+    subprocess.run(["git", "init", "-q", "--bare", str(evil)], check=True, capture_output=True)
+    common = subprocess.run(["git", "-C", str(repo), "rev-parse", "--path-format=absolute",
+                             "--git-common-dir"], capture_output=True, text=True,
+                            check=True).stdout.strip()
+    (evil / "objects" / "info" / "alternates").write_text(f"{common}/objects\n")
+    for ref in ("main", branch):
+        sha = subprocess.run(["git", "-C", str(repo), "rev-parse", ref], capture_output=True,
+                             text=True, check=True).stdout.strip()
+        (evil / "refs" / "heads" / ref).parent.mkdir(parents=True, exist_ok=True)
+        (evil / "refs" / "heads" / ref).write_text(sha + "\n")
+    (evil / "HEAD").write_text(f"ref: refs/heads/{branch}\n")
+    admin_index = Path(common) / "worktrees" / wt.name / "index"
+    if admin_index.exists():
+        (evil / "index").write_bytes(admin_index.read_bytes())
+    for key, val in (("core.bare", "false"), ("core.worktree", str(wt)),
+                     ("core.fsmonitor", f"touch {marker}; false"),
+                     ("diff.external", f"touch {marker}")):
+        subprocess.run(["git", "config", "-f", str(evil / "config"), key, val], check=True)
+    (wt / ".git").write_text(f"gitdir: {evil}\n")
+
 class GitRepoCase(unittest.TestCase):
     """A real git repo with `main` plus N task branches, each touching its
     own file — the non-conflicting case grouped gating exists for."""
@@ -129,14 +157,18 @@ class TestDiffPatchOrStat(GitRepoCase):
         self._branch("task/1", "x.py", "def x(): pass\n")
         wt = Path(self.tmp.name) / "task-wt"
         _git(self.repo, "worktree", "add", str(wt), "task/1")
-        evil = Path(self.tmp.name) / "evil"
-        _git(self.repo, "init", "-q", "--bare", str(evil))
         marker = Path(self.tmp.name) / "pwned"
-        with open(evil / "config", "a") as f:
-            f.write(f'[diff]\n\texternal = "touch {marker}"\n')
-        (wt / ".git").write_text(f"gitdir: {evil}\n")
+        poison_worktree_gitdir(self.repo, wt, "task/1", marker)
+        subprocess.run(["git", "-C", str(wt), "diff", "main..HEAD"], capture_output=True)
+        self.assertTrue(marker.exists(), "fixture: the attack must work on `git -C`")
+        marker.unlink()
 
-        summary = gitutil.diff_patch_or_stat(self.repo, "main", "task/1")
+        # Through the real call site: the gate packet for this task.
+        import cli
+        task = {"id": "TASK-1", "project": "p", "branch": "task/1", "worktree": str(wt),
+                "base": "main"}
+        summary = cli._diff_summary_for_gate(self.repo, self.company_root, task,
+                                             "code-reviewer", worker)
         self.assertIn("def x(): pass", summary)
         self.assertFalse(marker.exists())
 
@@ -190,7 +222,9 @@ class TestRenderGroup(unittest.TestCase):
             verify="pytest")
         for t in tasks:
             self.assertIn(t["id"], body)
-            self.assertIn(f"company event {t['id']}", body)
+            self.assertIn(f'{{"task": "{t["id"]}", "verdict"', body)
+        self.assertIn("task_verdicts", body)
+        self.assertNotIn(f"company event {tasks[0]['id']}", body)
         self.assertIn("independent judgment per task", body)
 
 class TestPerRoleGroupWorktrees(GitRepoCase):

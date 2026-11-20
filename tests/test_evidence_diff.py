@@ -33,6 +33,34 @@ def _git(*args, cwd):
     return r.stdout.strip()
 
 
+def poison_worktree_gitdir(repo: Path, wt: Path, branch: str, marker: Path) -> None:
+    """ESC-014 / security review p2: the worker repoints its worktree's `.git`
+    at a NON-bare gitdir it controls — core.worktree set, the real objects
+    via alternates, the branch and index copied — so `git -C <worktree>`
+    in the PM's process works normally while running core.fsmonitor (any
+    index read) and diff.external (any diff) as the PM."""
+    evil = Path(repo).parent / f"evil-{wt.name}"
+    subprocess.run(["git", "init", "-q", "--bare", str(evil)], check=True, capture_output=True)
+    common = subprocess.run(["git", "-C", str(repo), "rev-parse", "--path-format=absolute",
+                             "--git-common-dir"], capture_output=True, text=True,
+                            check=True).stdout.strip()
+    (evil / "objects" / "info" / "alternates").write_text(f"{common}/objects\n")
+    for ref in ("main", branch):
+        sha = subprocess.run(["git", "-C", str(repo), "rev-parse", ref], capture_output=True,
+                             text=True, check=True).stdout.strip()
+        (evil / "refs" / "heads" / ref).parent.mkdir(parents=True, exist_ok=True)
+        (evil / "refs" / "heads" / ref).write_text(sha + "\n")
+    (evil / "HEAD").write_text(f"ref: refs/heads/{branch}\n")
+    admin_index = Path(common) / "worktrees" / wt.name / "index"
+    if admin_index.exists():
+        (evil / "index").write_bytes(admin_index.read_bytes())
+    for key, val in (("core.bare", "false"), ("core.worktree", str(wt)),
+                     ("core.fsmonitor", f"touch {marker}; false"),
+                     ("diff.external", f"touch {marker}")):
+        subprocess.run(["git", "config", "-f", str(evil / "config"), key, val], check=True)
+    (wt / ".git").write_text(f"gitdir: {evil}\n")
+
+
 class TestNoopDiffRejected(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -102,25 +130,33 @@ class TestNoopDiffRejected(unittest.TestCase):
 
     def test_a_worker_poisoned_worktree_git_is_never_read(self):
         """ESC-014: the check runs in the PM's process, so it must not read
-        the worktree's `.git`, which the worker can repoint at a gitdir whose
-        config runs commands. Verified through the main checkout instead."""
+        the worktree's `.git`, which the worker can repoint at a gitdir it
+        controls. Through `-C <worktree>` that gitdir both runs commands
+        (fsmonitor on any index read) and answers the check: its `main` is
+        an older commit, so a no-op SHA looks 1 commit ahead. Verified
+        through the main checkout, the no-op is still refused."""
         self._create_task()
-        (self.worktree / "f.txt").write_text("one\ntwo\n")
-        _git("add", ".", cwd=self.worktree)
-        _git("commit", "-q", "-m", "actual work", cwd=self.worktree)
-        real_sha = _git("rev-parse", "HEAD", cwd=self.worktree)
+        older = _git("rev-parse", "main", cwd=self.repo)
+        (self.repo / "f.txt").write_text("one\nmain moved\n")
+        _git("commit", "-qam", "main moves on", cwd=self.repo)
+        _git("merge", "-q", "--ff-only", "main", cwd=self.worktree)
+        noop_sha = _git("rev-parse", "HEAD", cwd=self.worktree)  # == main: zero work
 
-        evil = Path(self.tmp.name) / "evil-gitdir"
-        _git("init", "-q", "--bare", str(evil), cwd=self.tmp.name)
         marker = Path(self.tmp.name) / "pwned"
-        with open(evil / "config", "a") as f:
-            f.write(f'[core]\n\tfsmonitor = "touch {marker}"\n'
-                    f'[diff]\n\texternal = "touch {marker}"\n')
-        (self.worktree / ".git").write_text(f"gitdir: {evil}\n")
+        poison_worktree_gitdir(self.repo, self.worktree, "task/1", marker)
+        (Path(self.tmp.name) / "evil-wt-task-1" / "refs" / "heads" / "main").write_text(older + "\n")
+        # The poisoned checkout is functional, hostile and lying via -C.
+        lie = subprocess.run(["git", "-C", str(self.worktree), "rev-list", "--count",
+                              f"main..{noop_sha}"], capture_output=True, text=True)
+        self.assertEqual(lie.stdout.strip(), "1", "fixture: -C must see the lie")
+        subprocess.run(["git", "-C", str(self.worktree), "status"], capture_output=True)
+        self.assertTrue(marker.exists(), "fixture: the attack must work on `git -C`")
+        marker.unlink()
 
         r = self._run("event", "TASK-1", "IMPLEMENTATION_READY",
-                      "--evidence", real_sha, actor_env="backend-engineer-1")
-        self.assertEqual(r.returncode, 0, r.stderr)  # -C worktree: "could not be verified"
+                      "--evidence", noop_sha, actor_env="backend-engineer-1")
+        self.assertEqual(r.returncode, 3, r.stderr)
+        self.assertIn("0 commits ahead", r.stderr)
         self.assertFalse(marker.exists())
 
     def test_unresolvable_sha_is_also_rejected(self):

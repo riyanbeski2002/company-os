@@ -85,16 +85,49 @@ class TestFailedGateIsDistinct(unittest.TestCase):
     def test_unreviewed_gate_has_no_failure_record(self):
         self.assertEqual(self._task().get("gates_failed", {}), {})
 
+    def _signed_pass(self, actor):
+        """What worker.launch records for a security gate that passed."""
+        import gatesig
+        import worker
+        key = gatesig.load_key(self.root, create=True)
+        ws = self.log.append(make_event(
+            event="WORKER_STARTED", actor=actor, project="p", task="T-1",
+            data={"role": "security-reviewer"}),
+            finalize=gatesig.sign_started(key, ["T-1"]))
+        worker.record_verdicts(self.log, key, "security-reviewer", actor, "p", ws["seq"],
+                               [{"id": "T-1"}], {"structured_output": {"verdict": "pass"}},
+                               0, self.root / "out.json")
+        return key
+
     def test_later_pass_clears_the_failure(self):
         self.log.append(make_event(
             event="SECURITY_REVIEW_FAILED", actor="sec-1", project="p", task="T-1",
             data={"findings": [{"issue": "x"}]}))
-        self.log.append(make_event(
-            event="SECURITY_REVIEW_PASSED", actor="sec-1", project="p", task="T-1",
-            evidence={"log": "findings.md"}))
+        key = self._signed_pass("sec-2")
         task = self._task()
         self.assertEqual(task.get("gates_failed", {}), {})
         self.assertIn("security", task["evidence"])
+        self.assertIn("✓ security by sec-2", render.status("p", [task], [], gate_key=key))
+
+    def test_an_unsigned_pass_neither_shows_nor_clears_the_failure(self):
+        """ESC-002: only a launcher-signed pass is shown as one."""
+        self.log.append(make_event(
+            event="SECURITY_REVIEW_FAILED", actor="sec-1", project="p", task="T-1",
+            data={"findings": [{"issue": "x"}]}))
+        self.log.append(make_event(
+            event="SECURITY_REVIEW_PASSED", actor="sec-2", project="p", task="T-1",
+            evidence={"log": "findings.md"}))
+        task = self._task()
+        self.assertIn("security", task["gates_failed"])
+        text = render.status("p", [task], [])
+        self.assertIn("FAILED by sec-1", text)
+        self.assertNotIn("security by sec-2", text)
+
+    def test_a_signed_pass_shows_only_with_the_key(self):
+        self._signed_pass("sec-2")
+        task = self._task()
+        self.assertNotIn("✓ security", render.status("p", [task], []))
+        self.assertNotIn("✓ security", render.status("p", [task], [], gate_key=b"other"))
 
     def test_next_action_points_at_the_findings(self):
         self.log.append(make_event(

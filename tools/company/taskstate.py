@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from eventlog import GATE_EVENT, EventLog, canonical, proof_sha256
+import gatesig
+from eventlog import GATE_EVENT, EventLog, canonical
 
 LIFECYCLE = [
     "DRAFT", "PLANNED", "READY", "IN_PROGRESS", "IMPLEMENTATION_READY",
@@ -82,9 +83,23 @@ FIELDS_FROM_DATA = (
 def fold(events: list[dict]) -> dict[str, dict]:
     """Replay events into task views. Pure — no I/O, no clock, no randomness."""
     tasks: dict[str, dict] = {}
+    # ESC-002. Signed gate launches by seq, and per (task, gate) the seq a
+    # PASSED's launch must exceed. `high` is the highest seq seen so far: an
+    # IMPLEMENTATION_READY or FAILED voids every launch at or below it, so
+    # an earlier launch's signed PASS re-appended later (the log is
+    # writable from a worker's sandbox) never counts. A forged seq can only
+    # raise `high`, i.e. refuse more.
+    launches: dict[int, dict] = {}
+    floors: dict[tuple[str, str], int] = {}
+    high = 0
 
     for ev in events:
+        seq = ev.get("seq")
+        if isinstance(seq, int) and not isinstance(seq, bool):
+            high = max(high, seq)
         tid = ev.get("task")
+        if ev.get("event") == "WORKER_STARTED":
+            _record_launch(launches, ev, tid)
         if not tid:
             # A GROUP gate launch (`company gate-group`) writes one
             # WORKER_STARTED for the whole group: no `task` field, the members
@@ -104,7 +119,6 @@ def fold(events: list[dict]) -> dict[str, dict]:
                     if member in tasks:
                         tasks[member].setdefault(
                             "worker_roles", {})[ev.get("actor")] = data["role"]
-                        _record_pass_proof(tasks[member], member, ev)
             # GOAL_LINKED (ADR-006 §3) has the same members-in-data shape, so
             # a misspelled id can never create a phantom DRAFT task; goals.py
             # reports unknown ids as `unknown_tasks`. It deliberately leaves
@@ -145,11 +159,11 @@ def fold(events: list[dict]) -> dict[str, dict]:
 
         elif name == "IMPLEMENTATION_READY":
             task["evidence"]["diff"] = (ev.get("evidence") or {}).get("commit")
-            # A new implementation voids every gate launch and verified pass
-            # before it: those judged an older commit (ESC-002).
-            task.pop("pass_proofs", None)
+            # A new implementation voids every gate launch and pass before
+            # it: those judged an older commit (ESC-002).
             for gate in GATE_EVENT:
-                task["evidence"].pop(f"{gate}_proof_role", None)
+                floors[(tid, gate)] = high
+                _drop_pass(task, gate)
 
         elif name == "TEST_RUN":
             # A green run always counts. A red run counts only when the repo was
@@ -173,32 +187,27 @@ def fold(events: list[dict]) -> dict[str, dict]:
                 )
 
         elif name in GATE_EVENT.values():
+            # ESC-002: only a PASSED the launcher wrote for a launch it
+            # signed counts, and only placed against that launch: the actor
+            # string is whatever $COMPANY_ACTOR said, and the log itself is
+            # writable from a worker's sandbox. Anything else — a worker's
+            # own `company event`, a pre-ESC-002 pass, a raw append — is
+            # ignored. check_done() then verifies both MACs with the key.
             gate = next(g for g, e in GATE_EVENT.items() if e == name)
-            task["evidence"][gate] = f"{name} by {ev.get('actor')}"
-            task["evidence"][f"{gate}_actor"] = ev.get("actor")
-            # ESC-002: the actor string is whatever $COMPANY_ACTOR said; only
-            # a proof matching the launch record shows the launched worker
-            # wrote this. check_done() requires it.
-            entry = (task.get("pass_proofs") or {}).get(ev.get("actor")) or {}
-            proof = data.get("gate_proof")
-            if (entry.get("event") == name and isinstance(proof, str)
-                    and proof_sha256(proof) == entry.get("sha256")):
-                task["evidence"][f"{gate}_proof_role"] = entry.get("role")
-            else:
-                task["evidence"].pop(f"{gate}_proof_role", None)
+            sig = _pass_signature(launches, floors, tid, gate, ev)
+            if sig:
+                task["evidence"][gate] = f"{name} by {ev.get('actor')}"
+                task["evidence"][f"{gate}_actor"] = ev.get("actor")
+                task["evidence"][f"{gate}_sig"] = sig
+                task.get("gates_failed", {}).pop(gate, None)
 
         elif name in FAIL_GATE:
             gate = FAIL_GATE[name]
-            task["evidence"].pop(gate, None)
-            task["evidence"].pop(f"{gate}_actor", None)
-            task["evidence"].pop(f"{gate}_proof_role", None)
-            # A FAILED outranks any earlier launch's PASSED proof for this
-            # gate, which is in the log once used and could otherwise be
-            # replayed over the failure.
-            pass_proofs = task.get("pass_proofs") or {}
-            for actor in [a for a, e in pass_proofs.items()
-                          if e.get("event") == GATE_EVENT[gate]]:
-                del pass_proofs[actor]
+            # From anyone, signed or not: failing is the safe direction. It
+            # also voids every launch so far for this gate, so an earlier
+            # signed PASS can't be replayed over it.
+            floors[(tid, gate)] = high
+            _drop_pass(task, gate)
             # A rejected gate is not the same as an unreviewed one. Recording
             # the rejection is what lets `status` say "failed" instead of
             # "pending", which are very different situations for an operator.
@@ -207,10 +216,6 @@ def fold(events: list[dict]) -> dict[str, dict]:
                 "at": ev["ts"],
                 "findings": data.get("findings") or data.get("reasons") or [],
             }
-
-        if name in GATE_EVENT.values():
-            task.get("gates_failed", {}).pop(
-                next(g for g, e in GATE_EVENT.items() if e == name), None)
 
         elif name == "CONTRACT_PUBLISHED":
             task.setdefault("contracts", []).append(data.get("name", "unnamed"))
@@ -226,7 +231,6 @@ def fold(events: list[dict]) -> dict[str, dict]:
             role = data.get("role")
             if role:
                 task.setdefault("worker_roles", {})[ev.get("actor")] = role
-                _record_pass_proof(task, tid, ev)
 
         elif name == "MERGED":
             task["evidence"]["merged"] = (ev.get("evidence") or {}).get("commit")
@@ -275,17 +279,45 @@ def fold(events: list[dict]) -> dict[str, dict]:
     return tasks
 
 
-def _record_pass_proof(task: dict, tid: str, ev: dict) -> None:
-    """Remember the hash of the PASSED proof a gate launch can produce for
-    this task (worker._gate_secret). A relaunch under the same actor name
-    replaces it, so only the newest launch's secret counts."""
+def _record_launch(launches: dict, ev: dict, tid: str | None) -> None:
+    """A WORKER_STARTED carrying the launcher's MAC (gatesig.sign_started).
+    Recorded by its seq, which the MAC covers; check_done verifies it."""
     data = ev.get("data") or {}
-    digest = (data.get("pass_proof_sha256") or {}).get(tid)
-    if digest:
-        task.setdefault("pass_proofs", {})[ev.get("actor")] = {
-            "sha256": digest, "role": data.get("role"), "event": data.get("pass_event")}
-    else:
-        (task.get("pass_proofs") or {}).pop(ev.get("actor"), None)
+    seq, mac = ev.get("seq"), data.get("launch_mac")
+    if not (isinstance(seq, int) and isinstance(mac, str) and data.get("role")
+            and ev.get("actor")):
+        return
+    members = [tid] if tid else list(data.get("tasks") or [])
+    launches.setdefault(seq, {"actor": ev["actor"], "role": data["role"],
+                              "tasks": members, "mac": mac})
+
+
+def _pass_signature(launches: dict, floors: dict, tid: str, gate: str,
+                    ev: dict) -> dict | None:
+    """What check_done needs to verify a PASSED, if it names a signed launch
+    of this actor on this task started after the gate's floor; else None."""
+    data = ev.get("data") or {}
+    ws_seq, mac, actor = data.get("ws_seq"), data.get("verdict_mac"), ev.get("actor")
+    launch = launches.get(ws_seq) if isinstance(ws_seq, int) else None
+    if not (actor and isinstance(mac, str) and launch and launch["actor"] == actor
+            and tid in launch["tasks"] and launch["role"] == data.get("role")
+            and ws_seq > floors.get((tid, gate), 0)):
+        return None
+    return {"role": launch["role"], "ws_seq": ws_seq, "ws_tasks": launch["tasks"],
+            "launch_mac": launch["mac"], "verdict": data.get("verdict"),
+            "verdict_mac": mac}
+
+
+def _drop_pass(task: dict, gate: str) -> None:
+    for key in (gate, f"{gate}_actor", f"{gate}_sig"):
+        task["evidence"].pop(key, None)
+
+
+def gate_verified(task: dict, gate: str, gate_key: bytes | None) -> bool:
+    """True only for a launcher-signed PASSED (both MACs check out)."""
+    ev = task.get("evidence") or {}
+    return gatesig.verify(gate_key, task.get("id"), GATE_EVENT.get(gate, ""),
+                          ev.get(f"{gate}_actor"), ev.get(f"{gate}_sig"))
 
 
 def task_path(company_root: Path, tid: str) -> Path:
@@ -347,7 +379,8 @@ class EvidenceRuleViolation(Exception):
 
 
 def check_done(task: dict, baseline: dict | None = None,
-               gate_roles: dict[str, str] | None = None) -> list[str]:
+               gate_roles: dict[str, str] | None = None,
+               gate_key: bytes | None = None) -> list[str]:
     """Return the reasons this task may NOT enter DONE. Empty list == allowed.
 
     Checked against the event-derived view alone. No agent's assertion counts.
@@ -369,6 +402,10 @@ def check_done(task: dict, baseline: dict | None = None,
     a code-reviewer on this task. Callers should always pass gate_roles;
     the None default exists only so this function has no required config
     dependency of its own.
+
+    `gate_key` (gatesig.load_key) verifies that each PASSED was written by
+    the launcher for a launch it signed (ESC-002). Without it no gate is
+    satisfied: an unverifiable pass is not evidence.
     """
     reasons = []
     ev = task.get("evidence") or {}
@@ -399,7 +436,9 @@ def check_done(task: dict, baseline: dict | None = None,
             reasons.append(f"unknown gate {gate!r} — not in the quality-gate table")
             continue
         if not ev.get(gate):
-            reasons.append(f"gate {gate!r} not satisfied: no {event_name} event")
+            reasons.append(f"gate {gate!r} not satisfied: no {event_name} event "
+                           f"signed by the launcher for a launch after the latest "
+                           f"IMPLEMENTATION_READY")
             continue
         actor = ev.get(f"{gate}_actor")
         if actor and owner and actor == owner:
@@ -410,26 +449,21 @@ def check_done(task: dict, baseline: dict | None = None,
             )
             continue
 
+        if not gate_verified(task, gate, gate_key):
+            reasons.append(
+                f"gate {gate!r}: {event_name} by {actor!r} carries no valid launcher "
+                f"signature for a gate launched after the latest IMPLEMENTATION_READY "
+                f"— only a verdict the launcher recorded from the gate worker's "
+                f"structured output counts (ESC-002). Relaunch the gate."
+            )
+            continue
         required_role = (gate_roles or {}).get(gate)
-        if actor and required_role:
-            actual_role = (task.get("worker_roles") or {}).get(actor)
-            if actual_role != required_role:
-                reasons.append(
-                    f"gate {gate!r} actor {actor!r} has no verified {required_role!r} "
-                    f"launch record for this task"
-                    + (f" (was launched as {actual_role!r})" if actual_role else "")
-                    + f". {event_name} was accepted from an actor the trusted launcher "
-                    f"never started as {required_role!r} on this task — a self-reported "
-                    f"actor string is not evidence of who actually reviewed it."
-                )
-            elif ev.get(f"{gate}_proof_role") != required_role:
-                # ESC-002: a real reviewer's name is predictable, so the
-                # binding above can be met by anyone who sets $COMPANY_ACTOR
-                # to it. The proof can only come from that launch's env.
-                reasons.append(
-                    f"gate {gate!r}: {event_name} by {actor!r} carries no valid launch "
-                    f"token from a {required_role!r} launched after the latest "
-                    f"IMPLEMENTATION_READY — it was not written by the launched "
-                    f"reviewer, or it judged an older commit. Relaunch the gate."
-                )
+        signed_role = (ev.get(f"{gate}_sig") or {}).get("role")
+        if required_role and signed_role != required_role:
+            reasons.append(
+                f"gate {gate!r} actor {actor!r} has no verified {required_role!r} "
+                f"launch record for this task (was launched as {signed_role!r}). "
+                f"{event_name} came from a launch the trusted launcher did not start "
+                f"as {required_role!r}."
+            )
     return reasons

@@ -81,6 +81,14 @@ def _git(cwd, *args, env: dict | None = None):
                           capture_output=True, text=True, env=env or _env())
 
 
+def _wt_git(repo, wt, *args, env: dict | None = None):
+    """git on a worktree's own index/files, never via its `.git` (ESC-014):
+    see gitutil.git_worktree_trusted."""
+    import gitutil
+    return gitutil.git_worktree_trusted(repo, wt, *args, env=env,
+                                        capture_output=True, text=True)
+
+
 def _real(p) -> str:
     return os.path.realpath(str(p))
 
@@ -119,10 +127,10 @@ def list_worktrees(repo: Path) -> list[dict]:
     return out
 
 
-def _status(wt: Path) -> list[tuple[str, str]]:
+def _status(repo: Path, wt: Path) -> list[tuple[str, str]]:
     """(XY, path) entries, untracked files listed individually. Raises
     _Blocked if git can't answer — unknown is never treated as clean."""
-    r = _git(wt, "status", "--porcelain", "--untracked-files=all", "-z")
+    r = _wt_git(repo, wt, "status", "--porcelain", "--untracked-files=all", "-z")
     if r.returncode != 0:
         raise _Blocked(f"git status failed: {r.stderr.strip()[:200]}")
     tokens, entries, i = r.stdout.split("\0"), [], 0
@@ -261,7 +269,7 @@ def _assess(repo, company_root, c, entry, tasks, includes, holders_fn) -> dict:
         return {**c, "action": "blocked",
                 "reasons": ["a process has its cwd inside this worktree"]}
     try:
-        entries = _status(Path(c["path"]))
+        entries = _status(repo, Path(c["path"]))
     except _Blocked as exc:
         return {**c, "action": "blocked", "reasons": [str(exc)]}
     for xy, rel in entries:
@@ -272,30 +280,30 @@ def _assess(repo, company_root, c, entry, tasks, includes, holders_fn) -> dict:
     return c
 
 
-def _snapshot_tree(wt: Path, exclude: list[str]) -> str:
+def _snapshot_tree(repo: Path, wt: Path, exclude: list[str]) -> str:
     """The worktree's full content (tracked + untracked, minus ignored and
     provisioned paths) as a tree object, built in a throwaway index so the
     worktree's own index and the repo's shared refs/stash are never touched."""
     with tempfile.TemporaryDirectory() as d:
-        env = _env(GIT_INDEX_FILE=str(Path(d) / "index"))
+        env = {"GIT_INDEX_FILE": str(Path(d) / "index")}
         pathspec = ["--", "."] + [f":(exclude){p}" for p in exclude]
         for args in (("read-tree", "HEAD"), ("add", "-A", *pathspec)):
-            r = _git(wt, *args, env=env)
+            r = _wt_git(repo, wt, *args, env=env)
             if r.returncode != 0:
                 raise _Blocked(f"checkpoint failed at `git {args[0]}`: {r.stderr.strip()[:200]}")
-        r = _git(wt, "write-tree", env=env)
+        r = _wt_git(repo, wt, "write-tree", env=env)
         if r.returncode != 0:
             raise _Blocked(f"checkpoint failed at `git write-tree`: {r.stderr.strip()[:200]}")
         return r.stdout.strip()
 
 
-def _checkpoint(c: dict) -> str:
+def _checkpoint(repo: Path, c: dict) -> str:
     wt = Path(c["path"])
     if c["dirty"]:
-        tree = _snapshot_tree(wt, c["provisioned"])
-        r = _git(wt, "commit-tree", tree, "-p", "HEAD", "-m",
-                 f"company-os checkpoint of {c['name']} before worktree removal",
-                 env=_env(**_CHECKPOINT_IDENTITY))
+        tree = _snapshot_tree(repo, wt, c["provisioned"])
+        r = _wt_git(repo, wt, "commit-tree", tree, "-p", "HEAD", "-m",
+                    f"company-os checkpoint of {c['name']} before worktree removal",
+                    env=_CHECKPOINT_IDENTITY)
         if r.returncode != 0:
             raise _Blocked(f"checkpoint failed at `git commit-tree`: {r.stderr.strip()[:200]}")
         commit = r.stdout.strip()
@@ -304,10 +312,10 @@ def _checkpoint(c: dict) -> str:
     stamp = utcnow().replace("-", "").replace(":", "")
     ref = f"{CHECKPOINT_NS}/{c['name']}-{stamp}-{commit[:12]}"
     # Empty old-value: create only, never overwrite an existing checkpoint.
-    r = _git(wt, "update-ref", ref, commit, "")
+    r = _wt_git(repo, wt, "update-ref", ref, commit, "")
     if r.returncode != 0:
         raise _Blocked(f"checkpoint ref not written: {r.stderr.strip()[:200]}")
-    if c["dirty"] and _snapshot_tree(wt, c["provisioned"]) != tree:
+    if c["dirty"] and _snapshot_tree(repo, wt, c["provisioned"]) != tree:
         raise _Blocked(f"worktree changed while being checkpointed ({ref} kept)")
     return ref
 
@@ -317,7 +325,7 @@ def _remove(repo, company_root, c, *, trigger, actor) -> dict:
     size = _size(wt)
     ref = None
     if c["dirty"] or c["branch"] is None:
-        ref = _checkpoint(c)
+        ref = _checkpoint(repo, c)
     for rel in c["provisioned"]:
         (wt / rel).unlink()
     # --force only past a verified checkpoint (W7): what it discards is

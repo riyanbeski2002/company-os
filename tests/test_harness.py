@@ -319,6 +319,19 @@ class TestLaunchSandbox(unittest.TestCase):
                                    harness_spec=self.spec, sandbox=sandbox)
         self.assertEqual(self._settings_from(cmd), {"alwaysThinkingEnabled": True, **sandbox})
 
+    def test_a_committed_disable_all_hooks_cannot_switch_the_guards_off(self):
+        """Workers load --setting-sources project,local, so the worktree's own
+        .claude/settings.json (implementer-writable) is read. --settings
+        outranks it, and always says hooks stay on — even over a harness
+        default that tried otherwise."""
+        self.assertIn("project,local", self.spec["command"])
+        spec = {**self.spec, "settings_defaults": {"disableAllHooks": True}}
+        for role in ("backend-engineer", "code-reviewer", None):
+            sandbox = worker.sandbox_settings(self.root, self.wt, role)
+            cmd = worker.build_command({"id": "T-1"}, "backend-engineer",
+                                       harness_spec=spec, sandbox=sandbox)
+            self.assertIs(self._settings_from(cmd)["disableAllHooks"], False, role)
+
     def test_glob_characters_in_a_sandbox_path_refuse_the_launch(self):
         for bad in ("T-[1]", "T-*", "T-?", "T-{a,b}"):
             with self.assertRaises(worker.WorkerError, msg=bad):

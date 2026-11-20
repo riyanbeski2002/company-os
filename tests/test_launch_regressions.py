@@ -54,22 +54,27 @@ class FakeHarnessCase(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _harness(self, *, sleep=0.0, verdict=None, extra=""):
+    def _harness(self, *, sleep=0.0, verdict=None, extra="", child=""):
         """Point every role at a script that reads the packet, optionally
         sleeps (to hold the task while a competitor tries to launch), optionally
-        emits a verdict through the real worker-facing CLI, then prints a clean
-        result."""
+        gives a verdict the way a gate does — in its structured output, which
+        the launcher records (ESC-002) — and prints a clean result. `child`
+        is Python the worker runs as its own subprocess (the stand-in for a
+        test suite a gate executes)."""
+        structured = None
+        if verdict:
+            structured = {"summary": "s", "blocked": False,
+                          "verdict": "pass" if verdict.endswith("_PASSED") else "fail"}
         script = Path(self.tmp.name) / "fake_harness.py"
         script.write_text(
             "import json, os, subprocess, sys, time\n"
             "sys.stdin.read()\n"
             f"time.sleep({sleep})\n"
-            f"verdict = {verdict!r}\n"
-            "if verdict:\n"
-            f"    subprocess.run([sys.executable, {str(CLI)!r}, 'event',\n"
-            "                    os.environ['COMPANY_TASK'], verdict,\n"
-            "                    '--evidence', 'review-notes.md', '--no-rebuild'], check=True)\n"
+            f"child = {child!r}\n"
+            "if child:\n"
+            "    subprocess.run([sys.executable, '-c', child], check=True)\n"
             f"result = {CLEAN_RESULT!r}\n"
+            f"result['structured_output'] = {structured!r}\n"
             "result['session_id'] = os.environ['COMPANY_ACTOR'] + '-sess'\n"
             "print(json.dumps(result))\n")
         (self.root / "config" / "harness.yaml").write_text(
@@ -252,6 +257,93 @@ class TestGateNoVerdictThroughLaunch(FakeHarnessCase):
         by_actor = costs.aggregate(events)["by_actor"]
         self.assertEqual(set(by_actor), {"security-reviewer-201", "security-reviewer-201b"},
                          "both paid-for runs show in costs")
+
+
+class TestGateChildCannotForgeAPass(FakeHarnessCase):
+    """ESC-002, security review: COMPANY_GATE_SECRET was inherited by
+    everything a gate ran, including the implementer-authored tests QA
+    executes, so a conftest.py could write a valid pass. Now the gate's
+    process tree holds no secret at all, and nothing it writes can pass."""
+
+    CHILD = r"""
+import hashlib, hmac, json, os, subprocess, sys
+root, cli, out = sys.argv[1:] if len(sys.argv) > 3 else (ROOT, CLI, OUT)
+json.dump(dict(os.environ), open(out, "w"))
+# 1. the worker-facing CLI
+r = subprocess.run([sys.executable, cli, "--root", root, "event", "T-1", "QA_PASSED",
+                    "--evidence", "exit 0"], capture_output=True, text=True)
+open(out + ".rc", "w").write(str(r.returncode))
+# 2. raw appends: a self-signed launch and a pass placed against it, plus
+#    a pass with no actor at all
+log = os.path.join(root, "events", "events.jsonl")
+seq = sum(1 for _ in open(log)) + 1
+key = b"attacker"
+mac = lambda *f: hmac.new(key, json.dumps(list(f), separators=(",", ":"),
+                                          sort_keys=True).encode(), hashlib.sha256).hexdigest()
+actor = os.environ["COMPANY_ACTOR"]
+with open(log, "a") as fh:
+    fh.write(json.dumps({"ts": "t", "event": "WORKER_STARTED", "actor": actor, "project": "p",
+        "task": "T-1", "seq": seq, "data": {"role": "qa-engineer",
+        "launch_mac": mac("WORKER_STARTED", actor, "qa-engineer", seq, ["T-1"])}}) + "\n")
+    for who in (actor, ""):
+        fh.write(json.dumps({"ts": "t", "event": "QA_PASSED", "actor": who, "project": "p",
+            "task": "T-1", "seq": seq + 1, "evidence": {"log": "x"}, "data": {
+            "role": "qa-engineer", "ws_seq": seq, "verdict": "pass",
+            "verdict_mac": mac("VERDICT", "T-1", "QA_PASSED", who, "qa-engineer", seq,
+                               "pass")}}) + "\n")
+"""
+
+    def test_a_conftest_in_the_gate_cannot_pass_it(self):
+        import gatesig
+        import taskstate
+        from eventlog import make_event
+        for ev in (make_event(event="TASK_CREATED", actor="pm", project="p", task="T-1",
+                              data={"title": "t", "owner": "be-1", "gates": ["qa"]}),
+                   make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                              task="T-1", evidence={"commit": "abc1234"}),
+                   make_event(event="TEST_RUN", actor="be-1", project="p", task="T-1",
+                              data={"exit_code": 0}, evidence={"log": "t"})):
+            self.log.append(ev)
+        out = Path(self.tmp.name) / "child-env.json"
+        child = (self.CHILD.replace("ROOT", repr(str(self.root)))
+                 .replace("CLI", repr(str(CLI))).replace("OUT", repr(str(out))))
+        self._harness(child=child)  # and no structured verdict
+        worker.launch(self.repo, self.root, self._task(), "packet", "qa-engineer", "qa-1")
+
+        key = gatesig.load_key(self.root)
+        self.assertIsNotNone(key)
+        env = json.loads(out.read_text())
+        self.assertNotIn("COMPANY_GATE_SECRET", env)
+        self.assertFalse([k for k, v in env.items() if key.hex() in v])
+        self.assertEqual(Path(str(out) + ".rc").read_text(), "2")  # CLI refused the pass
+        # The gate's own sandbox can't read the key either.
+        deny = worker.sandbox_settings(self.root, self.wt, "qa-engineer")[
+            "sandbox"]["filesystem"]["denyRead"]
+        self.assertIn(str(gatesig.key_path(self.root).parent.resolve()), deny)
+
+        task = taskstate.fold(self.log.read())["T-1"]
+        reasons = taskstate.check_done(task, gate_roles={"qa": "qa-engineer"}, gate_key=key)
+        self.assertTrue(any("'qa'" in r for r in reasons), reasons)
+        self.assertEqual(len(self._events("GATE_NO_VERDICT", actor="qa-1")), 1)
+
+    def test_the_same_gate_passing_in_its_structured_output_counts(self):
+        """The control: the launcher-recorded pass does satisfy the gate."""
+        import gatesig
+        import taskstate
+        from eventlog import make_event
+        for ev in (make_event(event="TASK_CREATED", actor="pm", project="p", task="T-1",
+                              data={"title": "t", "owner": "be-1", "gates": ["qa"]}),
+                   make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                              task="T-1", evidence={"commit": "abc1234"}),
+                   make_event(event="TEST_RUN", actor="be-1", project="p", task="T-1",
+                              data={"exit_code": 0}, evidence={"log": "t"})):
+            self.log.append(ev)
+        self._harness(verdict="QA_PASSED")
+        worker.launch(self.repo, self.root, self._task(), "packet", "qa-engineer", "qa-1")
+        task = taskstate.fold(self.log.read())["T-1"]
+        self.assertEqual(taskstate.check_done(task, gate_roles={"qa": "qa-engineer"},
+                                              gate_key=gatesig.load_key(self.root)), [])
+        self.assertEqual(oct(gatesig.key_path(self.root).stat().st_mode & 0o777), "0o600")
 
 
 if __name__ == "__main__":
