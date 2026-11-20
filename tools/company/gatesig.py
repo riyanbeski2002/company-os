@@ -237,7 +237,9 @@ def structured_verdicts(output, task_ids: list[str]) -> dict[str, dict]:
 PM_EVENTS = frozenset({"TASK_SNAPSHOT", "TASK_CREATED", "TASK_ASSIGNED", "STATUS_CHANGED", "TASK_COMPLETED",
                        "MERGED", "BASELINE_RECORDED",
                        # a worker "resolving" an escalation would read as Riyan's answer
-                       "ESCALATION_RESOLVED"})
+                       "ESCALATION_RESOLVED",
+                       # a gate skipped by Riyan's decision (`company waive`)
+                       "GATE_WAIVED"})
 
 
 def pm_mac(key: bytes, ev: dict) -> str:

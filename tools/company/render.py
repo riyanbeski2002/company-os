@@ -15,7 +15,7 @@ import taskstate
 
 DONE_ISH = {"DONE", "MERGED"}
 
-MARK = {"done": "✓", "active": "●", "waiting": "○", "bad": "✗"}
+MARK = {"done": "✓", "active": "●", "waiting": "○", "bad": "✗", "waived": "⊘"}
 
 
 def progress(task: dict) -> float | None:
@@ -116,6 +116,8 @@ def gates_with_no_verdict(events: list[dict], tasks: list[dict] | None = None) -
             gate = next((pass_to_gate.get(e) or fail_to_gate.get(e) for e in expected
                          if e in pass_to_gate or e in fail_to_gate),
                         (ev.get("data") or {}).get("role"))
+        elif name == "GATE_WAIVED":
+            gate = (ev.get("data") or {}).get("gate")
         else:
             gate = pass_to_gate.get(name) or fail_to_gate.get(name)
             if not gate:
@@ -366,8 +368,12 @@ def status(project: str, tasks: list[dict], escalations: list[str],
         failed = task.get("gates_failed") or {}
         for gate in task.get("gates") or []:
             # Only a launcher-signed pass (ESC-002) shows as passed.
+            waiver = taskstate.gate_waiver(task, gate, gate_key)
             if taskstate.gate_verified(task, gate, gate_key):
                 detail.append(f"{MARK['done']} {gate} by {ev.get(f'{gate}_actor')}")
+            elif waiver:  # never shown as a pass: nobody judged it
+                detail.append(f"{MARK['waived']} {gate} waived by {waiver['approved_by']}: "
+                              f"{waiver['reason']}")
             elif gate in failed:
                 n = len(failed[gate].get("findings") or [])
                 detail.append(f"{MARK['bad']} {gate} FAILED by {failed[gate]['actor']}"
@@ -412,7 +418,7 @@ def _next_action(tasks: list[dict], escalations: list[dict] | None = None) -> st
         if not ev.get("tests"):
             return f"{task['id']} → green test run"
         for gate in task.get("gates") or []:
-            if not ev.get(gate):
+            if not ev.get(gate) and not ev.get(f"{gate}_waiver"):
                 return f"{task['id']} → {gate} ({GATE_EVENT[gate]} from an independent actor)"
         return f"{task['id']} → integration"
     return "nothing outstanding"

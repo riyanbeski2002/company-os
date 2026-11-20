@@ -66,6 +66,10 @@ EVENTS = {
     # snapshot of each task's state, written when the key is created
     # (gatesig.migrate). No existing event carries a task's whole state.
     "TASK_SNAPSHOT",
+    # A gate Riyan decided to skip for one task (`company waive`). Not a
+    # pass: no gate judged anything. Signed by the PM, bound to the branch
+    # SHA at waive time, never rendered as a pass.
+    "GATE_WAIVED",
     # ADR-006 goals (goals.py). No existing event records business intent
     # (`request` never reaches the log); a task's goal must be correctable
     # after TASK_CREATED; nothing records whether intent was *achieved*; and

@@ -263,6 +263,18 @@ def fold(events: list[dict], gate_key: bytes | None = None) -> dict[str, dict]:
                 "findings": data.get("findings") or data.get("reasons") or [],
             }
 
+        elif name == "GATE_WAIVED":
+            # A gate Riyan chose to skip for this task (`company waive`).
+            # Counts only PM-signed (the keyed fold drops any other) and only
+            # for the branch SHA read at waive time; a later implementation
+            # or FAILED voids it, like a pass. Never a pass itself.
+            gate = data.get("gate")
+            if gate in GATE_EVENT and data.get("commit"):
+                task["evidence"][f"{gate}_waiver"] = {
+                    "approved_by": data.get("approved_by"), "reason": data.get("reason"),
+                    "commit": data["commit"], "seq": ev.get("seq"),
+                    "signed": bool(ev.get("_pm_signed"))}
+
         elif name == "CONTRACT_PUBLISHED":
             task.setdefault("contracts", []).append(data.get("name", "unnamed"))
 
@@ -360,7 +372,7 @@ def _pass_signature(launches: dict, floors: dict, tid: str, gate: str,
 
 
 def _drop_pass(task: dict, gate: str) -> None:
-    for key in (gate, f"{gate}_actor", f"{gate}_sig"):
+    for key in (gate, f"{gate}_actor", f"{gate}_sig", f"{gate}_waiver"):
         task["evidence"].pop(key, None)
 
 
@@ -371,19 +383,36 @@ def gate_verified(task: dict, gate: str, gate_key: bytes | None) -> bool:
                           ev.get(f"{gate}_actor"), ev.get(f"{gate}_sig"))
 
 
+def gate_waiver(task: dict, gate: str, gate_key: bytes | None) -> dict | None:
+    """The PM-signed waiver standing for this gate (`company waive`), if any.
+    Only a keyed fold marks one signed; without the key none counts."""
+    w = (task.get("evidence") or {}).get(f"{gate}_waiver")
+    return w if gate_key and isinstance(w, dict) and w.get("signed") else None
+
+
+def gate_satisfied(task: dict, gate: str, gate_key: bytes | None) -> bool:
+    return gate_verified(task, gate, gate_key) or bool(gate_waiver(task, gate, gate_key))
+
+
 def reviewed_commits(task: dict, gate_key: bytes | None) -> set[str]:
-    """The SHAs this task's verified gate passes judged (launcher-read)."""
+    """The SHAs this task's satisfied gates are bound to: what a verified
+    pass judged (launcher-read), or what a waiver was given for."""
     ev = task.get("evidence") or {}
-    return {ev[f"{g}_sig"]["commit"] for g in task.get("gates") or []
-            if gate_verified(task, g, gate_key)}
+    shas = set()
+    for g in task.get("gates") or []:
+        if gate_verified(task, g, gate_key):
+            shas.add(ev[f"{g}_sig"]["commit"])
+        elif gate_waiver(task, g, gate_key):
+            shas.add(ev[f"{g}_waiver"]["commit"])
+    return shas
 
 
 def reviewed_commit(task: dict, gate_key: bytes | None) -> str | None:
-    """The one SHA every gate passed — what integrate merges — or None if
-    the gates aren't all passed on the same commit."""
+    """The one SHA every gate is satisfied at — passed or waived — which is
+    what integrate merges; None if any gate isn't, or they differ."""
     shas = reviewed_commits(task, gate_key)
     gates = task.get("gates") or []
-    if len(shas) != 1 or not all(gate_verified(task, g, gate_key) for g in gates):
+    if len(shas) != 1 or not all(gate_satisfied(task, g, gate_key) for g in gates):
         return None
     return next(iter(shas))
 
@@ -510,6 +539,8 @@ def check_done(task: dict, baseline: dict | None = None,
         if not event_name:
             reasons.append(f"unknown gate {gate!r} — not in the quality-gate table")
             continue
+        if not gate_verified(task, gate, gate_key) and gate_waiver(task, gate, gate_key):
+            continue  # waived by Riyan, at a SHA checked with the others below
         if not ev.get(gate):
             reasons.append(f"gate {gate!r} not satisfied: no {event_name} event "
                            f"signed by the launcher for a launch after the latest "
@@ -544,8 +575,8 @@ def check_done(task: dict, baseline: dict | None = None,
     shas = reviewed_commits(task, gate_key)
     if len(shas) > 1:
         reasons.append(
-            f"gate passes are on different commits ({', '.join(sorted(shas))}): each gate "
-            f"must judge the same branch SHA, which is what integrate merges. "
-            f"Relaunch the gates on the current commit."
+            f"gate passes/waivers are on different commits ({', '.join(sorted(shas))}): "
+            f"each gate must be passed or waived at the same branch SHA, which is what "
+            f"integrate merges. Relaunch the gates, or waive again, on the current commit."
         )
     return reasons

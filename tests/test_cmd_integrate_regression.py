@@ -175,6 +175,110 @@ class TestIntegrateMergesTheReviewedCommit(unittest.TestCase):
         self.assertFalse(self._merged())
 
 
+class TestGateWaiver(unittest.TestCase):
+    """`company waive`: Riyan skips one gate on one task. A PM-signed
+    GATE_WAIVED bound to the branch SHA at waive time; it satisfies the gate
+    only at the same SHA as the task's other satisfied gates, integrate
+    merges exactly that SHA, and it is never shown as a pass."""
+
+    setUp = TestIntegrateMergesTheReviewedCommit.setUp
+    tearDown = TestIntegrateMergesTheReviewedCommit.tearDown
+    _commit = TestIntegrateMergesTheReviewedCommit._commit
+    _gate = TestIntegrateMergesTheReviewedCommit._gate
+    _integrate = TestIntegrateMergesTheReviewedCommit._integrate
+    _merged = TestIntegrateMergesTheReviewedCommit._merged
+
+    def _waive(self, gate, reason="UI-only change; Riyan's call"):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as ctx:
+            cli.cmd_waive(Args(root=str(self.root), task="T-1", gate=gate, reason=reason,
+                               approved_by="riyan", list=False, project=None))
+        self.assertEqual(ctx.exception.code, 0, out.getvalue())
+        return json.loads(out.getvalue())
+
+    def _reasons(self):
+        import taskstate
+        return taskstate.check_done(taskstate.load(self.root)["T-1"], gate_key=self.key)
+
+    def test_a_waiver_satisfies_done_and_merge_at_the_same_sha(self):
+        import render
+        import taskstate
+        self._gate("code-reviewer-1", "code-reviewer")
+        w = self._waive("qa")
+        self.assertEqual(w["commit"], self.reviewed)
+        self.assertEqual(self._reasons(), [])
+        task = taskstate.load(self.root)["T-1"]
+        self.assertEqual(taskstate.reviewed_commit(task, self.key), self.reviewed)
+        text = render.status("p", [task], [], gate_key=self.key)
+        self.assertIn("⊘ qa waived by riyan: UI-only change; Riyan's call", text)
+        self.assertNotIn("✓ qa", text)
+        self.assertNotIn("qa", task["evidence"])  # not recorded as a pass
+        result = self._integrate()
+        self.assertTrue(result["merged"], result)
+        self.assertEqual(result["commit_reviewed"], self.reviewed)
+
+    def test_every_gate_waived_merges_that_sha(self):
+        self._waive("review")
+        self._waive("qa")
+        self.assertEqual(self._reasons(), [])
+        self.assertTrue(self._integrate()["merged"])
+
+    def test_a_moved_tip_is_refused(self):
+        self._gate("code-reviewer-1", "code-reviewer")
+        self._waive("qa")
+        self._commit("api/app.py", "after the waiver\n")
+        result = self._integrate()
+        self.assertFalse(result["merged"], result)
+        self.assertEqual(result["reason"], "branch moved after review")
+
+    def test_a_waiver_at_another_sha_is_refused(self):
+        self._gate("code-reviewer-1", "code-reviewer")
+        self._commit("api/app.py", "changed\n")
+        self._waive("qa")  # at the new tip; review judged the old one
+        self.assertTrue(any("different commits" in r for r in self._reasons()))
+        self.assertFalse(self._integrate()["merged"])
+        self.assertFalse(self._merged())
+
+    def test_a_later_implementation_voids_the_waiver(self):
+        self._gate("code-reviewer-1", "code-reviewer")
+        self._waive("qa")
+        self.log.append(make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
+                                   task="T-1", evidence={"commit": self.reviewed}))
+        self.assertTrue(any("'qa'" in r for r in self._reasons()))
+
+    def test_an_unsigned_gate_waived_is_ignored(self):
+        self._gate("code-reviewer-1", "code-reviewer")
+        with open(self.log.path, "a") as fh:
+            fh.write(json.dumps({"ts": "t", "event": "GATE_WAIVED", "actor": "be-1",
+                                 "project": "p", "task": "T-1",
+                                 "seq": len(self.log.read()) + 1,
+                                 "data": {"gate": "qa", "reason": "trust me",
+                                          "approved_by": "riyan",
+                                          "commit": self.reviewed}}) + "\n")
+        self.assertTrue(any("'qa'" in r for r in self._reasons()))
+        self.assertFalse(self._integrate()["merged"])
+
+    def test_a_worker_cannot_waive(self):
+        env = {k: v for k, v in __import__("os").environ.items()
+               if not k.startswith("COMPANY_")}
+        env.update(COMPANY_PROJECT="p", COMPANY_ACTOR="be-1")
+        r = subprocess.run([sys.executable, str(HERE.parent / "tools" / "company" / "cli.py"),
+                            "--root", str(self.root), "waive", "T-1", "--gate", "qa",
+                            "--reason", "self-approved"], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertFalse([e for e in self.log.read() if e["event"] == "GATE_WAIVED"])
+
+    def test_list_shows_the_projects_waivers(self):
+        self._waive("qa")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            cli.cmd_waive(Args(root=str(self.root), task=None, gate=None, reason=None,
+                               approved_by="riyan", list=True, project="p"))
+        [w] = json.loads(out.getvalue())["waivers"]
+        self.assertEqual((w["task"], w["gate"], w["approved_by"], w["commit"]),
+                         ("T-1", "qa", "riyan", self.reviewed))
+
+
 class TestWorkersCannotRewriteTheirTask(unittest.TestCase):
     """ESC-002 (c), final review (sr/ungate.py): an implementer re-declared
     its own task with `company event TASK-1 TASK_CREATED --data

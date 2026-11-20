@@ -2062,6 +2062,47 @@ def cmd_escalate(args):
           "file": str(root / "escalations" / f"{esc['id']}.md")})
 
 
+def cmd_waive(args):
+    """Riyan's decision to skip one gate on one task: a PM-signed
+    GATE_WAIVED bound to the task branch's current SHA. check_done counts
+    it only at the same SHA as the task's other satisfied gates; integrate
+    then merges exactly that SHA. It is not a pass and never shown as one."""
+    import worker as worker_mod
+    _refuse_inside_worker("", "waive",
+                          "waiving a gate is Riyan's decision, never the work's own")
+    root = company_root(args)
+    key = gatesig.load_key(root)
+    tasks = taskstate.load(root)
+    if args.list:
+        project = args.project or os.environ.get("COMPANY_PROJECT") or _sole_project(root)
+        waivers = [{"task": t["id"], "gate": g, **{k: w[k] for k in
+                    ("approved_by", "reason", "commit", "seq")}}
+                   for t in tasks.values() if not project or t.get("project") == project
+                   for g in t.get("gates") or []
+                   if (w := taskstate.gate_waiver(t, g, key))]
+        emit({"ok": True, "project": project, "count": len(waivers), "waivers": waivers})
+    if not (args.task and args.gate and args.reason and args.reason.strip()):
+        die("usage: company waive <task> --gate <review|qa|security> --reason \"...\"", 1)
+    task = tasks.get(args.task) or die(f"no such task {args.task!r} in the event log")
+    if args.gate not in (task.get("gates") or []):
+        die(f"{args.task} has no {args.gate!r} gate to waive (gates: {task.get('gates')})", 1)
+    try:
+        sha = worker_mod.branch_sha(root.parent, task.get("branch"))
+    except worker_mod.WorkerError as exc:
+        die(str(exc), 1)
+    sign = gatesig.pm_signer(root)
+    if not sign:
+        die("cannot sign a waiver here (no signing key): an unsigned waiver never counts", 2)
+    ev = EventLog(root).append(make_event(
+        event="GATE_WAIVED", actor=args.actor or "company-pm", project=task["project"],
+        task=args.task, data={"gate": args.gate, "reason": args.reason.strip(),
+                              "approved_by": args.approved_by, "commit": sha},
+        evidence={"commit": sha}), finalize=sign)
+    taskstate.rebuild(root)
+    emit({"ok": True, "task": args.task, "gate": args.gate, "commit": sha,
+          "approved_by": args.approved_by, "seq": ev["seq"]})
+
+
 def cmd_resolve(args):
     import escalations
     _refuse_inside_worker("", "resolve",
@@ -2861,6 +2902,16 @@ def build_parser():
                          "(finos-52, cost audit 2026-09-14)")
     es.add_argument("--json", action="store_true", help="accepted; --list is always JSON")
     es.set_defaults(fn=cmd_escalate)
+
+    wv = sub.add_parser("waive", help="CEO: skip one gate on one task, at its current SHA")
+    wv.add_argument("task", nargs="?")
+    wv.add_argument("--gate", choices=["review", "qa", "security"])
+    wv.add_argument("--reason")
+    wv.add_argument("--approved-by", default="riyan")
+    wv.add_argument("--list", action="store_true", help="the waivers standing in a project")
+    wv.add_argument("--project")
+    wv.add_argument("--actor")
+    wv.set_defaults(fn=cmd_waive)
 
     rs = sub.add_parser("resolve", help="CEO: answer an escalation")
     rs.add_argument("id")
