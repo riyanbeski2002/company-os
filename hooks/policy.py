@@ -184,11 +184,11 @@ RULES: list[tuple[re.Pattern[str], str]] = [
     # wasn't (verification batch-2, T-160): same irreversible remote deletion.
     (re.compile(r"\bgit\s+push\b.*\s(?:--delete\b|-d\b)"),
      "remote branch or tag deletion via push --delete"),
-    (re.compile(r"\bgit\s+push\b.*\s(?:--mirror|--prune)\b"),
+    (re.compile(r"\bgit\s+push\b[^;&|]*\s(?:--mirror|--prune)\b"),
      "push --mirror/--prune can delete remote branches"),
     # pen_test authorization is enforced in code against this file; an agent
     # must not be able to rewrite the list it is checked against.
-    (re.compile(r"(?:>|\btee\b|\bsed\s+-i|\bcp\b|\bmv\b|\bln\b|\brm\b)[^|;&]*authorized-targets\.yaml"),
+    (re.compile(r"(?:>|\btee\b|\bsed\s+-i|(?:^|[;&|]\s*)(?:cp|mv|ln|rm)\s)[^|;&]*authorized-targets\.yaml"),
      "writing config/authorized-targets.yaml (pen_test authorization list) needs Riyan"),
     (re.compile(r"\bPEN_TEST_(?:AUTHORIZED_TARGETS|UNDER_UNITTEST)\s*="),
      "overriding the pen_test authorization list"),

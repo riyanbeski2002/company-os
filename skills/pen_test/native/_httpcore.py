@@ -116,7 +116,6 @@ class Client:
             s.verify = self.verify_tls
             s.headers.update(self._cfg_headers)
             s.cookies.update(self._cfg_cookies)
-            s.hooks["response"].append(_authorize_redirect)
             self._local.session = s
         return s
 
@@ -158,6 +157,9 @@ class Client:
                     params=params, data=data, json=json,
                     headers=headers, cookies=cookies, files=files,
                     timeout=self.timeout, allow_redirects=allow_redirects,
+                    # per-request, so it travels with every followed hop but a
+                    # redirect that is only READ (redirect_probe) isn't refused
+                    hooks={"response": _authorize_redirect} if allow_redirects else None,
                 )
             except requests.exceptions.Timeout:
                 return Result(ok=False, elapsed=time.monotonic() - t0,

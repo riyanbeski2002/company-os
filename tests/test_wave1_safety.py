@@ -95,6 +95,22 @@ class PenTestAuthorization(unittest.TestCase):
         os.environ.pop("PEN_TEST_UNDER_UNITTEST")
         self.assertNotEqual(core._targets_file(), self.file)
 
+    def _redirector(self):
+        import http.server, threading
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(302); self.send_header("Location", "http://evil.test/x")
+                self.end_headers()
+            def log_message(self, *a): pass
+        srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (srv.shutdown(), srv.server_close()))
+        return f"http://127.0.0.1:{srv.server_port}/"
+
+    def test_an_unfollowed_redirect_is_returned_not_refused(self):
+        r = core.Client().request("GET", self._redirector(), allow_redirects=False)
+        self.assertEqual(r.status, 302)
+
     def test_redirect_to_an_unlisted_host_is_refused(self):
         import http.server, threading
         class H(http.server.BaseHTTPRequestHandler):
@@ -142,7 +158,9 @@ class PushDeleteIsBlocked(unittest.TestCase):
                     "PEN_TEST_AUTHORIZED_TARGETS=/tmp/x.yaml python3 sqli_probe.py",
                     "export PEN_TEST_UNDER_UNITTEST=1"):
             self.assertIsNotNone(policy.check_command(cmd), cmd)
-        self.assertIsNone(policy.check_command("cat config/authorized-targets.yaml"))
+        for cmd in ("cat config/authorized-targets.yaml", "grep -ln x config/authorized-targets.yaml",
+                    "git push origin x && git fetch --prune"):
+            self.assertIsNone(policy.check_command(cmd), cmd)
 
 
 class EscalationsNameWhatTheyBlock(unittest.TestCase):
