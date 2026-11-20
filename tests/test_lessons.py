@@ -300,7 +300,8 @@ class TestCLI(unittest.TestCase):
                   "--evidence", "e", "--fix", "use idle notices", "--project", "p")
         EventLog(self.repo / ".company").append(make_event(
             event="TASK_CREATED", actor="company-pm", project="p", task="T-1",
-            data={"title": "fix deploy exit code handling", "owner": "backend-engineer"}))
+            data={"title": "fix deploy exit code handling", "owner": "backend-engineer"}),
+            finalize=__import__("gatesig").pm_signer(self.repo / ".company"))  # as staff does
         res = self._run("run", "T-1", "--role", "backend-engineer", "--dry-run",
                         "--verify", "true")
         self.assertEqual(res.returncode, 0, res.stderr)

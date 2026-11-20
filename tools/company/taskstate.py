@@ -170,6 +170,19 @@ def fold(events: list[dict], gate_key: bytes | None = None) -> dict[str, dict]:
                 task["gates"] = list(dict.fromkeys(
                     [*(task.get("gates") or []), *(data.get("gates") or [])]))
 
+        elif name == "TASK_SNAPSHOT":
+            # A task's whole state as of the switch to signing (gatesig.migrate).
+            for field in FIELDS_FROM_DATA:
+                if field in data:
+                    task[field] = data[field]
+            if data.get("status"):
+                task["status"] = data["status"]
+            if data.get("merged"):
+                task["evidence"]["merged"] = data["merged"]
+            created.add(tid)
+            if ev.get("_pm_signed"):
+                task["created_signed"] = True
+
         elif name == "TASK_ASSIGNED":
             task["owner"] = data.get("owner", task.get("owner"))
             for field in ("branch", "worktree", "tier"):

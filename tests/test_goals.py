@@ -65,12 +65,17 @@ class GoalCase(unittest.TestCase):
         return m, o, kr
 
     def task(self, tid, owner="be-1", **data):
+        import gatesig  # as `company staff` writes it: PM-signed
         self.log.append(make_event(event="TASK_CREATED", actor="company-pm", project="p",
-                                   task=tid, data={"title": tid, "owner": owner, **data}))
+                                   task=tid, data={"title": tid, "owner": owner, **data}),
+                        finalize=gatesig.pm_signer(self.log.root))
 
     def task_event(self, tid, name, evidence=None, **data):
+        import gatesig  # status/merge events count only PM-signed (as integrate writes them)
         self.log.append(make_event(event=name, actor="integration", project="p", task=tid,
-                                   data=data or None, evidence=evidence))
+                                   data=data or None, evidence=evidence),
+                        finalize=gatesig.pm_signer(self.log.root)
+                        if name in gatesig.PM_EVENTS else None)
 
     def link(self, gid, tasks, reason=None, actor="company-pm"):
         data = {"goal": gid, "tasks": tasks}

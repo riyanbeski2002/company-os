@@ -125,7 +125,7 @@ def append(company_root: Path, *, event: str, actor: str, data: dict,
     ev = make_event(event=event, actor=actor, project=ORG_PROJECT, data=data,
                     evidence=evidence)
     validate(ev)
-    check_against_history(ev, events, taskstate.fold(events))
+    check_against_history(ev, events, taskstate.load(company_root, events))
     return log.append(ev)
 
 

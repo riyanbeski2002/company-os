@@ -192,7 +192,7 @@ class TestStatusContract(ContractCase):
         EventLog(self.root).append(make_event(
             event="TASK_CREATED", actor="company-pm", project="r", task="T-4",
             data={"title": "task T-4", "acceptance_criteria": ["a", "b"],
-                  "criteria_met": ["a"]}))
+                  "criteria_met": ["a"]}), finalize=__import__("gatesig").pm_signer(self.root))
         out = self.run_json("status", "--json", "--project", "r")
         self.assertEqual(out["progress"], "50%")  # unchanged, still a string
         self.assertEqual(out["progress_pct"], 50)

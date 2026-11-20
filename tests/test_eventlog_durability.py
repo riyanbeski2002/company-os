@@ -230,7 +230,10 @@ class TestBackup(DurabilityCase):
         out = self._backup()
         copy = Path(out["backup"])
         self.assertEqual(copy.read_bytes(), self.log.path.read_bytes())
-        self.assertEqual(out["events"], 10)
+        # 10 heartbeats + the signed TASK_SNAPSHOT the PM's first command
+        # appends when it creates the signing key (gatesig.migrate).
+        self.assertEqual(out["events"], 11)
+        self.assertEqual(EventLog(self.root).read()[-1]["event"], "TASK_SNAPSHOT")
         self.assertTrue(out["intact"] and out["written"])
         # Named from the CLI's own resolution; this process has the real HOME.
         self.assertEqual(copy.parent.name, backup.default_dir(self.root).name)

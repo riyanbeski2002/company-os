@@ -97,7 +97,8 @@ class TestIntegrateMergesTheReviewedCommit(unittest.TestCase):
         self.reviewed = self._commit("api/app.py", "reviewed\n")
         self.log.append(make_event(event="TASK_CREATED", actor="pm", project="p", task="T-1",
                                    data={"title": "x", "owner": "be-1", "branch": "task/1-x",
-                                         "owned_globs": ["api/**"], "gates": ["review", "qa"]}))
+                                         "owned_globs": ["api/**"], "gates": ["review", "qa"]}),
+                        finalize=gatesig.pm_signer(self.root))
         self.log.append(make_event(event="IMPLEMENTATION_READY", actor="be-1", project="p",
                                    task="T-1", evidence={"commit": self.reviewed}))
         self.log.append(make_event(event="TEST_RUN", actor="be-1", project="p", task="T-1",
@@ -311,9 +312,12 @@ class TestWorkersCannotRewriteTheirTask(unittest.TestCase):
         self._raw("IMPLEMENTATION_READY")
         task = self._task()  # the definition was dropped: no title, globs or signature
         self.assertFalse({"title", "owned_globs", "created_signed"} & set(task))
-        # And where it IS visible (no key: an old log), it still can't merge.
+        # Even with the key gone, nothing re-signs this log (migrate refuses
+        # a signed log) and the unkeyed view still can't merge it.
         import gatesig
         gatesig.key_path(self.root).unlink()
+        with self.assertRaises(ValueError):
+            gatesig.load_key(self.root, create=True)
         for force in (False, True):
             result = self._integrate(force=force)
             self.assertFalse(result["merged"], result)

@@ -38,7 +38,11 @@ def key_path(company_root: Path) -> Path:
 def load_key(company_root: Path, create: bool = False) -> bytes | None:
     """The signing key, or None if it doesn't exist or can't be read (a
     sandboxed worker: nothing it folds will ever verify, which is the point).
-    `create` makes it, 0600, on first use — only the launcher does that."""
+
+    Its existence IS the signing mode: once it exists, only signed PM_EVENTS
+    count (trusted_events). `create` makes it on first use — only the PM's
+    own process (the launcher, or any `company` command outside a worker) —
+    after carrying the log over (migrate). Raises OSError if it can't."""
     path = key_path(company_root)
     try:
         return bytes.fromhex(path.read_text(encoding="ascii").strip())
@@ -47,14 +51,85 @@ def load_key(company_root: Path, create: bool = False) -> bytes | None:
             return None
     except (OSError, ValueError):
         return None
+    return _create(company_root)
+
+
+def _create(company_root: Path) -> bytes:
+    from eventlog import EventLog
+    path = key_path(company_root)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    except FileExistsError:
-        return load_key(company_root)  # a concurrent launcher won the race
-    with os.fdopen(fd, "w", encoding="ascii") as fh:
-        fh.write(secrets.token_hex(32))
+    log = EventLog(company_root)
+    with log._locked():  # one creator; no event lands between snapshot and key
+        if path.exists():
+            return load_key(company_root)
+        key = secrets.token_bytes(32)
+        migrate(log, key)
+        tmp = path.with_name(f".{path.name}.{os.getpid()}")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="ascii") as fh:
+            fh.write(key.hex())
+            fh.flush()
+            os.fsync(fh.fileno())
+        try:
+            os.link(tmp, path)  # never replaces a key
+        finally:
+            os.unlink(tmp)
     return load_key(company_root)
+
+
+def migrate(log, key: bytes) -> int:
+    """Carry an unsigned log over to signing, under the caller's lock: fold
+    it the old, unkeyed way and append, PM-signed, a TASK_SNAPSHOT of every
+    task (definition, status, merged), the latest baseline per project, and
+    a resolution for every already-resolved escalation. After this the keyed
+    fold reads only signed PM events and these snapshots. Run only while
+    creating the key, so once; a crash before the key is in place leaves
+    snapshots signed with a key nobody has, and the refusal below.
+    Returns how many events it appended.
+
+    Refuses (ValueError) a log that already carries signatures: the key it
+    was signed with is gone, and carrying that log over unkeyed would bless
+    whatever a worker appended since. Restore .company/secrets/gate.key."""
+    import escalations
+    import taskstate
+    from eventlog import make_event
+    events = log.read()
+    if any((ev.get("data") or {}).get(k) for ev in events for k in ("pm_mac", "launch_mac")):
+        raise ValueError(
+            f"{log.path} is already signed but {key_path(log.root)} is missing — "
+            f"refusing to re-sign it unverified. Restore the key from backup.")
+    out = []
+    for tid, t in sorted(taskstate.fold(events).items()):
+        data = {f: t[f] for f in taskstate.FIELDS_FROM_DATA if f in t}
+        data["status"] = t.get("status")
+        if (t.get("evidence") or {}).get("merged"):
+            data["merged"] = t["evidence"]["merged"]
+        out.append(make_event(event="TASK_SNAPSHOT", actor="company-pm",
+                              project=t.get("project") or "unknown", task=tid, data=data))
+    baselines = {}
+    for ev in events:
+        if ev.get("event") == "BASELINE_RECORDED":
+            baselines[ev.get("project")] = ev
+    for ev in baselines.values():
+        data = {k: v for k, v in (ev.get("data") or {}).items() if k != "pm_mac"}
+        out.append(make_event(event="BASELINE_RECORDED", actor="company-pm",
+                              project=ev.get("project") or "unknown",
+                              data={**data, "snapshot_of_seq": ev.get("seq")},
+                              evidence=ev.get("evidence") or {"log": "migrated"}))
+    still_open = escalations.fold(events)
+    resolved = {}
+    for ev in events:
+        esc = (ev.get("data") or {}).get("id")
+        if ev.get("event") == "ESCALATION_RESOLVED" and esc and esc not in still_open:
+            resolved[esc] = ev
+    for esc, ev in resolved.items():
+        out.append(make_event(event="ESCALATION_RESOLVED", actor="company-pm",
+                              project=ev.get("project") or "unknown", task=ev.get("task"),
+                              data={"id": esc, "resolution": (ev.get("data") or {}).get(
+                                  "resolution"), "snapshot_of_seq": ev.get("seq")}))
+    for ev in out:
+        log.append_held(ev, sign_pm(key))
+    return len(out)
 
 
 def _mac(key: bytes, *fields) -> str:
@@ -141,7 +216,7 @@ def structured_verdicts(output, task_ids: list[str]) -> dict[str, dict]:
 # a red test run is judged against (BASELINE_RECORDED). The events log is
 # writable from a worker's sandbox, so these count only when the PM's own
 # process signed them (it can read the key; a worker cannot).
-PM_EVENTS = frozenset({"TASK_CREATED", "TASK_ASSIGNED", "STATUS_CHANGED", "TASK_COMPLETED",
+PM_EVENTS = frozenset({"TASK_SNAPSHOT", "TASK_CREATED", "TASK_ASSIGNED", "STATUS_CHANGED", "TASK_COMPLETED",
                        "MERGED", "BASELINE_RECORDED",
                        # a worker "resolving" an escalation would read as Riyan's answer
                        "ESCALATION_RESOLVED"})
@@ -177,38 +252,20 @@ def _pm_signed(key: bytes, ev: dict) -> bool:
         hmac.compare_digest(pm_mac(key, ev), mac)
 
 
-def _launch_signed(key: bytes, ev: dict) -> bool:
-    data = ev.get("data") or {}
-    try:
-        tasks = [ev["task"]] if ev.get("task") else list(data.get("tasks") or [])
-        return hmac.compare_digest(
-            started_mac(key, ev["actor"], data["role"], ev["seq"], tasks, data["commits"]),
-            str(data["launch_mac"]))
-    except (KeyError, TypeError):
-        return False
-
-
 def trusted_events(events: list[dict], key: bytes | None) -> list[dict]:
-    """The log with every PM_EVENTS event the PM did not sign removed, from
-    the first event signed with `key` on (earlier ones are history from
-    before signing existed and stay). A signed one is kept once, in seq
-    order — a replayed copy (seq at or below one already kept) is dropped —
-    and marked `_pm_signed` for the fold. Without a key (a worker's own
-    process, which can't read it) nothing is verifiable, so the list is
-    returned unchanged: nothing that decides DONE or a merge runs there."""
+    """The log with every PM_EVENTS event the PM did not sign removed. A
+    signed one is kept once, in seq order — a replayed copy (seq at or below
+    one already kept) is dropped — and marked `_pm_signed` for the fold. No
+    legacy window: whatever came before the key was carried over, signed,
+    by migrate(). Without a key (none yet, or a worker's own process, which
+    can't read it) the list is returned unchanged."""
     if not key:
         return events
-    out, signing, high = [], False, 0
+    out, high = [], 0
     for ev in events:
-        name = ev.get("event")
-        if name == "WORKER_STARTED" and not signing and (ev.get("data") or {}).get("launch_mac"):
-            signing = _launch_signed(key, ev)
-        if name not in PM_EVENTS:
+        if ev.get("event") not in PM_EVENTS:
             out.append(ev)
-        elif _pm_signed(key, ev):
-            if ev["seq"] > high:
-                high, signing = ev["seq"], True
-                out.append({**ev, "_pm_signed": True})
-        elif not signing:
-            out.append(ev)
+        elif _pm_signed(key, ev) and ev["seq"] > high:
+            high = ev["seq"]
+            out.append({**ev, "_pm_signed": True})
     return out

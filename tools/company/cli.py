@@ -72,11 +72,33 @@ def _no_commits(root: Path) -> bool:
 
 def company_root(args) -> Path:
     if getattr(args, "root", None):
-        return Path(args.root).resolve()
-    env = os.environ.get("COMPANY_ROOT")
-    if env:
-        return Path(env).resolve()
-    return find_repo_root() / ".company"
+        root = Path(args.root).resolve()
+    elif os.environ.get("COMPANY_ROOT"):
+        root = Path(os.environ["COMPANY_ROOT"]).resolve()
+    else:
+        root = find_repo_root() / ".company"
+    _ensure_signing(root)
+    return root
+
+
+def _ensure_signing(root: Path) -> None:
+    """ESC-002: the first `company` command the PM runs on a project (any
+    command, outside a launched worker) creates the signing key, which
+    carries the existing log over as signed snapshots (gatesig.migrate).
+    From then on only PM-signed task state counts. A worker never gets
+    here with a key: $COMPANY_ACTOR is set, and its sandbox can't read or
+    create .company/secrets anyway."""
+    if os.environ.get("COMPANY_ACTOR") or not (root / "events").is_dir() \
+            or gatesig.key_path(root).exists():
+        return
+    try:
+        gatesig.load_key(root, create=True)
+    except (OSError, ValueError):
+        # Can't create it here, or the log is corrupt/torn (doctor and
+        # backup must still run to report that): nothing is signed yet,
+        # and the next command tries again.
+        return
+    taskstate.rebuild(root)  # the views now reflect the signed snapshots
 
 
 def die(msg: str, code: int = 1):
@@ -181,6 +203,8 @@ def _ensure_line(path: Path, line: str):
 
 
 LAUNCHER_ONLY_EVENTS = {"WORKER_STARTED", "WORKER_EXITED", "WORKER_HEARTBEAT",
+                        # gatesig.migrate's carry-over of the pre-signing log
+                        "TASK_SNAPSHOT",
                         # Supplies a WORKER_EXITED's tokens to costs.py, so a
                         # forged one is a forged WORKER_EXITED by another name.
                         "TOKENS_BACKFILLED",
@@ -385,6 +409,11 @@ def cmd_task_advance(args):
         gate_roles = {g: spec["actor_role"]
                      for g, spec in staffing.load_config(root, "quality-gates.yaml")["gates"].items()}
         reasons = taskstate.check_done(task, base, gate_roles, _gate_key(root))
+        if not task.get("created_signed"):
+            # Same rule as integrate: the gates check_done just enforced are
+            # only as good as the task definition they came from (ESC-002 c).
+            reasons.append("task definition not signed by the PM: its TASK_CREATED "
+                           "(or migration snapshot) carries no valid PM signature")
         if reasons:
             EventLog(root).append(make_event(
                 event="TASK_BLOCKED", actor=args.actor or "company-cli",
@@ -2011,7 +2040,7 @@ def cmd_escalate(args):
             project_wide=args.project_wide)
     except ValueError as exc:
         die(str(exc), 1)
-    escalations.write_views(root, EventLog(root).read())
+    escalations.write_views(root, gatesig.trusted_events(EventLog(root).read(), gatesig.load_key(root)))
     taskstate.rebuild(root)
     emit({"ok": True, **esc,
           "file": str(root / "escalations" / f"{esc['id']}.md")})
@@ -2028,7 +2057,7 @@ def cmd_resolve(args):
                                   project=project, resolution=args.resolution)
     except KeyError as exc:
         die(str(exc), 1)
-    escalations.write_views(root, EventLog(root).read())
+    escalations.write_views(root, gatesig.trusted_events(EventLog(root).read(), gatesig.load_key(root)))
     taskstate.rebuild(root)
     emit({"ok": True, **out})
 

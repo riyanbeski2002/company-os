@@ -61,6 +61,11 @@ EVENTS = {
     # be deleted from an append-only log, so a correction event names the seqs
     # to disregard; lessons.fold() then skips them (quarantine.py).
     "LESSONS_QUARANTINED",
+    # ESC-002: once the PM's key exists only PM-signed task-state events
+    # count, so a log from before then is carried over as one signed
+    # snapshot of each task's state, written when the key is created
+    # (gatesig.migrate). No existing event carries a task's whole state.
+    "TASK_SNAPSHOT",
     # ADR-006 goals (goals.py). No existing event records business intent
     # (`request` never reaches the log); a task's goal must be correctable
     # after TASK_CREATED; nothing records whether intent was *achieved*; and
@@ -458,42 +463,41 @@ class EventLog:
         seq this way (gatesig.sign_started).
         """
         validate(event)
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.lockpath.touch(exist_ok=True)
+        with self._locked():
+            return self.append_held(event, finalize)
 
-        with open(self.lockpath, "r+") as lock:
-            _flock_with_timeout(lock)
-            try:
-                if self._torn_tail():
-                    # Refuse rather than guess: only the operator can know
-                    # what the partial line was meant to say, and writing
-                    # now would turn one bad line into two fused ones.
-                    raise TornTailError(
-                        f"{self.path} ends mid-line — a previous write was "
-                        f"interrupted, so this event would be fused onto that "
-                        f"partial line. Nothing was written. Run `company doctor` "
-                        f"to diagnose, inspect the tail of the file by hand, and "
-                        f"repair it or restore from `company backup` before "
-                        f"continuing.")
-                if event.get("task") and event.get("event") in GATE_FAIL_EVENT:
-                    task_history = [e for e in self.read() if e.get("task") == event["task"]]
-                    _rejects_stale_gate_verdict(event, task_history)
-                if event.get("event") == "ROUTINE_FIRED":
-                    _rejects_duplicate_fire(event, self.read())
-                event = dict(event)
-                event["seq"] = self._next_seq()
-                if finalize:
-                    event["data"] = dict(event.get("data") or {})
-                    finalize(event)
-                line = compact(event)
-                if "\n" in line:
-                    raise ValueError("event serialized to more than one line")
-                with open(self.path, "a", encoding="utf-8") as fh:
-                    fh.write(line + "\n")
-                    fh.flush()
-                    os.fsync(fh.fileno())
-            finally:
-                fcntl.flock(lock, fcntl.LOCK_UN)
+    def append_held(self, event: dict, finalize=None) -> dict:
+        """append() for a caller already inside `_locked()` (several events
+        under one lock: gatesig's signing migration)."""
+        validate(event)
+        if self._torn_tail():
+            # Refuse rather than guess: only the operator can know
+            # what the partial line was meant to say, and writing
+            # now would turn one bad line into two fused ones.
+            raise TornTailError(
+                f"{self.path} ends mid-line — a previous write was "
+                f"interrupted, so this event would be fused onto that "
+                f"partial line. Nothing was written. Run `company doctor` "
+                f"to diagnose, inspect the tail of the file by hand, and "
+                f"repair it or restore from `company backup` before "
+                f"continuing.")
+        if event.get("task") and event.get("event") in GATE_FAIL_EVENT:
+            task_history = [e for e in self.read() if e.get("task") == event["task"]]
+            _rejects_stale_gate_verdict(event, task_history)
+        if event.get("event") == "ROUTINE_FIRED":
+            _rejects_duplicate_fire(event, self.read())
+        event = dict(event)
+        event["seq"] = self._next_seq()
+        if finalize:
+            event["data"] = dict(event.get("data") or {})
+            finalize(event)
+        line = compact(event)
+        if "\n" in line:
+            raise ValueError("event serialized to more than one line")
+        with open(self.path, "a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
         return event
 
     def _next_seq(self) -> int:
